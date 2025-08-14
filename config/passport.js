@@ -5,6 +5,7 @@ module.exports = function (passport) {
     console.error('Google OAuth env vars missing.');
   }
 
+  const User = require('../models/users');
   passport.use(new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
@@ -12,21 +13,36 @@ module.exports = function (passport) {
       callbackURL: '/auth/google/callback',
       scope: ['profile', 'email']
     },
-    (accessToken, refreshToken, profile, done) => {
-      const user = {
-        id: profile.id,
-        googleId: profile.id,
-        email: profile.emails?.[0]?.value,
-        name: profile.displayName,
-        firstName: profile.name?.givenName,
-        lastName: profile.name?.familyName,
-        image: profile.photos?.[0]?.value,
-        loginAt: new Date().toISOString()
-      };
-      return done(null, user);
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+        const email = profile.emails?.[0]?.value;
+        let user = await User.findOne({ email });
+        if (!user) {
+          user = await User.create({
+            email,
+            googleId: profile.id,
+            displayName: profile.displayName,
+            provider: 'google',
+            avatar: profile.photos?.[0]?.value
+          });
+        } else if (!user.googleId) {
+          user.googleId = profile.id;
+          await user.save();
+        }
+        return done(null, user);
+      } catch (err) {
+        return done(err);
+      }
     }
   ));
 
-  passport.serializeUser((user, done) => done(null, user));
-  passport.deserializeUser((obj, done) => done(null, obj));
+  passport.serializeUser((user, done) => done(null, user._id));
+  passport.deserializeUser(async (id, done) => {
+    try {
+      const user = await User.findById(id).lean();
+      done(null, user);
+    } catch (err) {
+      done(err);
+    }
+  });
 };

@@ -49,7 +49,7 @@ function initSocket(server, { sessionMiddleware }) {
 
   io.on('connection', (socket) => {
     const user = socket.user;
-    console.log('[SOCKET] connected:', user.email);
+    console.log('[SOCKET] connected:', user);
 
     socket.on('join-room', (roomId) => {
       if (!roomId) return;
@@ -86,7 +86,7 @@ function initSocket(server, { sessionMiddleware }) {
     });
 
     socket.on('disconnect', () => {
-      console.log('[SOCKET] disconnected:', user.email);
+      console.log('[SOCKET] disconnected:', user);
     });
   });
 

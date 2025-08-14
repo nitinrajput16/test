@@ -1,133 +1,114 @@
 const express = require('express');
-const axios = require('axios');
-const crypto = require('crypto');
-const { ensureAuth } = require('../../middleware/auth');
-const CodeFile = require('../../models/CodeFile');
-
 const router = express.Router();
+const CodeFile = require('../../models/CodeFile');
+const ensureAuth = require('../../middleware/ensureAuth');
 
-// In-memory rate limiter
-const WINDOW_MS = 60_000;
-const MAX_REQ = 60;
-const buckets = new Map();
-function rateLimit(req, res, next) {
-  const key = req.sessionID || req.ip;
-  const now = Date.now();
-  const arr = (buckets.get(key) || []).filter(ts => now - ts < WINDOW_MS);
-  arr.push(now);
-  buckets.set(key, arr);
-  if (arr.length > MAX_REQ) {
-    return res.status(429).json({ error: 'Rate limit exceeded' });
-  }
-  next();
-}
+const FILENAME_REGEX = /^[\w.\- ]{1,100}$/;
 
-// Save
-router.post('/save', ensureAuth, async (req, res) => {
+// List files for current user
+router.get('/list', ensureAuth, async (req, res) => {
   try {
-    const { code, filename, language, roomId } = req.body;
-    if (!code || !filename) return res.status(400).json({ error: 'Code and filename required' });
-
-    const safeFilename = filename.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim();
-    if (!safeFilename) return res.status(400).json({ error: 'Invalid filename' });
-
-    const doc = await CodeFile.findOneAndUpdate(
-      { filename: safeFilename },
-      { code, language, roomId },
-      { upsert: true, new: true }
-    );
-
-    res.json({ message: 'Saved', filename: doc.filename, updatedAt: doc.updatedAt });
+    console.log('[DEBUG][LIST] req.user._id:', req.user && req.user._id);
+    const docs = await CodeFile.find(
+    { googleId: req.user.googleId },
+      'filename language updatedAt size'
+    ).sort({ updatedAt: -1 }).lean();
+    res.json({ files: docs });
   } catch (e) {
-    console.error('[SAVE]', e.message);
-    res.status(500).json({ error: 'Save failed' });
+    console.error('[CODE][LIST]', e);
+    res.status(500).json({ error: 'Failed to list files' });
   }
 });
 
-// Load
+// Load file
 router.get('/load', ensureAuth, async (req, res) => {
   try {
     const { filename } = req.query;
-    if (!filename) return res.status(400).json({ error: 'Filename required' });
-    const doc = await CodeFile.findOne({ filename });
+    if (!filename) return res.status(400).json({ error: 'filename required' });
+    const doc = await CodeFile.findOne({ googleId: req.user.googleId, filename });
     if (!doc) return res.status(404).json({ error: 'File not found' });
-    res.json({ code: doc.code, filename: doc.filename, language: doc.language });
-  } catch (e) {
-    console.error('[LOAD]', e.message);
-    res.status(500).json({ error: 'Load failed' });
-  }
-});
-
-// List
-router.get('/list', ensureAuth, async (_req, res) => {
-  try {
-    const docs = await CodeFile.find({}, 'filename updatedAt').sort({ updatedAt: -1 });
-    res.json({ files: docs.map(d => d.filename) });
-  } catch (e) {
-    console.error('[LIST]', e.message);
-    res.status(500).json({ error: 'List failed' });
-  }
-});
-
-// Judge0 run
-const ALLOWED_LANGUAGE_IDS = new Set([
-  63, // JavaScript (Node.js)
-  71, // Python
-  54, // C++
-  62, // Java
-  68, // PHP
-  82, // SQL (MySQL)
-  22, // Go
-  80, // R
-  73, // Rust
-  50, // C
-  72, // Ruby
-  51, // C#
-  78, // Kotlin
-  74  // TypeScript
-]); // Node, Python, C++, Java
-router.post('/run', ensureAuth, rateLimit, async (req, res) => {
-  const { source_code, language_id, stdin = '' } = req.body || {};
-  if (!source_code || typeof source_code !== 'string') {
-    return res.status(400).json({ error: 'source_code required' });
-  }
-  if (!language_id) return res.status(400).json({ error: 'language_id required' });
-  if (!ALLOWED_LANGUAGE_IDS.has(language_id)) return res.status(400).json({ error: 'language_id not allowed' });
-  if (source_code.length > 100 * 1024) return res.status(413).json({ error: 'source_code too large' });
-
-  try {
-    const hash = crypto.createHash('sha256').update(source_code).digest('hex').slice(0, 12);
-    const url = `${process.env.JUDGE0_API_URL}/submissions?base64_encoded=false&wait=true`;
-
-    const response = await axios.post(
-      url,
-      { source_code, language_id, stdin },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-RapidAPI-Key': process.env.JUDGE0_API_KEY
-        },
-        timeout: 15000
-      }
-    );
-
-    const d = response.data || {};
     res.json({
-      status: d.status,
-      time: d.time,
-      memory: d.memory,
-      stdout: d.stdout,
-      stderr: d.stderr,
-      compile_output: d.compile_output,
-      message: d.message,
-      hash
+      filename: doc.filename,
+      code: doc.code,
+      language: doc.language,
+      updatedAt: doc.updatedAt
     });
   } catch (e) {
-    if (e.code === 'ECONNABORTED') {
-      return res.status(504).json({ error: 'Execution timeout' });
+    console.error('[CODE][LOAD]', e);
+    res.status(500).json({ error: 'Failed to load file' });
+  }
+});
+
+// Save (create/update)
+router.post('/save', ensureAuth, async (req, res) => {
+  try {
+    console.log('[DEBUG][SAVE] req.user._id:', req.user && req.user._id);
+    let { filename, code, language, roomId } = req.body || {};
+    if (!filename) return res.status(400).json({ error: 'filename required' });
+    if (!FILENAME_REGEX.test(filename)) {
+      return res.status(400).json({ error: 'Invalid filename' });
     }
-    console.error('[RUN]', e.message);
-    res.status(500).json({ error: 'Run failed' });
+    code = code || '';
+    language = language || 'plaintext';
+    const now = new Date();
+      const doc = await CodeFile.findOneAndUpdate(
+        { googleId: req.user.googleId, filename },
+      {
+        $set: {
+          code,
+          language,
+          size: code.length,
+          updatedAt: now
+        },
+        $setOnInsert: {
+            googleId: req.user.googleId,
+          filename,
+          createdAt: now
+        }
+      },
+      { new: true, upsert: true }
+    );
+    res.json({ filename: doc.filename, updatedAt: doc.updatedAt });
+  } catch (e) {
+    if (e.code === 11000) {
+      return res.status(409).json({ error: 'Duplicate filename' });
+    }
+    console.error('[CODE][SAVE]', e);
+    res.status(500).json({ error: 'Failed to save file' });
+  }
+});
+
+// Delete
+router.delete('/delete', ensureAuth, async (req, res) => {
+  try {
+    const { filename } = req.body || {};
+    if (!filename) return res.status(400).json({ error: 'filename required' });
+    await CodeFile.deleteOne({ googleId: req.user.googleId, filename });
+    res.json({ deleted: true });
+  } catch (e) {
+    console.error('[CODE][DELETE]', e);
+    res.status(500).json({ error: 'Failed to delete file' });
+  }
+});
+
+// Rename
+router.post('/rename', ensureAuth, async (req, res) => {
+  try {
+    const { oldName, newName } = req.body || {};
+    if (!oldName || !newName) return res.status(400).json({ error: 'oldName & newName required' });
+    if (!FILENAME_REGEX.test(newName)) {
+      return res.status(400).json({ error: 'Invalid new filename' });
+    }
+    const file = await CodeFile.findOne({ googleId: req.user.googleId, filename: oldName });
+    if (!file) return res.status(404).json({ error: 'Original file not found' });
+    const dupe = await CodeFile.findOne({ googleId: req.user.googleId, filename: newName });
+    if (dupe) return res.status(409).json({ error: 'New filename already exists' });
+    file.filename = newName;
+    await file.save();
+    res.json({ renamed: true, filename: newName });
+  } catch (e) {
+    console.error('[CODE][RENAME]', e);
+    res.status(500).json({ error: 'Failed to rename file' });
   }
 });
 

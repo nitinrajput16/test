@@ -27,6 +27,13 @@ router.get('/dashboard', ensureAuth, (req, res) => {
   });
 });
 
+router.get('/profile', ensureAuth, (req, res) => {
+  res.render('profile', {
+    title: 'Profile - Edit',
+    user: req.user
+  });
+});
+
 // Protected static SPA editor
 router.get('/editor', ensureAuth, (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));

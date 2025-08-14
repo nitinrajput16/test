@@ -75,20 +75,28 @@
 
   // -------------- FILE OPERATIONS ----------------
   function refreshFileList() {
-    api('GET','/api/code/list')
-      .then(data => {
-        fileListDiv.innerHTML = '';
-        (data.files || []).forEach(name => {
-          const div = document.createElement('div');
-            div.className = 'file-item';
-          div.textContent = name;
-          if (name === currentFilename) div.classList.add('active');
-          div.addEventListener('click', () => loadFile(name));
-          fileListDiv.appendChild(div);
-        });
-      })
-      .catch(e => logOutput('List error: '+e.message));
-  }
+  api('GET','/api/code/list')
+    .then(data => {
+      fileListDiv.innerHTML = '';
+      (data.files || []).forEach(f => {
+        const name = f.filename || f;
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        div.textContent = name;
+        if (f.updatedAt || f.language || f.size != null) {
+          div.title = [
+            f.language,
+            f.updatedAt && new Date(f.updatedAt).toLocaleString(),
+            (f.size != null) && (f.size + ' chars')
+          ].filter(Boolean).join(' • ');
+        }
+        if (name === currentFilename) div.classList.add('active');
+        div.addEventListener('click', () => loadFile(name));
+        fileListDiv.appendChild(div);
+      });
+    })
+    .catch(e => logOutput('List error: '+e.message));
+}
 
   function highlightActiveFile(){
     [...fileListDiv.children].forEach(ch => {
