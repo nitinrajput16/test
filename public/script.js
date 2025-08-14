@@ -251,7 +251,7 @@
         language: initialLang,
         minimap: { enabled:false },
         automaticLayout: true,
-        fontSize:14,
+        fontSize:16,
         theme:'collabDark',
         fontFamily:'JetBrains Mono, Menlo, Consolas, "Courier New", monospace',
         scrollBeyondLastLine:false,
