@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .error-container {
+            background: white;
+            padding: 3rem;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        
+        .error-container h1 {
+            color: #e74c3c;
+            margin-bottom: 1rem;
+            font-size: 2rem;
+        }
+        
+        .error-container p {
+            color: #666;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+            font-size: 1.1rem;
+        }
+        
+        .error-details {
+            background: #ffebee;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            border-left: 4px solid #e74c3c;
+        }
+        
+        .error-list {
+            text-align: left;
+            color: #c62828;
+            list-style: none;
+        }
+        
+        .error-list li {
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .retry-btn {
+            background: #4285f4;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .retry-btn:hover {
+            background: #357ae8;
+            transform: translateY(-2px);
+        }
+        
+        .home-btn {
+            background: #6c757d;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .home-btn:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        .footer-info {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .action-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-icon">🚫</div>
+        <h1>Login Failed</h1>
+        <p>We encountered an error while trying to sign you in with Google. This could be due to several reasons.</p>
+        
+        <div class="error-details">
+            <strong>Possible causes:</strong>
+            <ul class="error-list">
+                <li>🔸 Authentication was cancelled or denied</li>
+                <li>🔸 Network connectivity issues</li>
+                <li>🔸 Google OAuth service temporary unavailability</li>
+                <li>🔸 Invalid OAuth configuration</li>
+            </ul>
+        </div>
+        
+        <div class="action-buttons">
+            <a href="/auth/google" class="retry-btn">
+                🔄 Try Again
+            </a>
+            <a href="/" class="home-btn">
+                🏠 Go Home
+            </a>
+        </div>
+        
+        <div class="footer-info">
+            <p>If the problem persists, please contact support.</p>
+            <p>Edit Code Editor - by nitinrajput16</p>
+            <p>Time: <%= new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) %> IST</p>
+        </div>
+    </div>
+</body>
+</html>
