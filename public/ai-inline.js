@@ -113,6 +113,14 @@
       }
     };
     editor.addContentWidget(widget);
+          // After editor.addContentWidget(widget);
+      widget.getDomNode().addEventListener('click', () => {
+        if (fullSuggestion) {
+          accept();
+        }
+      });
+      // Optionally: a second tap to expand if truncated:
+      // widget.getDomNode().addEventListener('dblclick', toggleExpanded);
 
     function updateWidgetText(text, placeholder=false) {
       const node = widget.getDomNode();
@@ -299,21 +307,21 @@
     }
 
     // Public API
-    const api = {
-      force,
-      trigger: force,
-      enableDebug: () => { CFG.debug = true; log('Debug ON'); },
-      disableDebug: () => { CFG.debug = false; log('Debug OFF'); },
-      state: () => ({
-        hasSuggestion: !!fullSuggestion,
-        previewSample: fullSuggestion.slice(0,100),
-        widgetVisible,
-        expanded
-      }),
-      expand: () => { expanded = true; renderPreview(); },
-      collapse: () => { expanded = false; renderPreview(); },
-      toggle: toggleExpanded
-    };
+          const api = {
+        force,
+        trigger: force,
+        enableDebug: () => { CFG.debug = true; log('Debug ON'); },
+        disableDebug: () => { CFG.debug = false; log('Debug OFF'); },
+        state: () => ({
+          hasSuggestion: !!fullSuggestion,
+          previewSample: fullSuggestion.slice(0,100),
+          widgetVisible,
+          expanded
+        }),
+        expand: () => { expanded = true; renderPreview(); },
+        collapse: () => { expanded = false; renderPreview(); },
+        toggle: toggleExpanded,
+      };
 
     // Alias for earlier expectations
     global.__AIGHOST_STATE__ = api;

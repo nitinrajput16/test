@@ -145,14 +145,14 @@ button:disabled{
 .ai-ghost-block {
   position: relative;
   white-space: pre;
-  pointer-events: none;
+  pointer-events: auto; /* changed from none */
+  cursor: pointer;      /* visual hint */
   font-style: italic;
   opacity: 0.38;
   color: #fff;
   font-family: inherit;
   line-height: 1.2;
   user-select: none;
-  /* subtle block styling */
   background: linear-gradient(90deg, rgba(79,216,155,0.08), rgba(79,216,155,0.00));
   border-left: 2px solid rgba(79,216,155,0.25);
   padding-left: 4px;
