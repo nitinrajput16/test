@@ -1,151 +1,334 @@
-let lastValue = "";
-const socket = io();
-let roomId = localStorage.getItem('roomId') || '';
+/**
+ * Main client script for Code Collabe
+ * Features:
+ *  - Monaco editor initialization
+ *  - Collaborative editing via Socket.IO
+ *  - File list load/save
+ *  - Code execution via backend (/api/code/run)
+ *  - Inline AI Ghost suggestions (AIGhost.init) (requires ai-inline.js loaded first)
+ */
 
-let editor;
-require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor/min/vs' } });
-require(['vs/editor/editor.main'], function () {
-  monaco.editor.defineTheme('my-dark', {
-    base: 'vs-dark',
-    inherit: true,
-    colors: {
-      "editor.background": '#ffffff04',
-      "minimap.background": '#ffffff04'
-    },
-    rules: []
-  });
-  monaco.editor.setTheme('my-dark');
-  editor = monaco.editor.create(document.getElementById('editor'), {
-    value: '// Write your code here...',
-    language: 'javascript'
-  });
-  window.editor = editor;
+(function () {
 
-  function checkAndUpdateCode() {
-    const content = editor.getValue();
-    if (content === lastValue) return;
-    socket.emit('code-update', { roomId, content });
-    lastValue = content;
+  // ---------------- DOM ELEMENTS ----------------
+  const fileListDiv = document.getElementById('fileList');
+  const runBtn      = document.getElementById('runButton');
+  const saveBtn     = document.getElementById('saveButton');
+  const langSelect  = document.getElementById('language');
+  const stdinInput  = document.getElementById('stdinInput');
+  const outputEl    = document.getElementById('output');
+  const roomInput   = document.getElementById('roomInput');
+  const roomButton  = document.getElementById('RoomButton');
+
+  // -------------- STATE ----------------
+  let editor;
+  let socket;
+  let currentRoom = 'default-room';
+  let lastBroadcastHash = null;
+  let suppressNextChange = false;
+  let currentFilename = null;
+  let aiController = null;
+
+  // Judge0 language_id -> Monaco language id
+  const judge0ToMonaco = {
+    63: 'javascript',
+    71: 'python',
+    54: 'cpp',
+    62: 'java',
+    68: 'php',
+    82: 'sql',
+    22: 'go',
+    80: 'r',
+    73: 'rust',
+    50: 'c',
+    72: 'ruby',
+    51: 'csharp',
+    78: 'kotlin',
+    74: 'typescript'
+  };
+
+  // -------------- UTILS ----------------
+  function simpleHash(str){
+    let h=0, i=0;
+    while(i<str.length){
+      h = (Math.imul(31,h) + str.charCodeAt(i++)) | 0;
+    }
+    return h;
   }
-  setInterval(checkAndUpdateCode, 500);
-});
 
-document.getElementById('RoomButton').addEventListener('click', () => {
-  const inputRoomId = document.getElementById('roomInput').value.trim();
-  if (inputRoomId) {
-    roomId = inputRoomId;
-    localStorage.setItem('roomId', roomId);
+  function logOutput(msg){
+    if (!outputEl) return;
+    outputEl.textContent += (outputEl.textContent ? '\n' : '') + msg;
+    outputEl.scrollTop = outputEl.scrollHeight;
+  }
+
+  function api(method, url, body){
+    const opts = { method, headers: { 'Content-Type':'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    return fetch(url, opts)
+      .then(r => r.json().catch(()=>({}))
+        .then(data => {
+          if(!r.ok) throw new Error(data.error || ('HTTP '+r.status));
+          return data;
+        }));
+  }
+
+  // -------------- FILE OPERATIONS ----------------
+  function refreshFileList() {
+    api('GET','/api/code/list')
+      .then(data => {
+        fileListDiv.innerHTML = '';
+        (data.files || []).forEach(name => {
+          const div = document.createElement('div');
+            div.className = 'file-item';
+          div.textContent = name;
+          if (name === currentFilename) div.classList.add('active');
+          div.addEventListener('click', () => loadFile(name));
+          fileListDiv.appendChild(div);
+        });
+      })
+      .catch(e => logOutput('List error: '+e.message));
+  }
+
+  function highlightActiveFile(){
+    [...fileListDiv.children].forEach(ch => {
+      ch.classList.toggle('active', ch.textContent === currentFilename);
+    });
+  }
+
+  function loadFile(name){
+    api('GET','/api/code/load?filename='+encodeURIComponent(name))
+      .then(data => {
+        currentFilename = data.filename;
+        setEditorValue(data.code);
+        highlightActiveFile();
+        logOutput('Loaded: '+data.filename);
+        lastBroadcastHash = null;
+        scheduleBroadcast();
+      })
+      .catch(e => logOutput('Load error: '+e.message));
+  }
+
+  function saveFile(){
+    if (!currentFilename){
+      const proposed = 'file'+Date.now()+'.js';
+      const name = prompt('Enter filename (with extension):', proposed);
+      if (!name) return;
+      currentFilename = name.trim();
+    }
+    api('POST','/api/code/save',{
+      filename: currentFilename,
+      code: getEditorValue(),
+      language: langSelect && langSelect.options[langSelect.selectedIndex].dataset.monaco || 'plaintext',
+      roomId: currentRoom
+    })
+      .then(d => {
+        currentFilename = d.filename;
+        highlightActiveFile();
+        logOutput('Saved: '+d.filename);
+        refreshFileList();
+      })
+      .catch(e => logOutput('Save error: '+e.message));
+  }
+
+  // -------------- RUN CODE ----------------
+  function runCode(){
+    if (!langSelect) {
+      logOutput('Language select missing');
+      return;
+    }
+    runBtn.disabled = true;
+    logOutput('Running...');
+    api('POST','/api/code/run',{
+      source_code: getEditorValue(),
+      language_id: parseInt(langSelect.value,10),
+      stdin: stdinInput.value
+    })
+      .then(d => logOutput(formatRunResult(d)))
+      .catch(e => logOutput('Run error: '+e.message))
+      .finally(()=> runBtn.disabled = false);
+  }
+
+  function formatRunResult(d){
+    const lines=[];
+    if(d.status) lines.push('Status: '+(d.status.description || d.status.id));
+    if(d.stdout) lines.push('STDOUT:\n'+d.stdout);
+    if(d.stderr) lines.push('STDERR:\n'+d.stderr);
+    if(d.compile_output) lines.push('COMPILER:\n'+d.compile_output);
+    if(!d.stdout && !d.stderr && !d.compile_output) lines.push('(no output)');
+    return lines.join('\n\n');
+  }
+
+  // -------------- SOCKET / COLLAB ----------------
+  function initSocket(){
+    if (typeof io === 'undefined') {
+      console.error('[Socket] io not loaded.');
+      return;
+    }
+    socket = io();
+    socket.on('connect', () => {
+      joinRoom(currentRoom);
+    });
+    socket.on('code-update', ({ content }) => {
+      if (getEditorValue() === content) return;
+      suppressNextChange = true;
+      setEditorValue(content);
+    });
+    socket.on('connect_error', err => {
+      if (err && /Unauthorized/i.test(err.message)) {
+        window.location = '/login?error=auth_required';
+      }
+    });
+  }
+
+  function joinRoom(roomId){
+    if (!socket) return;
+    currentRoom = roomId;
     socket.emit('join-room', roomId);
-    alert(`Room created and joined: ${roomId}`);
-  } else {
-    alert('Please enter a Room ID to create or join.');
+    logOutput('Joined room: '+roomId);
   }
-});
 
-if (!roomId) {
-  document.getElementById('roomInput').placeholder = 'Create or enter room ID';
-} else {
-  socket.emit('join-room', roomId);
-}
-
-socket.on('code-update', (content) => {
-  if (!editor) return;
-  const currentContent = editor.getValue();
-  if (currentContent !== content) {
-    lastValue = content;
-    const selection = editor.getSelection();
-    editor.setValue(content);
-    editor.setSelection(selection);
+  // -------------- BROADCAST EDITS ----------------
+  let broadcastTimer;
+  function scheduleBroadcast(){
+    clearTimeout(broadcastTimer);
+    broadcastTimer = setTimeout(()=>{
+      const content = getEditorValue();
+      const hash = simpleHash(content);
+      if (hash !== lastBroadcastHash){
+        lastBroadcastHash = hash;
+        socket.emit('code-update',{ roomId: currentRoom, content });
+      }
+    }, 250);
   }
-});
 
-document.getElementById('saveButton').addEventListener('click', async () => {
-  if (!editor) return;
-  const code = editor.getValue();
-  const filename = prompt('Enter a filename to save the code:', 'code.txt');
-  if (!filename) return alert('Filename is required.');
-  try {
-    const response = await fetch('/save-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, filename })
-    });
-    const result = await response.json();
-    alert(result.message || 'Code saved successfully!');
-    loadFileList();
-  } catch (error) {
-    console.error('Error saving code:', error);
-    alert('Failed to save code.');
-  }
-});
+  // -------------- MONACO INIT ----------------
+  function initMonaco(){
+    if (typeof require === 'undefined') {
+      console.error('[Monaco] AMD loader not found. Ensure loader script is included.');
+      return;
+    }
+    if (!window.MONACO_BASE_URL) {
+      console.warn('[Monaco] MONACO_BASE_URL not defined; using CDN fallback.');
+      window.MONACO_BASE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.47.0/min';
+    }
 
-async function loadFileList() {
-  try {
-    const response = await fetch('/list-data');
-    const result = await response.json();
-    const fileListContainer = document.getElementById('fileList');
-    fileListContainer.innerHTML = '';
-    if (result.files && result.files.length > 0) {
-      result.files.forEach(filename => {
-        const listItem = document.createElement('li');
-        listItem.textContent = filename;
-        listItem.addEventListener('click', () => loadFile(filename));
-        fileListContainer.appendChild(listItem);
+    require.config({ paths: { vs: window.MONACO_BASE_URL + '/vs' } });
+
+    require(['vs/editor/editor.main'], () => {
+
+      // Custom theme (optional)
+      monaco.editor.defineTheme('collabDark', {
+        base: 'vs-dark',
+        inherit: true,
+        rules: [
+          { token: 'comment', foreground: '4b6f59' },
+          { token: 'string',  foreground: 'c38b72' },
+          { token: 'keyword', foreground: '3fae76' },
+          { token: 'number',  foreground: '6fbf96' }
+        ],
+        colors: {
+          'editor.background': '#04100c',
+          'editorLineNumber.foreground':'#1e4c39',
+          'editorCursor.foreground':'#4fd89b',
+          'editorBracketMatch.border':'#0a5',
+          'editor.lineHighlightBackground':'#ffffff10'
+        }
       });
-    } else {
-      fileListContainer.innerHTML = '<p>No files found</p>';
-    }
-  } catch (error) {
-    console.error('Error loading file list:', error);
-    document.getElementById('fileList').innerHTML = '<p>Error loading files</p>';
-  }
+
+      const initialLang = (langSelect && judge0ToMonaco[parseInt(langSelect.value,10)]) || 'javascript';
+
+      editor = monaco.editor.create(document.getElementById('editor'), {
+        value: '// Welcome to Code Collabe\n',
+        language: initialLang,
+        minimap: { enabled:false },
+        automaticLayout: true,
+        fontSize:14,
+        theme:'collabDark',
+        fontFamily:'JetBrains Mono, Menlo, Consolas, "Courier New", monospace',
+        scrollBeyondLastLine:false,
+        renderWhitespace:'selection'
+      });
+
+      // Expose globally for debugging (optional)
+      window.editor = editor;
+
+      // Collaboration listener
+      editor.onDidChangeModelContent(()=>{
+        if (suppressNextChange){
+          suppressNextChange = false;
+          return;
+        }
+        scheduleBroadcast();
+      });
+
+      // After creating editor:
+window.editor = editor;
+if (window.AIGhostWidget) {
+  window.aiController = window.AIGhostWidget.init(editor);
+  // window.aiController.enableDebug();
+} else {
+  console.warn('[AI-WIDGET] AIGhostWidget module missing');
 }
 
-async function loadFile(filename) {
-  try {
-    const response = await fetch(`/load-code?filename=${encodeURIComponent(filename)}`);
-    const result = await response.json();
-    if (result.code && editor) {
-      editor.setValue(result.code);
-    } else {
-      alert('Failed to load the file.');
-    }
-  } catch (error) {
-    console.error('Error loading code:', error);
-    alert('Failed to load code.');
-  }
-}
-
-(async () => {
-  await loadFileList();
-})();
-
-document.getElementById('language').addEventListener("change", function (e) {
-  if (!editor) return;
-  const sel = e.target;
-  const lang = sel.options[sel.selectedIndex].text.toLowerCase();
-  monaco.editor.setModelLanguage(editor.getModel(), lang);
-});
-
-async function runCode() {
-  if (!editor) return;
-  const editorContent = monaco.editor.getModels()[0].getValue();
-  const languageId = document.getElementById('language').value;
-  const stdin = document.getElementById('stdinInput').value;
-  const payload = { source_code: editorContent, language_id: languageId, stdin };
-  try {
-    const response = await fetch('/editor', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    }, err => {
+      logOutput('Monaco load error: '+err.message);
+      console.error(err);
     });
-    const result = await response.json();
-    const output = result.stdout || result.stderr || result.message;
-    document.getElementById('output').textContent = output;
-  } catch (error) {
-    console.error('Error:', error);
-    document.getElementById('output').textContent = 'Error running code.';
   }
-}
 
-document.getElementById('runButton').addEventListener('click', runCode);
+  function getEditorValue(){
+    return editor ? editor.getValue() : '';
+  }
+
+  function setEditorValue(val){
+    if (editor) editor.setValue(val);
+  }
+
+  // -------------- LANGUAGE CHANGE ----------------
+  if (langSelect){
+    langSelect.addEventListener('change', () => {
+      if (!editor || !window.monaco) return;
+      const langId = parseInt(langSelect.value,10);
+      const newLang = judge0ToMonaco[langId] || 'javascript';
+      const model = editor.getModel();
+      if (model) {
+        monaco.editor.setModelLanguage(model, newLang);
+        if (aiController && aiController.force) {
+          aiController.force();
+        }
+      }
+    });
+  }
+
+  // -------------- ROOM HANDLING ----------------
+  if (roomButton){
+    roomButton.addEventListener('click', () => {
+      const roomId = (roomInput.value || '').trim();
+      if (!roomId) {
+        alert('Enter a room ID');
+        return;
+      }
+      joinRoom(roomId);
+    });
+  }
+
+  // -------------- BUTTON EVENTS ----------------
+  if (runBtn)  runBtn.addEventListener('click', runCode);
+  if (saveBtn) saveBtn.addEventListener('click', saveFile);
+
+  // -------------- INIT SEQUENCE ----------------
+  initSocket();
+  initMonaco();
+  refreshFileList();
+
+  // -------------- DEBUG HELPERS ----------------
+  window.__CC_DEBUG__ = {
+    joinRoom,
+    saveFile,
+    runCode,
+    forceAI: () => aiController && aiController.force && aiController.force(),
+    aiState: () => aiController && aiController.state && aiController.state()
+  };
+
+})();

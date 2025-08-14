@@ -1,13 +1,12 @@
 const mongoose = require('mongoose');
 
-const CodeFileSchema = new mongoose.Schema(
-  {
-    filename: { type: String, required: true, unique: true, index: true },
-    code: { type: String, required: true },
-    language: { type: String },
-    roomId: { type: String }
-  },
-  { timestamps: true }
-);
+const CodeFileSchema = new mongoose.Schema({
+  filename: { type: String, required: true, unique: true, index: true },
+  language: { type: String, default: 'javascript' },
+  code: { type: String, default: '' },
+  roomId: { type: String },
+}, {
+  timestamps: true
+});
 
 module.exports = mongoose.model('CodeFile', CodeFileSchema);

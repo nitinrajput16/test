@@ -1,59 +1,43 @@
 const express = require('express');
+const path = require('path');
 const { ensureAuth, ensureGuest, ensureOwner } = require('../middleware/auth');
-const router = express.Router();
-const path=require('path');
 
-// Root: redirect logic only, do NOT render login directly here.
+const router = express.Router();
+
+// Root logic
 router.get('/', (req, res) => {
-  if (req.isAuthenticated && req.isAuthenticated()) {
-    return res.redirect('/editor');
-  }
+  if (req.isAuthenticated && req.isAuthenticated()) return res.redirect('/editor');
   return res.redirect('/login');
 });
 
-// Login page (guest only)
+// Login
 router.get('/login', ensureGuest, (req, res) => {
   res.render('login', {
-    title: 'Edit - Code Editor | Login',
+    title: 'Login - Edit',
     error: req.query.error || null,
-    message: req.query.message || null,
-    currentTime: new Date().toISOString()
+    message: req.query.message || null
   });
 });
 
-// Dashboard (protected)
+// Optional dashboard (EJS UI if you still want it)
 router.get('/dashboard', ensureAuth, (req, res) => {
   res.render('dashboard', {
-    title: 'Dashboard - Edit Code Editor',
-    user: req.user,
-    currentTime: new Date().toISOString()
+    title: 'Dashboard - Edit',
+    user: req.user
   });
 });
 
-// Profile (protected)
-router.get('/profile', ensureAuth, (req, res) => {
-  res.render('profile', {
-    title: 'Your Profile - Edit',
-    user: req.user,
-    currentTime: new Date().toISOString()
-  });
-});
-
-// Editor (protected)
+// Protected static SPA editor
 router.get('/editor', ensureAuth, (req, res) => {
-    res.render('editor', {
-        title: 'Code Editor - Edit',
-        user: req.user,
-        currentTime: new Date().toISOString()
-    });
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-// Admin (owner only)
+// Admin example (owner only)
 router.get('/admin', ensureOwner, (req, res) => {
-  res.render('admin', {
-    title: 'Admin Panel - Edit',
+  res.render('dashboard', {
+    title: 'Admin Panel',
     user: req.user,
-    currentTime: new Date().toISOString()
+    admin: true
   });
 });
 
