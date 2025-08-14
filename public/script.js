@@ -247,7 +247,7 @@
       const initialLang = (langSelect && judge0ToMonaco[parseInt(langSelect.value,10)]) || 'javascript';
 
       editor = monaco.editor.create(document.getElementById('editor'), {
-        value: '// Welcome to Code Collabe\n',
+        value: '',
         language: initialLang,
         minimap: { enabled:false },
         automaticLayout: true,
