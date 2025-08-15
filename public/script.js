@@ -1,13 +1,3 @@
-/**
- * Main client script for Code Collabe
- * Features:
- *  - Monaco editor initialization
- *  - Collaborative editing via Socket.IO
- *  - File list load/save
- *  - Code execution via backend (/api/code/run)
- *  - Inline AI Ghost suggestions (AIGhost.init) (requires ai-inline.js loaded first)
- */
-
 (function () {
 
   // ---------------- DOM ELEMENTS ----------------
@@ -240,6 +230,15 @@
     socket.emit('join-room', roomId);
     if (roomInput) roomInput.value = '';
     logOutput('Joined room: '+roomId);
+    // Send caret position immediately after joining
+    setTimeout(() => {
+      if (editor && socket && currentRoom) {
+        const pos = editor.getPosition();
+        const model = editor.getModel();
+        const offset = model.getOffsetAt(pos);
+        socket.emit('caret-position', { roomId: currentRoom, offset });
+      }
+    }, 200);
   }
 
   // -------------- BROADCAST EDITS ----------------
@@ -255,6 +254,136 @@
       }
     }, 250);
   }
+
+  // --- PRESENCE: Send cursor position on change and on room join ---
+  function sendCursorPositionToRoom() {
+    if (!editor || !socket || !currentRoom) return;
+    const pos = editor.getPosition();
+    socket.emit('presence-cursor', { position: pos });
+  }
+
+  // Send cursor position on change
+  function setupPresenceCursor() {
+    if (!editor || !socket) return;
+    editor.onDidChangeCursorPosition(sendCursorPositionToRoom);
+    // Also send on room join
+    socket.on('connect', sendCursorPositionToRoom);
+    socket.on('joined-room', sendCursorPositionToRoom);
+  }
+
+  // Call this after socket and editor are ready
+  setupPresenceCursor();
+
+  // --- COLLABORATIVE CARET SHARING ---
+  (function() {
+    let remoteCaretDecorations = {};
+    let remoteCaretOffsets = {};
+    function getMyUserId() {
+      return (window.user && (window.user._id || window.user.googleId || window.user.id))
+        || (window.__CC_DEBUG__ && window.__CC_DEBUG__.userId)
+        || (socket && socket.id)
+        || 'me';
+    }
+    function sendCaretPosition() {
+      if (!editor || !socket || !currentRoom) return;
+      const pos = editor.getPosition();
+      const model = editor.getModel();
+      const offset = model.getOffsetAt(pos);
+      socket.emit('caret-position', { roomId: currentRoom, offset });
+    }
+    function setupCaretSharing() {
+      if (!editor || !socket) return;
+      editor.onDidChangeCursorPosition(sendCaretPosition);
+      socket.on('remote-caret', (payload) => {
+        if (!editor) return;
+  const myId = getMyUserId();
+        // If payload contains allCarets, update all remote carets
+        if (Array.isArray(payload.allCarets)) {
+          // Remove all previous remote caret decorations for users not in the new list
+          const newUserIds = new Set(payload.allCarets.map(c => c.userId));
+          Object.keys(remoteCaretDecorations).forEach(userId => {
+            if (!newUserIds.has(userId)) {
+              remoteCaretDecorations[userId] = editor.deltaDecorations(remoteCaretDecorations[userId], []);
+              delete remoteCaretDecorations[userId];
+              delete remoteCaretOffsets[userId];
+            }
+          });
+          const model = editor.getModel();
+          payload.allCarets.forEach(({ userId, offset, color }) => {
+            if (!userId || userId === myId || typeof offset !== 'number') return;
+            const pos = model.getPositionAt(Math.min(offset, model.getValue().length));
+            remoteCaretOffsets[userId] = offset;
+            // Generate a unique class for this user's caret color if not already present
+            const caretClass = `remote-caret-color-${userId}`;
+            if (color && !document.getElementById(caretClass)) {
+              const style = document.createElement('style');
+              style.id = caretClass;
+              style.innerHTML = `.${caretClass} { border-left: 2px solid ${color} !important; margin-left: -1px; pointer-events: none; z-index: 10; animation: caret-blink 1s steps(1) infinite; }`;
+              document.head.appendChild(style);
+            }
+            remoteCaretDecorations[userId] = editor.deltaDecorations(remoteCaretDecorations[userId] || [], [
+              {
+                range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+                options: {
+                  className: `remote-caret-blink ${caretClass}`,
+                  stickiness: 1
+                }
+              }
+            ]);
+          });
+        } else if (typeof payload.offset === 'number' && payload.userId && payload.userId !== myId) {
+          // Single remote caret update (for new/changed caret)
+          const { userId, offset } = payload;
+          const model = editor.getModel();
+          const pos = model.getPositionAt(Math.min(offset, model.getValue().length));
+          remoteCaretOffsets[userId] = offset;
+          if (remoteCaretDecorations[userId]) {
+            remoteCaretDecorations[userId] = editor.deltaDecorations(remoteCaretDecorations[userId], []);
+          }
+          remoteCaretDecorations[userId] = editor.deltaDecorations([], [
+            {
+              range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+              options: {
+                className: 'remote-caret-blink',
+                stickiness: 1
+              }
+            }
+          ]);
+        }
+      });
+      // Re-apply remote carets after content changes
+      editor.onDidChangeModelContent(() => {
+        const model = editor.getModel();
+        Object.keys(remoteCaretOffsets).forEach(userId => {
+          const offset = remoteCaretOffsets[userId];
+          if (typeof offset === 'number') {
+            const pos = model.getPositionAt(Math.min(offset, model.getValue().length));
+            if (remoteCaretDecorations[userId]) {
+              remoteCaretDecorations[userId] = editor.deltaDecorations(remoteCaretDecorations[userId], []);
+            }
+            remoteCaretDecorations[userId] = editor.deltaDecorations([], [
+              {
+                range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+                options: {
+                  className: 'remote-caret-blink',
+                  stickiness: 1
+                }
+              }
+            ]);
+          }
+        });
+      });
+    }
+    // Wait for both editor and socket to be ready
+    function tryInit() {
+      if (typeof editor !== 'undefined' && typeof socket !== 'undefined' && editor && socket) {
+        setupCaretSharing();
+      } else {
+        setTimeout(tryInit, 300);
+      }
+    }
+    tryInit();
+  })();
 
   // -------------- MONACO INIT ----------------
   function initMonaco(){
@@ -304,6 +433,26 @@
         renderWhitespace:'selection'
       });
 
+  // Theme toggle icon logic
+      const themeToggleBtn = document.getElementById('themeToggleBtn');
+      const themeToggleIcon = document.getElementById('themeToggleIcon');
+      let currentTheme = 'collabDark';
+      if (themeToggleBtn && themeToggleIcon) {
+        themeToggleBtn.addEventListener('click', function() {
+          if (currentTheme === 'collabDark') {
+            monaco.editor.setTheme('vs');
+            currentTheme = 'vs';
+            themeToggleIcon.textContent = '☀️';
+          } else {
+            monaco.editor.setTheme('collabDark');
+            currentTheme = 'collabDark';
+            themeToggleIcon.textContent = '🌙';
+          }
+        });
+        // Set initial icon
+        themeToggleIcon.textContent = currentTheme === 'collabDark' ? '🌙' : '☀️';
+      }
+
       // Expose globally for debugging (optional)
       window.editor = editor;
 
@@ -317,13 +466,13 @@
       });
 
       // After creating editor:
-window.editor = editor;
-if (window.AIGhostWidget) {
-  window.aiController = window.AIGhostWidget.init(editor);
-  // window.aiController.enableDebug();
-} else {
-  console.warn('[AI-WIDGET] AIGhostWidget module missing');
-}
+      window.editor = editor;
+      if (window.AIGhostWidget) {
+        window.aiController = window.AIGhostWidget.init(editor);
+        // window.aiController.enableDebug();
+      } else {
+        console.warn('[AI-WIDGET] AIGhostWidget module missing');
+      }
 
     }, err => {
       logOutput('Monaco load error: '+err.message);

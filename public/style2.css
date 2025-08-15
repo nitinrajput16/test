@@ -228,3 +228,14 @@ button:disabled{
   opacity: 0.55;
   color: #7dd6b3;
 }
+
+.remote-caret-blink {
+    margin-left: -1px;
+    pointer-events: none;
+    z-index: 10;
+    animation: caret-blink 1s steps(1) infinite;
+}
+@keyframes caret-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
