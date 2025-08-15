@@ -4,6 +4,36 @@ const CodeFile = require('../../models/CodeFile');
 const ensureAuth = require('../../middleware/ensureAuth');
 
 const FILENAME_REGEX = /^[\w.\- ]{1,100}$/;
+// Run code using Judge0 API
+const fetch = require('node-fetch');
+const JUDGE0_URL = 'https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=false&wait=true';
+const JUDGE0_HEADERS = {
+  'Content-Type': 'application/json',
+  'X-RapidAPI-Key': process.env.JUDGE0_API_KEY || '', // Set your RapidAPI key in env
+  'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com'
+};
+
+router.post('/run', ensureAuth, async (req, res) => {
+  try {
+    const { source_code, language_id, stdin } = req.body || {};
+    if (!source_code || !language_id) return res.status(400).json({ error: 'source_code and language_id required' });
+    const body = {
+      source_code,
+      language_id,
+      stdin: stdin || ''
+    };
+    const judgeRes = await fetch(JUDGE0_URL, {
+      method: 'POST',
+      headers: JUDGE0_HEADERS,
+      body: JSON.stringify(body)
+    });
+    const data = await judgeRes.json();
+    res.json(data);
+  } catch (e) {
+    console.error('[CODE][RUN]', e);
+    res.status(500).json({ error: 'Failed to run code' });
+  }
+});
 
 // List files for current user
 router.get('/list', ensureAuth, async (req, res) => {

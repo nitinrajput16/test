@@ -45,6 +45,9 @@ input {
     gap:6px;
     flex-wrap: wrap;
 }
+#language {
+    cursor: pointer;
+}
 .menu > .empty-div {
     flex:1;
 }
@@ -82,20 +85,32 @@ button:disabled{
 #fileList > .file-item:hover{
     background:#0a5;
 }
-.main-content{
-    flex:1;
-    display:flex;
-    flex-direction:column;
+.main-content {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
-#editor-container, #editor {
-    width:100%;
-    height:100%;
+
+#editor-container {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#editor {
+    flex: 1 1 0;
+    min-height: 0;
 }
 #output-container{
     color: #0a5;
     display:flex;
     min-height:25vh;
+    max-height:40vh;
+    align-items: stretch;
 }
+
 #stdinInput {
     width:300px;
     background:transparent;
@@ -110,6 +125,48 @@ button:disabled{
     content: "Output:";
     display:block;
 }
+.output-wrapper {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+#output {
+    width: 100%;
+    max-height: 35vh;
+    min-height: 100px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    scrollbar-color: #0a5 #04100c;
+    background: transparent;
+    padding-right: 32px; /* space for button */
+}
+.clear-output-btn {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: #222c;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    z-index: 2;
+}
+.clear-output-btn:hover {
+    opacity: 1;
+    background: #c00;
+    color: #fff;
+}
+
 .monaco-editor{
     outline:none;
 }

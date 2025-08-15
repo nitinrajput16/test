@@ -349,6 +349,82 @@
                 </li>
             </ul>
         </div>
+        <script>
+            // Dynamically populate dashboard data from backend models
+            (async () => {
+                // Helper to format relative time
+                function timeAgo(dateStr) {
+                    const now = new Date();
+                    const date = new Date(dateStr);
+                    const diff = (now - date) / 1000;
+                    const units = [
+                        { s: 60, name: 'second' },
+                        { s: 60, name: 'minute' },
+                        { s: 24, name: 'hour' },
+                        { s: 7, name: 'day' },
+                        { s: 4.34524, name: 'week' },
+                        { s: 12, name: 'month' },
+                        { s: Infinity, name: 'year' }
+                    ];
+                    let val = diff;
+                    for (const u of units) {
+                        if (val < u.s) {
+                            const n = Math.max(1, Math.floor(val));
+                            return n + ' ' + u.name + (n > 1 ? 's' : '') + ' ago';
+                        }
+                        val /= u.s;
+                    }
+                    return 'just now';
+                }
+
+                // Map stats keys to card index
+                const statOrder = ['projects', 'filesSaved', 'todaysCoding', 'streak'];
+
+                function applyStats(stats) {
+                    const cards = document.querySelectorAll('.stats-grid .stat-card .stat-number');
+                    statOrder.forEach((k, i) => {
+                        if (cards[i] && stats[k] != null) {
+                            cards[i].textContent = stats[k];
+                        }
+                    });
+                }
+
+                function applyRecentFiles(files) {
+                    const list = document.querySelector('.recent-files .file-list');
+                    if (!list) return;
+                    list.innerHTML = '';
+                    files.slice(0, 10).forEach(f => {
+                        const li = document.createElement('li');
+                        li.className = 'file-item';
+                        const name = document.createElement('span');
+                        name.className = 'file-name';
+                        name.textContent = f.name || f.filename || 'untitled';
+                        const date = document.createElement('span');
+                        date.className = 'file-date';
+                        date.textContent = f.updatedAt ? timeAgo(f.updatedAt) : '—';
+                        li.appendChild(name);
+                        li.appendChild(date);
+                        list.appendChild(li);
+                    });
+                }
+
+                async function loadDashboard() {
+                    try {
+                        const res = await fetch('/api/dashboard', { headers: { 'Accept': 'application/json' } });
+                        if (!res.ok) throw new Error('Failed to load');
+                        const data = await res.json();
+                        if (data.stats) applyStats(data.stats);
+                        if (Array.isArray(data.recentFiles)) applyRecentFiles(data.recentFiles);
+                    } catch (e) {
+                        console.warn('Dashboard data error:', e);
+                    }
+                }
+
+                // Optional live refresh for recent activity
+                loadDashboard();
+                setInterval(loadDashboard, 60_000);
+            })();
+        </script>
         
         <div class="footer-info">
             <p>Login Time: <%= user.loginTime %> | Session: Active</p>

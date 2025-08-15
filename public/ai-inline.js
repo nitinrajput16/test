@@ -9,7 +9,7 @@
 (function (global) {
   const CFG = {
     endpoint: '/api/ai/inline',
-    debounceMs: 900,
+    debounceMs: 5000,
     minChars: 6,
     maxPrefix: 6000,
 
@@ -281,9 +281,9 @@
 
     editor.addCommand(monaco.KeyCode.Tab, accept);
 
-    // Toggle preview size: Ctrl/Cmd + Alt + ;
+    // Toggle preview size: Ctrl/Cmd + P
     window.addEventListener('keydown', (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.altKey && e.key === ';') {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
         e.preventDefault();
         toggleExpanded();
       }

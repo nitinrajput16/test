@@ -17,8 +17,10 @@
   const langSelect  = document.getElementById('language');
   const stdinInput  = document.getElementById('stdinInput');
   const outputEl    = document.getElementById('output');
+  const clearOutputBtn = document.getElementById('clearOutputBtn');
   const roomInput   = document.getElementById('roomInput');
   const roomButton  = document.getElementById('RoomButton');
+  const joinRoomButton = document.getElementById('JoinRoomButton');
 
   // -------------- STATE ----------------
   let editor;
@@ -45,6 +47,29 @@
     51: 'csharp',
     78: 'kotlin',
     74: 'typescript'
+  };
+
+  // Map file extensions to Monaco language ids
+  const extToMonaco = {
+    'js': 'javascript',
+    'py': 'python',
+    'cpp': 'cpp',
+    'c': 'c',
+    'java': 'java',
+    'ts': 'typescript',
+    'php': 'php',
+    'sql': 'sql',
+    'go': 'go',
+    'r': 'r',
+    'rs': 'rust',
+    'rb': 'ruby',
+    'cs': 'csharp',
+    'kt': 'kotlin',
+    'json': 'json',
+    'html': 'html',
+    'css': 'css',
+    'md': 'markdown',
+    'txt': 'plaintext'
   };
 
   // -------------- UTILS ----------------
@@ -104,11 +129,31 @@
     });
   }
 
+  function setLanguageSelectByMonaco(monacoLang) {
+    if (!langSelect) return;
+    for (let i = 0; i < langSelect.options.length; i++) {
+      if (langSelect.options[i].dataset.monaco === monacoLang) {
+        langSelect.selectedIndex = i;
+        return;
+      }
+    }
+  }
+
+  function setEditorLanguageByFilename(filename) {
+    if (!editor || !window.monaco) return;
+    const ext = (filename.split('.').pop() || '').toLowerCase();
+    const lang = extToMonaco[ext] || 'plaintext';
+    const model = editor.getModel();
+    if (model) monaco.editor.setModelLanguage(model, lang);
+    setLanguageSelectByMonaco(lang);
+  }
+
   function loadFile(name){
     api('GET','/api/code/load?filename='+encodeURIComponent(name))
       .then(data => {
         currentFilename = data.filename;
         setEditorValue(data.code);
+        setEditorLanguageByFilename(data.filename);
         highlightActiveFile();
         logOutput('Loaded: '+data.filename);
         lastBroadcastHash = null;
@@ -159,7 +204,7 @@
 
   function formatRunResult(d){
     const lines=[];
-    if(d.status) lines.push('Status: '+(d.status.description || d.status.id));
+    // if(d.status) lines.push('Status: '+(d.status.description || d.status.id));
     if(d.stdout) lines.push('STDOUT:\n'+d.stdout);
     if(d.stderr) lines.push('STDERR:\n'+d.stderr);
     if(d.compile_output) lines.push('COMPILER:\n'+d.compile_output);
@@ -193,6 +238,7 @@
     if (!socket) return;
     currentRoom = roomId;
     socket.emit('join-room', roomId);
+    if (roomInput) roomInput.value = '';
     logOutput('Joined room: '+roomId);
   }
 
@@ -310,20 +356,39 @@ if (window.AIGhostWidget) {
   }
 
   // -------------- ROOM HANDLING ----------------
+  // Create Room button: generate unique string, show in output, and join
   if (roomButton){
     roomButton.addEventListener('click', () => {
+      // Generate a unique room string (8 chars, alphanumeric)
+      const roomId = 'room-' + Math.random().toString(36).slice(2, 10);
+      roomInput.value = roomId;
+      logOutput('Room created: ' + roomId);
+      joinRoom(roomId);
+    });
+  }
+
+  // Join Room button: join the room in the input
+  if (joinRoomButton) {
+    joinRoomButton.addEventListener('click', () => {
       const roomId = (roomInput.value || '').trim();
       if (!roomId) {
         alert('Enter a room ID');
         return;
       }
       joinRoom(roomId);
+      // logOutput('Joined room: ' + roomId);
     });
   }
 
   // -------------- BUTTON EVENTS ----------------
   if (runBtn)  runBtn.addEventListener('click', runCode);
   if (saveBtn) saveBtn.addEventListener('click', saveFile);
+
+  if (clearOutputBtn && outputEl) {
+    clearOutputBtn.addEventListener('click', () => {
+      outputEl.textContent = '';
+    });
+  }
 
   // -------------- INIT SEQUENCE ----------------
   initSocket();

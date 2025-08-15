@@ -41,6 +41,7 @@
         </select>
         <div class="room-controls menu-item">
           <input type="text" id="roomInput" placeholder="Enter Room ID">
+          <button id="JoinRoomButton" type="button">Join Room</button>
           <button id="RoomButton" type="button">Create Room</button>
         </div>
         <div class="empty-div"></div>
@@ -54,7 +55,10 @@
         <div id="editor-container"><div id="editor"></div></div>
         <div id="output-container">
           <textarea id="stdinInput" placeholder="Enter stdin..."></textarea>
-          <pre id="output"></pre>
+          <div class="output-wrapper">
+            <pre id="output"></pre>
+            <button id="clearOutputBtn" title="Clear output" class="clear-output-btn">&#128465;</button>
+          </div>
         </div>
       </div>
     </div>
