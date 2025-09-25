@@ -148,6 +148,11 @@ function initSocket(server, { sessionMiddleware }) {
     });
 
     // --- BROADCAST ALL REMOTE CARET POSITIONS TO ALL USERS IN ROOM ---
+
+    // Listen for filelist-changed and broadcast to all
+    socket.on('filelist-changed', () => {
+      socket.broadcast.emit('filelist-changed');
+    });
     socket.on('caret-position', ({ roomId, offset }) => {
       if (!roomId || typeof offset !== 'number') return;
   const senderId = getSocketUserId();

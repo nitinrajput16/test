@@ -2,6 +2,26 @@
 
   // ---------------- DOM ELEMENTS ----------------
   const fileListDiv = document.getElementById('fileList');
+  // Add New File button above file list
+  const newFileBtn = document.createElement('button');
+  newFileBtn.textContent = '+ New File';
+  newFileBtn.style.width = '100%';
+  newFileBtn.style.background = '#0a5';
+  newFileBtn.style.color = '#fff';
+  newFileBtn.style.border = 'none';
+  newFileBtn.style.padding = '8px 0';
+  newFileBtn.style.fontWeight = 'bold';
+  newFileBtn.style.cursor = 'pointer';
+  newFileBtn.style.marginBottom = '6px';
+  newFileBtn.addEventListener('click', () => {
+    setEditorValue('');
+    currentFilename = null;
+    highlightActiveFile();
+    logOutput('New blank file. Use Save to name and store it.');
+  });
+  if (fileListDiv && fileListDiv.parentElement) {
+    fileListDiv.parentElement.insertBefore(newFileBtn, fileListDiv);
+  }
   const runBtn      = document.getElementById('runButton');
   const saveBtn     = document.getElementById('saveButton');
   const langSelect  = document.getElementById('language');
@@ -97,16 +117,72 @@
         const name = f.filename || f;
         const div = document.createElement('div');
         div.className = 'file-item';
-        div.textContent = name;
+
+        // File name span
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = name;
+        nameSpan.style.flex = '1';
+        nameSpan.style.cursor = 'pointer';
+        nameSpan.addEventListener('click', () => loadFile(name));
+        div.appendChild(nameSpan);
+
+        // Rename icon
+        const renameBtn = document.createElement('button');
+        renameBtn.innerHTML = '✏️';
+        renameBtn.title = 'Rename file';
+        renameBtn.style.marginLeft = '8px';
+        renameBtn.style.background = 'none';
+        renameBtn.style.border = 'none';
+        renameBtn.style.cursor = 'pointer';
+        renameBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const newName = prompt('Enter new filename:', name);
+          if (!newName || newName === name) return;
+          api('POST', '/api/code/rename', { oldName: name, newName })
+            .then(() => {
+              if (currentFilename === name) currentFilename = newName;
+              if (window.socket) window.socket.emit('filelist-changed');
+              refreshFileList();
+              logOutput('Renamed to: ' + newName);
+            })
+            .catch(e => logOutput('Rename error: ' + e.message));
+        });
+        div.appendChild(renameBtn);
+
+        // Delete icon styled for file list
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '🗑️'; // trash can icon
+        deleteBtn.title = 'Delete file';
+        deleteBtn.className = 'file-delete-btn';
+        deleteBtn.style.marginLeft = '4px';
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!confirm('Delete file: ' + name + '?')) return;
+          api('DELETE', '/api/code/delete', { filename: name })
+            .then(() => {
+              if (currentFilename === name) {
+                currentFilename = null;
+                setEditorValue('');
+              }
+              if (window.socket) window.socket.emit('filelist-changed');
+              refreshFileList();
+              logOutput('Deleted: ' + name);
+            })
+            .catch(e => logOutput('Delete error: ' + e.message));
+        });
+        div.appendChild(deleteBtn);
+
+        div.style.display = 'flex';
+        div.style.alignItems = 'center';
+
         if (f.updatedAt || f.language || f.size != null) {
           div.title = [
             f.language,
             f.updatedAt && new Date(f.updatedAt).toLocaleString(),
             (f.size != null) && (f.size + ' chars')
-          ].filter(Boolean).join(' • ');
+          ].filter(Boolean).join(' \u2022 ');
         }
         if (name === currentFilename) div.classList.add('active');
-        div.addEventListener('click', () => loadFile(name));
         fileListDiv.appendChild(div);
       });
     })
@@ -209,6 +285,7 @@
       return;
     }
     socket = io();
+    window.socket = socket;
     socket.on('connect', () => {
       joinRoom(currentRoom);
     });
@@ -216,6 +293,9 @@
       if (getEditorValue() === content) return;
       suppressNextChange = true;
       setEditorValue(content);
+    });
+    socket.on('filelist-changed', () => {
+      refreshFileList();
     });
     socket.on('connect_error', err => {
       if (err && /Unauthorized/i.test(err.message)) {
