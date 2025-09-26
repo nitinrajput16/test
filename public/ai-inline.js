@@ -9,7 +9,7 @@
 (function (global) {
   const CFG = {
     endpoint: '/api/ai/inline',
-    debounceMs: 10000,
+    debounceMs: 3000,
     minChars: 6,
     maxPrefix: 6000,
 
