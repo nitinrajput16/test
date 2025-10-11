@@ -4,10 +4,10 @@ const { ensureAuth, ensureGuest, ensureOwner } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Root logic
+// Root logic - Landing page
 router.get('/', (req, res) => {
   if (req.isAuthenticated && req.isAuthenticated()) return res.redirect('/editor');
-  return res.redirect('/login');
+  return res.sendFile(path.join(__dirname, '..', 'public', 'landing.html'));
 });
 
 // Login

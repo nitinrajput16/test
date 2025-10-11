@@ -99,3 +99,49 @@ const UIUserPresence = (function() {
   `;
   document.head.appendChild(style);
 })();
+
+// AI Hint Badge Toggle
+(function() {
+  window.addEventListener('DOMContentLoaded', () => {
+    const aiHint = document.getElementById('ai-hint');
+    if (!aiHint) return;
+
+    let isExpanded = false;
+    let hideTimeout = null;
+
+    // Toggle on click
+    aiHint.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isExpanded = !isExpanded;
+      
+      if (isExpanded) {
+        aiHint.classList.add('expanded');
+        clearTimeout(hideTimeout);
+      } else {
+        aiHint.classList.remove('expanded');
+      }
+    });
+
+    // Auto-hide after hover away
+    aiHint.addEventListener('mouseenter', () => {
+      clearTimeout(hideTimeout);
+    });
+
+    aiHint.addEventListener('mouseleave', () => {
+      if (isExpanded) {
+        hideTimeout = setTimeout(() => {
+          isExpanded = false;
+          aiHint.classList.remove('expanded');
+        }, 3000); // Hide after 3 seconds of no interaction
+      }
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', () => {
+      if (isExpanded) {
+        isExpanded = false;
+        aiHint.classList.remove('expanded');
+      }
+    });
+  });
+})();

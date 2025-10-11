@@ -46,7 +46,6 @@ Return ONLY the continuation (no explanations, no surrounding fences).`;
     const cleaned = extractFence(raw);
     res.json({ suggestion: cleaned });
   } catch (e) {
-    console.error('[AI INLINE ERROR]', e);
     res.status(500).json({ error: 'inline completion failed: ' + e.message });
   }
 });

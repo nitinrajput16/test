@@ -1,26 +1,202 @@
 (function () {
 
+  // ---------------- CUSTOM MODAL FUNCTIONS ----------------
+  function showModal({ title, message, input, buttons }) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      
+      const box = document.createElement('div');
+      box.className = 'modal-box';
+      
+      if (title) {
+        const titleEl = document.createElement('div');
+        titleEl.className = 'modal-title';
+        titleEl.textContent = title;
+        box.appendChild(titleEl);
+      }
+      
+      if (message) {
+        const msgEl = document.createElement('div');
+        msgEl.className = 'modal-message';
+        msgEl.textContent = message;
+        box.appendChild(msgEl);
+      }
+      
+      let inputEl;
+      if (input) {
+        inputEl = document.createElement('input');
+        inputEl.type = 'text';
+        inputEl.className = 'modal-input';
+        inputEl.placeholder = input.placeholder || '';
+        inputEl.value = input.defaultValue || '';
+        box.appendChild(inputEl);
+        setTimeout(() => inputEl.focus(), 100);
+      }
+      
+      const buttonsDiv = document.createElement('div');
+      buttonsDiv.className = 'modal-buttons';
+      
+      buttons.forEach(btn => {
+        const button = document.createElement('button');
+        button.className = `modal-btn modal-btn-${btn.type || 'secondary'}`;
+        button.textContent = btn.text;
+        button.addEventListener('click', () => {
+          const result = inputEl ? inputEl.value : btn.value;
+          document.body.removeChild(overlay);
+          resolve(result);
+        });
+        buttonsDiv.appendChild(button);
+      });
+      
+      box.appendChild(buttonsDiv);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      
+      // Handle Enter key for input
+      if (inputEl) {
+        inputEl.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            document.body.removeChild(overlay);
+            resolve(inputEl.value);
+          }
+        });
+      }
+      
+      // Close on overlay click
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+          document.body.removeChild(overlay);
+          resolve(null);
+        }
+      });
+    });
+  }
+  
+  function customPrompt(message, defaultValue = '') {
+    return showModal({
+      title: 'Input Required',
+      message: message,
+      input: { defaultValue },
+      buttons: [
+        { text: 'Cancel', type: 'secondary', value: null },
+        { text: 'OK', type: 'primary', value: true }
+      ]
+    });
+  }
+  
+  function customConfirm(message) {
+    return showModal({
+      title: 'Confirm Action',
+      message: message,
+      buttons: [
+        { text: 'Cancel', type: 'secondary', value: false },
+        { text: 'Confirm', type: 'danger', value: true }
+      ]
+    });
+  }
+  
+  function customAlert(message) {
+    return showModal({
+      title: 'Alert',
+      message: message,
+      buttons: [
+        { text: 'OK', type: 'primary', value: true }
+      ]
+    });
+  }
+
   // ---------------- DOM ELEMENTS ----------------
   const fileListDiv = document.getElementById('fileList');
-  // Add New File button above file list
+  
+  // Add search container with icon and input
+  const searchContainer = document.createElement('div');
+  searchContainer.style.display = 'flex';
+  searchContainer.style.alignItems = 'center';
+  searchContainer.style.gap = '6px';
+  searchContainer.style.marginBottom = '6px';
+  searchContainer.style.padding = '0 5px';
+
+  const searchWrapper = document.createElement('div');
+  searchWrapper.style.position = 'relative';
+  searchWrapper.style.flex = '1';
+  searchWrapper.style.display = 'flex';
+  searchWrapper.style.alignItems = 'center';
+
+  const searchIcon = document.createElement('span');
+  searchIcon.textContent = '🔍';
+  searchIcon.style.position = 'absolute';
+  searchIcon.style.left = '8px';
+  searchIcon.style.fontSize = '14px';
+  searchIcon.style.pointerEvents = 'none';
+  searchIcon.style.opacity = '0.7';
+
+  const searchInput = document.createElement('input');
+  searchInput.type = 'text';
+  searchInput.placeholder = 'Search files...';
+  searchInput.style.width = '100%';
+  searchInput.style.padding = '6px 8px 6px 30px';
+  searchInput.style.background = '#ffffff11';
+  searchInput.style.border = '1px solid #ffffff15';
+  searchInput.style.color = '#fff';
+  searchInput.style.borderRadius = '4px';
+  searchInput.style.fontSize = '12px';
+  searchInput.style.outline = 'none';
+  
+  searchInput.addEventListener('focus', () => {
+    searchInput.style.borderColor = '#0a5';
+    searchInput.style.background = '#ffffff18';
+  });
+  
+  searchInput.addEventListener('blur', () => {
+    searchInput.style.borderColor = '#ffffff15';
+    searchInput.style.background = '#ffffff11';
+  });
+
+  searchInput.addEventListener('input', (e) => {
+    filterFileList(e.target.value.toLowerCase());
+  });
+
+  searchWrapper.appendChild(searchIcon);
+  searchWrapper.appendChild(searchInput);
+  searchContainer.appendChild(searchWrapper);
+
+  // Add New File button
   const newFileBtn = document.createElement('button');
-  newFileBtn.textContent = '+ New File';
-  newFileBtn.style.width = '100%';
+  newFileBtn.textContent = '+';
+  newFileBtn.title = 'New File';
   newFileBtn.style.background = '#0a5';
   newFileBtn.style.color = '#fff';
   newFileBtn.style.border = 'none';
-  newFileBtn.style.padding = '8px 0';
+  newFileBtn.style.padding = '6px 12px';
   newFileBtn.style.fontWeight = 'bold';
   newFileBtn.style.cursor = 'pointer';
-  newFileBtn.style.marginBottom = '6px';
+  newFileBtn.style.borderRadius = '4px';
+  newFileBtn.style.fontSize = '16px';
   newFileBtn.addEventListener('click', () => {
     setEditorValue('');
     currentFilename = null;
     highlightActiveFile();
     logOutput('New blank file. Use Save to name and store it.');
   });
+
+  searchContainer.appendChild(newFileBtn);
+
   if (fileListDiv && fileListDiv.parentElement) {
-    fileListDiv.parentElement.insertBefore(newFileBtn, fileListDiv);
+    fileListDiv.parentElement.insertBefore(searchContainer, fileListDiv);
+  }
+
+  // Filter file list function
+  function filterFileList(searchTerm) {
+    const fileItems = fileListDiv.querySelectorAll('.file-item');
+    fileItems.forEach(item => {
+      const fileName = item.textContent.toLowerCase();
+      if (fileName.includes(searchTerm)) {
+        item.style.display = 'flex';
+      } else {
+        item.style.display = 'none';
+      }
+    });
   }
   const runBtn      = document.getElementById('runButton');
   const saveBtn     = document.getElementById('saveButton');
@@ -134,9 +310,9 @@
         renameBtn.style.background = 'none';
         renameBtn.style.border = 'none';
         renameBtn.style.cursor = 'pointer';
-        renameBtn.addEventListener('click', (e) => {
+        renameBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          const newName = prompt('Enter new filename:', name);
+          const newName = await customPrompt('Enter new filename:', name);
           if (!newName || newName === name) return;
           api('POST', '/api/code/rename', { oldName: name, newName })
             .then(() => {
@@ -155,9 +331,10 @@
         deleteBtn.title = 'Delete file';
         deleteBtn.className = 'file-delete-btn';
         deleteBtn.style.marginLeft = '4px';
-        deleteBtn.addEventListener('click', (e) => {
+        deleteBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (!confirm('Delete file: ' + name + '?')) return;
+          const confirmed = await customConfirm('Delete file: ' + name + '?');
+          if (!confirmed) return;
           api('DELETE', '/api/code/delete', { filename: name })
             .then(() => {
               if (currentFilename === name) {
@@ -228,10 +405,10 @@
       .catch(e => logOutput('Load error: '+e.message));
   }
 
-  function saveFile(){
+  async function saveFile(){
     if (!currentFilename){
       const proposed = 'file'+Date.now()+'.js';
-      const name = prompt('Enter filename (with extension):', proposed);
+      const name = await customPrompt('Enter filename (with extension):', proposed);
       if (!name) return;
       currentFilename = name.trim();
     }
@@ -598,10 +775,10 @@
 
   // Join Room button: join the room in the input
   if (joinRoomButton) {
-    joinRoomButton.addEventListener('click', () => {
+    joinRoomButton.addEventListener('click', async () => {
       const roomId = (roomInput.value || '').trim();
       if (!roomId) {
-        alert('Enter a room ID');
+        await customAlert('Enter a room ID');
         return;
       }
       joinRoom(roomId);

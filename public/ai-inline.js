@@ -1,16 +1,17 @@
 /**
- * AI Inline Widget (Multiline Preview)
+ * AI Inline Widget (Multiline Preview) - On-Demand Mode
+ * - Trigger AI suggestion: Ctrl/Cmd + Shift + Space OR Ctrl/Cmd + I
+ * - Accept suggestion: Tab
+ * - Toggle full/condensed preview: Ctrl/Cmd + P
+ * - Force refresh: Ctrl/Cmd + Alt + R
  * - Displays up to MAX_PREVIEW_LINES of the suggestion
  * - Shows truncation footer if more lines exist
- * - Toggle full/condensed preview: Ctrl/Cmd + Alt + ;
- * - Accept full suggestion: Tab
- * - Force refresh: Ctrl/Cmd + Alt + R
  */
 (function (global) {
   const CFG = {
     endpoint: '/api/ai/inline',
     debounceMs: 3000,
-    minChars: 6,
+    minChars: 1,
     maxPrefix: 6000,
 
     // Preview controls
@@ -28,7 +29,7 @@
     debug: false
   };
 
-  function log(...a){ if (CFG.debug) console.log('[AI-WIDGET]', ...a); }
+  // function log(...a){ if (CFG.debug) console.log('[AI-WIDGET]', ...a); }
   function tail(s,n){ return s.length <= n ? s : s.slice(-n); }
 
   function normalizeIndent(text, baseCol) {
@@ -167,6 +168,7 @@
       const all = model.getValue();
       if (all.length < CFG.minChars) {
         clearWidget();
+        log('Code too short (< ' + CFG.minChars + ' chars)');
         return;
       }
 
@@ -178,7 +180,7 @@
       const fid = ++lastFetchId;
 
       clearWidget();
-      if (CFG.SHOW_PLACEHOLDER) updateWidgetText(CFG.placeholder, true);
+      if (CFG.SHOW_PLACEHOLDER) updateWidgetText('🤖 Thinking...', true);
 
       const lang = getLang();
       log('POST', CFG.endpoint, { bytes: prefix.length, lang, fid, force });
@@ -265,13 +267,13 @@
         range: editor.getSelection(),
         text: insert
       }]);
-      scheduleFetch();
+      // Don't auto-fetch after accepting - wait for user to manually trigger again
     }
 
     // Events
     editor.onDidChangeModelContent(() => {
+      // Only clear widget on content change, don't auto-fetch
       clearWidget();
-      scheduleFetch();
     });
 
     editor.onDidChangeCursorPosition(() => {
@@ -281,12 +283,26 @@
 
     editor.addCommand(monaco.KeyCode.Tab, accept);
 
-    // Toggle preview size: Ctrl/Cmd + P
+    // Keyboard shortcuts
     window.addEventListener('keydown', (e) => {
+      // Ctrl+Shift+Space: Trigger AI suggestion
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'Space') {
+        e.preventDefault();
+        log('Manual trigger via Ctrl+Shift+Space');
+        force();
+      }
+      // Ctrl+I: Quick trigger (alternative)
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        log('Manual trigger via Ctrl+I');
+        force();
+      }
+      // Ctrl+P: Toggle preview size
       if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
         e.preventDefault();
         toggleExpanded();
       }
+      // Ctrl+Alt+R: Force refresh (kept for backward compatibility)
       if ((e.metaKey || e.ctrlKey) && e.altKey && e.key.toLowerCase() === 'r') {
         e.preventDefault();
         force();
@@ -296,12 +312,19 @@
     const ls = document.getElementById('language');
     if (ls) {
       ls.addEventListener('change', () => {
+        // Just clear the widget when language changes, don't auto-fetch
         clearWidget();
-        scheduleFetch();
       });
     }
 
     function force() {
+      // If there's already a suggestion visible, clear it
+      if (fullSuggestion && widgetVisible) {
+        log('Clearing existing suggestion');
+        clearWidget();
+        return;
+      }
+      // Otherwise fetch a new suggestion
       clearWidget();
       fetchSuggestion(true);
     }
@@ -326,8 +349,8 @@
     // Alias for earlier expectations
     global.__AIGHOST_STATE__ = api;
 
-    // Initialize
-    scheduleFetch();
+    // Don't auto-fetch on initialization - wait for user trigger (Ctrl+Alt+S)
+    log('AI suggestions ready. Press Ctrl+Alt+S to get suggestions.');
 
     return api;
   }

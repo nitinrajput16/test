@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %></title>
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
     <style>
         * {
             margin: 0;
@@ -14,23 +14,42 @@
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #04100c 0%, #0a1f15 50%, #04100c 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 50% 50%, rgba(0, 170, 85, 0.1) 0%, transparent 50%);
+            animation: pulse 15s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
         }
         
         .login-container {
-            background: white;
+            background: rgba(10, 21, 16, 0.95);
+            backdrop-filter: blur(10px);
             padding: 3rem;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 170, 85, 0.2);
+            border: 1px solid rgba(0, 170, 85, 0.3);
             text-align: center;
             max-width: 450px;
             width: 100%;
             position: relative;
             overflow: hidden;
+            z-index: 1;
         }
         
         .login-container::before {
@@ -40,34 +59,41 @@
             left: 0;
             right: 0;
             height: 5px;
-            background: linear-gradient(90deg, #4285f4, #34a853, #fbbc05, #ea4335);
+            background: linear-gradient(90deg, #0a5, #4fd89b, #0a5);
+            background-size: 200% 100%;
+            animation: shimmer 3s linear infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
         }
         
         .logo {
             font-size: 2.5rem;
             font-weight: 700;
-            color: #333;
             margin-bottom: 0.5rem;
-            background: linear-gradient(45deg, #4285f4, #34a853);
+            background: linear-gradient(135deg, #0a5, #4fd89b);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            text-shadow: 0 0 30px rgba(0, 170, 85, 0.3);
         }
         
         .subtitle {
-            color: #666;
+            color: #4fd89b;
             margin-bottom: 0.5rem;
             font-size: 1.1rem;
         }
         
         .author {
-            color: #888;
+            color: #6b8f7b;
             font-size: 0.9rem;
             margin-bottom: 2rem;
         }
         
         .welcome-text {
-            color: #555;
+            color: #e0e6ed;
             margin-bottom: 2.5rem;
             line-height: 1.6;
         }
@@ -75,23 +101,40 @@
         .google-btn {
             display: inline-flex;
             align-items: center;
-            background: #4285f4;
+            background: linear-gradient(135deg, #0a5, #00cc66);
             color: white;
             padding: 15px 30px;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             text-decoration: none;
             font-size: 16px;
             font-weight: 500;
             transition: all 0.3s ease;
             gap: 12px;
-            box-shadow: 0 4px 15px rgba(66, 133, 244, 0.3);
+            box-shadow: 0 8px 25px rgba(0, 170, 85, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .google-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .google-btn:hover::before {
+            left: 100%;
         }
         
         .google-btn:hover {
-            background: #357ae8;
+            background: linear-gradient(135deg, #00cc66, #0a5);
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(66, 133, 244, 0.4);
+            box-shadow: 0 12px 35px rgba(0, 170, 85, 0.5);
         }
         
         .google-icon {
@@ -105,33 +148,35 @@
         }
         
         .error-message {
-            background: #ffebee;
-            color: #c62828;
-            padding: 10px;
-            border-radius: 5px;
+            background: rgba(220, 38, 38, 0.1);
+            color: #ff6b6b;
+            padding: 12px;
+            border-radius: 8px;
             margin-bottom: 1rem;
-            border-left: 4px solid #c62828;
+            border-left: 4px solid #ff6b6b;
+            border: 1px solid rgba(220, 38, 38, 0.3);
         }
         
         .success-message {
-            background: #e8f5e8;
-            color: #2e7d32;
-            padding: 10px;
-            border-radius: 5px;
+            background: rgba(0, 170, 85, 0.1);
+            color: #4fd89b;
+            padding: 12px;
+            border-radius: 8px;
             margin-bottom: 1rem;
-            border-left: 4px solid #2e7d32;
+            border-left: 4px solid #4fd89b;
+            border: 1px solid rgba(0, 170, 85, 0.3);
         }
         
         .footer {
             margin-top: 2rem;
             padding-top: 1rem;
-            border-top: 1px solid #eee;
-            color: #888;
+            border-top: 1px solid rgba(0, 170, 85, 0.2);
+            color: #6b8f7b;
             font-size: 0.85rem;
         }
         
         .current-time {
-            color: #999;
+            color: #4fd89b;
             font-size: 0.8rem;
             margin-top: 1rem;
         }

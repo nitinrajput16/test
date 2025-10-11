@@ -30,7 +30,6 @@ router.post('/run', ensureAuth, async (req, res) => {
     const data = await judgeRes.json();
     res.json(data);
   } catch (e) {
-    console.error('[CODE][RUN]', e);
     res.status(500).json({ error: 'Failed to run code' });
   }
 });
@@ -38,14 +37,12 @@ router.post('/run', ensureAuth, async (req, res) => {
 // List files for current user
 router.get('/list', ensureAuth, async (req, res) => {
   try {
-    console.log('[DEBUG][LIST] req.user._id:', req.user && req.user._id);
     const docs = await CodeFile.find(
     { googleId: req.user.googleId },
       'filename language updatedAt size'
     ).sort({ updatedAt: -1 }).lean();
     res.json({ files: docs });
   } catch (e) {
-    console.error('[CODE][LIST]', e);
     res.status(500).json({ error: 'Failed to list files' });
   }
 });
@@ -64,7 +61,6 @@ router.get('/load', ensureAuth, async (req, res) => {
       updatedAt: doc.updatedAt
     });
   } catch (e) {
-    console.error('[CODE][LOAD]', e);
     res.status(500).json({ error: 'Failed to load file' });
   }
 });
@@ -72,7 +68,6 @@ router.get('/load', ensureAuth, async (req, res) => {
 // Save (create/update)
 router.post('/save', ensureAuth, async (req, res) => {
   try {
-    console.log('[DEBUG][SAVE] req.user._id:', req.user && req.user._id);
     let { filename, code, language, roomId } = req.body || {};
     if (!filename) return res.status(400).json({ error: 'filename required' });
     if (!FILENAME_REGEX.test(filename)) {
@@ -103,7 +98,6 @@ router.post('/save', ensureAuth, async (req, res) => {
     if (e.code === 11000) {
       return res.status(409).json({ error: 'Duplicate filename' });
     }
-    console.error('[CODE][SAVE]', e);
     res.status(500).json({ error: 'Failed to save file' });
   }
 });
@@ -116,7 +110,6 @@ router.delete('/delete', ensureAuth, async (req, res) => {
     await CodeFile.deleteOne({ googleId: req.user.googleId, filename });
     res.json({ deleted: true });
   } catch (e) {
-    console.error('[CODE][DELETE]', e);
     res.status(500).json({ error: 'Failed to delete file' });
   }
 });
@@ -137,7 +130,6 @@ router.post('/rename', ensureAuth, async (req, res) => {
     await file.save();
     res.json({ renamed: true, filename: newName });
   } catch (e) {
-    console.error('[CODE][RENAME]', e);
     res.status(500).json({ error: 'Failed to rename file' });
   }
 });

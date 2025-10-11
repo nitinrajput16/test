@@ -37,7 +37,6 @@ app.set('views', path.join(__dirname, 'views'));
 
 // ---------- CORE MIDDLEWARE ----------
 app.use((req, _res, next) => {
-  console.log(`[REQ] ${req.method} ${req.url}`);
   next();
 });
 app.use(express.urlencoded({ extended: false }));
@@ -100,7 +99,6 @@ app.use((req, res) => {
 
 // ---------- ERROR HANDLER ----------
 app.use((err, req, res, _next) => {
-  console.error('[APP ERROR]', err);
   res.status(err.status || 500).render('error', {
     title: 'Error',
     error: process.env.NODE_ENV === 'development' ? err : 'Something went wrong'
@@ -110,18 +108,14 @@ app.use((err, req, res, _next) => {
 // ---------- START ----------
 server.listen(PORT, () => {
   console.log('=====================================');
-  console.log('🚀 Edit Code Editor Server Started');
-  console.log(`📅 Time: ${new Date().toISOString()}`);
   console.log(`🌐 URL: http://${HOST}:${PORT}`);
   console.log(`👤 Author: nr750001`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log('=====================================');
 });
 
 // ---------- SHUTDOWN ----------
-['SIGINT', 'SIGTERM'].forEach(sig => {
-  process.on(sig, () => {
-    console.log(`[${new Date().toISOString()}] ${sig} received. Exiting...`);
-    process.exit(0);
-  });
-});
+// ['SIGINT', 'SIGTERM'].forEach(sig => {
+//   process.on(sig, () => {
+//     process.exit(0);
+//   });
+// });
