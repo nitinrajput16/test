@@ -1,3 +1,52 @@
+/* Nav Bar Styles */
+.navbar {
+  width: 100vw;
+  background: #04100c;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 56px;
+  border-bottom: 1px solid #0a5;
+  box-shadow: 0 2px 8px #0002;
+  font-family: inherit;
+}
+.navbar-brand {
+  font-size: 1.5em;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: #0a5;
+}
+.navbar-links {
+  list-style: none;
+  display: flex;
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+}
+.navbar-links li {
+  display: inline;
+}
+.navbar-links a {
+  color: #fff;
+  text-decoration: none;
+  font-size: 1em;
+  padding: 6px 12px;
+  /* border-radius: 4px; */
+  transition: background 0.2s;
+}
+.navbar-links a:hover {
+  background: #0a5;
+}
+.navbar-theme-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.5em;
+  cursor: pointer;
+  margin-left: 16px;
+}
 /* File delete button for file list (inline, round, red on hover) */
 .file-delete-btn {
     background: #222c;

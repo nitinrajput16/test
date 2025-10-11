@@ -1,7 +1,8 @@
 {
   "main": "app.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "dev": "nodemon app.js"
   },
   "dependencies": {
     "@google/genai": "^1.13.0",
@@ -20,6 +21,7 @@
     "mongodb": "^6.11.0",
     "mongoose": "^8.17.1",
     "multer": "^1.4.5-lts.1",
+    "node-schedule": "^2.1.1",
     "node.js": "^0.0.1-security",
     "nodemon": "^3.1.10",
     "passport": "^0.7.0",

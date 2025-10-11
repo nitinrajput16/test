@@ -17,17 +17,30 @@ router.post('/run', ensureAuth, async (req, res) => {
   try {
     const { source_code, language_id, stdin } = req.body || {};
     if (!source_code || !language_id) return res.status(400).json({ error: 'source_code and language_id required' });
+    // Encode source_code and stdin in base64
+    function toBase64(str) {
+      return Buffer.from(str || '', 'utf8').toString('base64');
+    }
     const body = {
-      source_code,
+      source_code: toBase64(source_code),
       language_id,
-      stdin: stdin || ''
+      stdin: toBase64(stdin || ''),
+      base64_encoded: true
     };
-    const judgeRes = await fetch(JUDGE0_URL, {
+    // Update Judge0 URL to match base64_encoded=true
+    const judgeRes = await fetch('https://judge0-ce.p.rapidapi.com/submissions?base64_encoded=true&wait=true', {
       method: 'POST',
       headers: JUDGE0_HEADERS,
       body: JSON.stringify(body)
     });
     const data = await judgeRes.json();
+    // Decode base64 stdout/stderr if present
+    function decodeBase64(str) {
+      if (!str) return '';
+      return Buffer.from(str, 'base64').toString('utf8');
+    }
+    if (data.stdout) data.stdout = decodeBase64(data.stdout);
+    if (data.stderr) data.stderr = decodeBase64(data.stderr);
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: 'Failed to run code' });

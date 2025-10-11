@@ -21,16 +21,79 @@ router.get('/login', ensureGuest, (req, res) => {
 
 // Optional dashboard (EJS UI if you still want it)
 router.get('/dashboard', ensureAuth, (req, res) => {
-  res.render('dashboard', {
-    title: 'Dashboard - Edit',
-    user: req.user
+  const CodeFile = require('../models/CodeFile');
+  const EditorSession = require('../models/EditorSession');
+  const now = new Date();
+  const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const dateStr = istNow.toISOString().slice(0,10);
+  Promise.all([
+    CodeFile.find({ googleId: req.user.googleId }, 'filename language updatedAt size').sort({ updatedAt: -1 }).lean(),
+    CodeFile.countDocuments({ googleId: req.user.googleId }),
+    EditorSession.find({ googleId: req.user.googleId, date: dateStr }),
+    EditorSession.find({ googleId: req.user.googleId }).distinct('date')
+  ]).then(([files, codeCount, sessions, allDates]) => {
+    let total = 0;
+    sessions.forEach(s => {
+      if (s.end && s.start) {
+        total += (s.end - s.start) / 1000;
+      } else if (s.start) {
+        total += (now - s.start) / 1000;
+      }
+    });
+    // Format as Hh Mm
+    let editorTime = '0m';
+    if (total > 0) {
+      const h = Math.floor(total/3600);
+      const m = Math.floor((total%3600)/60);
+      editorTime = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    }
+    // Calculate streak
+    let streak = 0;
+    if (allDates && allDates.length) {
+      // Sort dates descending
+      const sorted = allDates.sort((a,b) => b.localeCompare(a));
+      let current = dateStr;
+      for (let i=0; i<sorted.length; i++) {
+        if (sorted[i] === current) {
+          streak++;
+          // Move to previous day
+          const prev = new Date(current);
+          prev.setDate(prev.getDate()-1);
+          current = prev.toISOString().slice(0,10);
+        } else {
+          break;
+        }
+      }
+    }
+    res.render('dashboard', {
+      title: 'Dashboard - Edit',
+      user: req.user,
+      fileList: files,
+      codeCount,
+      editorTime,
+      streak
+    });
+  }).catch(() => {
+    res.render('dashboard', {
+      title: 'Dashboard - Edit',
+      user: req.user,
+      fileList: [],
+      codeCount: 0,
+      editorTime: '0m',
+      streak: 0
+    });
   });
 });
 
 router.get('/profile', ensureAuth, (req, res) => {
-  res.render('profile', {
-    title: 'Profile - Edit',
-    user: req.user
+  const CodeFile = require('../models/CodeFile');
+  CodeFile.countDocuments({ googleId: req.user.googleId }).then(codeCount => {
+    res.render('profile', {
+      title: 'Profile - Edit',
+      user: req.user,
+      sessionActive: req.isAuthenticated && req.isAuthenticated(),
+      codeCount
+    });
   });
 });
 

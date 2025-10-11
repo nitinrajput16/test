@@ -82,6 +82,8 @@ app.use('/', require('./routes/index'));
 app.use('/auth', require('./routes/auth'));
 app.use('/api/code', require('./routes/api/code'));
 app.use('/api/ai', require('./routes/api/ai'));
+app.use('/profile', require('./routes/api/profile'));
+app.use('/api/editor', require('./routes/api/editor'));
 
 // ---------- STATIC (AFTER PROTECTION) ----------
 app.use(express.static(path.join(__dirname, 'public')));
@@ -101,7 +103,8 @@ app.use((req, res) => {
 app.use((err, req, res, _next) => {
   res.status(err.status || 500).render('error', {
     title: 'Error',
-    error: process.env.NODE_ENV === 'development' ? err : 'Something went wrong'
+    message: err.message || 'An unexpected error occurred.',
+    error: process.env.NODE_ENV === 'development' ? err : {}
   });
 });
 

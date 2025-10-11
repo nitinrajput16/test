@@ -29,7 +29,7 @@
     debug: false
   };
 
-  // function log(...a){ if (CFG.debug) console.log('[AI-WIDGET]', ...a); }
+  function log(...a){ if (CFG.debug) console.log('[AI-WIDGET]', ...a); }
   function tail(s,n){ return s.length <= n ? s : s.slice(-n); }
 
   function normalizeIndent(text, baseCol) {
@@ -172,6 +172,7 @@
         return;
       }
 
+      // Always allow suggestions, even for unsaved files
       const prefix = getPrefix();
       if (aborter) {
         try { aborter.abort(); } catch {}
@@ -196,7 +197,15 @@
           try { data = await r.json(); } catch {
             throw new Error('Non-JSON ' + r.status);
           }
-          if (!r.ok) throw new Error(data.error || ('HTTP '+r.status));
+          if (!r.ok) {
+            // If backend blocks due to missing filename, show message
+            if (data.error && /filename/i.test(data.error)) {
+              updateWidgetText('AI suggestion unavailable for unsaved files.', true);
+              log('AI suggestion blocked: ' + data.error);
+              return;
+            }
+            throw new Error(data.error || ('HTTP '+r.status));
+          }
           return data;
         })
         .then(data => {

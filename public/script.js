@@ -1,3 +1,84 @@
+// Monaco Editor: Set language from ?template= param
+function getTemplateFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('template');
+}
+
+function getMonacoLanguage(template) {
+  const map = {
+    js: 'javascript',
+    python: 'python',
+    cpp: 'cpp',
+    java: 'java',
+    php: 'php',
+    sql: 'sql',
+    go: 'go',
+    r: 'r',
+    rust: 'rust',
+    c: 'c',
+    ruby: 'ruby',
+    csharp: 'csharp',
+    kotlin: 'kotlin',
+    typescript: 'typescript'
+  };
+  return map[template] || 'plaintext';
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+  // --- Editor Activity Tracking ---
+  let activityStarted = false;
+  let heartbeatInterval = null;
+  function sendActivity(action) {
+    fetch('/api/editor/activity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    });
+  }
+  function startActivity() {
+    if (!activityStarted) {
+      sendActivity('start');
+      activityStarted = true;
+    }
+    if (!heartbeatInterval) {
+      heartbeatInterval = setInterval(() => sendActivity('start'), 60000); // every 1 min
+    }
+  }
+  function endActivity() {
+    if (activityStarted) {
+      sendActivity('end');
+      activityStarted = false;
+    }
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
+  }
+  // Start activity on editor focus or user input
+  window.addEventListener('focus', startActivity);
+  window.addEventListener('keydown', startActivity);
+  window.addEventListener('mousedown', startActivity);
+  // End activity on blur or unload
+  window.addEventListener('blur', endActivity);
+  window.addEventListener('beforeunload', endActivity);
+  if (window.monaco && window.editor) {
+    const template = getTemplateFromURL();
+    if (template) {
+      const lang = getMonacoLanguage(template);
+      monaco.editor.setModelLanguage(editor.getModel(), lang);
+      // Optionally, set the language dropdown too:
+      const langSelect = document.getElementById('language');
+      if (langSelect) {
+        for (const opt of langSelect.options) {
+          if (opt.getAttribute('data-monaco') === lang) {
+            langSelect.value = opt.value;
+            break;
+          }
+        }
+      }
+    }
+  }
+});
 (function () {
 
   // ---------------- CUSTOM MODAL FUNCTIONS ----------------
@@ -676,7 +757,47 @@
         }
       });
 
-      const initialLang = (langSelect && judge0ToMonaco[parseInt(langSelect.value,10)]) || 'javascript';
+      // Get template from URL
+      function getTemplateFromURL() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('template');
+      }
+      function getMonacoLanguage(template) {
+        const map = {
+          js: 'javascript',
+          python: 'python',
+          cpp: 'cpp',
+          java: 'java',
+          php: 'php',
+          sql: 'sql',
+          go: 'go',
+          r: 'r',
+          rust: 'rust',
+          c: 'c',
+          ruby: 'ruby',
+          csharp: 'csharp',
+          kotlin: 'kotlin',
+          typescript: 'typescript'
+        };
+        return map[template] || null;
+      }
+      let initialLang = (langSelect && judge0ToMonaco[parseInt(langSelect.value,10)]) || 'javascript';
+      const template = getTemplateFromURL();
+      if (template) {
+        const langFromTemplate = getMonacoLanguage(template);
+        if (langFromTemplate) {
+          initialLang = langFromTemplate;
+          // Set dropdown to match
+          if (langSelect) {
+            for (const opt of langSelect.options) {
+              if (opt.getAttribute('data-monaco') === langFromTemplate) {
+                langSelect.value = opt.value;
+                break;
+              }
+            }
+          }
+        }
+      }
 
       editor = monaco.editor.create(document.getElementById('editor'), {
         value: '',
