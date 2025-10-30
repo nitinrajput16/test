@@ -179,8 +179,9 @@ button:disabled{
     color: #0a5;
     display:flex;
     min-height:25vh;
-    max-height:40vh;
+    height:30vh;
     align-items: stretch;
+    overflow: hidden;
 }
 
 #stdinInput {
@@ -199,14 +200,14 @@ button:disabled{
 }
 .output-wrapper {
     position: relative;
-    flex: 1 1 0;
+    flex: 1 1 auto;
     min-width: 0;
     display: flex;
     flex-direction: column;
 }
 #output {
     width: 100%;
-    max-height: 35vh;
+    height: 25vh;
     min-height: 100px;
     overflow-y: auto;
     white-space: pre-wrap;
@@ -643,4 +644,68 @@ button:disabled{
 .modal-btn-danger:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(220, 38, 38, 0.5);
+}
+
+/* Users list (presence) styles */
+#usersList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  max-height: 25vh; /* limit height so it can scroll */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.user-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.02);
+  color: #fff;
+  font-size: 13px;
+}
+
+.user-item .avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* Thin custom scrollbar for modern browsers */
+#usersList::-webkit-scrollbar { width: 8px; }
+#usersList::-webkit-scrollbar-track { background: transparent; }
+#usersList::-webkit-scrollbar-thumb { background: rgba(79,216,155,0.12); border-radius: 6px; }
+#usersList::-webkit-scrollbar-thumb:hover { background: rgba(79,216,155,0.18); }
+
+/* fallback for Firefox */
+#usersList { scrollbar-width: thin; scrollbar-color: rgba(79,216,155,0.12) transparent; }
+
+
+@media (max-width: 600px) {
+    .navbar {
+        flex-direction: column;
+        height: auto;
+        padding: 8px 16px;
+        gap: 8px;
+    }
+    .navbar-links {
+        flex-direction: column;
+        gap: 12px;
+    }
+    .left-pane {
+        width: 100%;
+        max-width: none;
+        height: 150px;
+    }
+    .main-content {
+        flex-direction: column;
+    }
+    #output-container {
+        height: auto;
+    }
 }

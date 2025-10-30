@@ -8,6 +8,7 @@
   <script>
     window.MONACO_BASE_URL = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.47.0/min";
   </script>
+  </script>
   <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.47.0/min/vs/editor/editor.main.min.css">
@@ -83,6 +84,10 @@
           <div class="output-wrapper">
             <pre id="output"></pre>
             <button id="clearOutputBtn" title="Clear output" class="clear-output-btn">&#128465;</button>
+          </div>
+          <div class="users-joined" style="margin-right: 20px;">
+            <h3>Users:</h3>
+            <div id="usersList" style="max-height:150px;overflow-y:auto;"></div>
           </div>
         </div>
       </div>

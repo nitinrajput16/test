@@ -292,7 +292,7 @@ window.addEventListener('DOMContentLoaded', function() {
   // -------------- STATE ----------------
   let editor;
   let socket;
-  let currentRoom = 'default-room';
+  let currentRoom = 'default-room-' + Math.random().toString(36).slice(2, 10);
   let lastBroadcastHash = null;
   let suppressNextChange = false;
   let currentFilename = null;
@@ -555,12 +555,75 @@ window.addEventListener('DOMContentLoaded', function() {
     socket.on('filelist-changed', () => {
       refreshFileList();
     });
+    // Receive current users in room (array or single)
+    socket.on('user-name', (users) => {
+      const usersListDiv = document.getElementById('usersList');
+      if (!usersListDiv) return;
+      usersListDiv.innerHTML = '';
+      if (Array.isArray(users)) {
+        users.forEach(user => {
+          const userItem = document.createElement('div');
+          userItem.textContent = user.name || user.displayName || user.googleId || user.id || 'Unknown';
+          if (user.email) userItem.title = user.email;
+          if (user.color) userItem.style.color = user.color;
+          usersListDiv.appendChild(userItem);
+        });
+      } else {
+        const userItem = document.createElement('div');
+        userItem.textContent = (typeof users === 'string') ? users : (users && (users.name || users.displayName)) || String(users);
+        usersListDiv.appendChild(userItem);
+      }
+    });
     socket.on('connect_error', err => {
       if (err && /Unauthorized/i.test(err.message)) {
         window.location = '/login?error=auth_required';
       }
     });
   }
+const container = document.getElementById('output-container');
+let isResizing = false;
+let startY = 0;
+let startHeight = 0;
+const edgeThreshold = 6; // pixels from top edge
+
+// Change cursor when near the top edge
+container.addEventListener('mousemove', (e) => {
+  const rect = container.getBoundingClientRect();
+  if (e.clientY <= rect.top + edgeThreshold) {
+    container.style.cursor = 'ns-resize';
+  } else {
+    container.style.cursor = 'default';
+  }
+});
+
+// Start resizing when mousedown on top edge
+container.addEventListener('mousedown', (e) => {
+  const rect = container.getBoundingClientRect();
+  if (e.clientY <= rect.top + edgeThreshold) {
+    isResizing = true;
+    startY = e.clientY;
+    startHeight = rect.height;
+    document.body.style.userSelect = 'none'; // prevent text selection
+  }
+});
+
+// Handle dragging
+document.addEventListener('mousemove', (e) => {
+  if (!isResizing) return;
+  const deltaY = startY - e.clientY; // note the minus for top dragging
+  const newHeight = startHeight + deltaY;
+  container.style.height = Math.max(150, Math.min(800, newHeight)) + 'px';
+});
+
+// Stop resizing on mouseup
+document.addEventListener('mouseup', () => {
+  if (isResizing) {
+    isResizing = false;
+    document.body.style.userSelect = 'auto';
+    container.style.cursor = 'default';
+  }
+});
+
 
   function joinRoom(roomId){
     if (!socket) return;
@@ -568,6 +631,7 @@ window.addEventListener('DOMContentLoaded', function() {
     socket.emit('join-room', roomId);
     if (roomInput) roomInput.value = '';
     logOutput('Joined room: '+roomId);
+    // 'user-name' is handled centrally in initSocket; don't re-register here to avoid duplicates
     // Send caret position immediately after joining
     setTimeout(() => {
       if (editor && socket && currentRoom) {

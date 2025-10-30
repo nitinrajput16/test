@@ -26,8 +26,18 @@ function initSocket(server, { sessionMiddleware }) {
     if (!sess || !sess.passport || !sess.passport.user) {
       return next(new Error('Unauthorized (no session user)'));
     }
-    socket.user = sess.passport.user;
-    next();
+    const User = require('../models/users');
+    let user = sess.passport.user;
+    // If user is just an ID, fetch from DB
+    if (typeof user === 'string' || (user._id && !user.displayName)) {
+      User.findById(user._id || user).lean().then(fullUser => {
+        socket.user = fullUser;
+        next();
+      }).catch(err => next(err));
+    } else {
+      socket.user = user;
+      next();
+    }
   });
 
   const roomPresence = new Map(); // roomId -> Set<userId>
@@ -53,8 +63,11 @@ function initSocket(server, { sessionMiddleware }) {
 
   function getUserInfo(user, color) {
     return {
-      id: user.id,
+      id: user._id ? String(user._id) : (user.googleId ? String(user.googleId) : (user.id ? String(user.id) : null)),
       name: user.displayName || user.username || 'User',
+      email: user.email,
+      avatar: user.avatar,
+      googleId: user.googleId,
       color: color,
       position: null
     };
@@ -85,21 +98,23 @@ function initSocket(server, { sessionMiddleware }) {
         roomUserPresence.get(roomId)[uid].color = COLORS[idx % COLORS.length];
       });
     }
-    console.log('[SOCKET] connected:', user);
+    console.log('[SOCKET] connected:', user.email);
 
     socket.on('join-room', (roomId) => {
       if (!roomId) return;
       // Use _id or googleId as unique id
-  const uniqueId = getSocketUserId();
+      const uniqueId = getSocketUserId();
       socket.join(roomId);
       addPresence(roomId, uniqueId);
       // Add to presence map
-      if (!roomUserPresence.has(roomId)) roomUserPresence.set(roomId, {});
+  if (!roomUserPresence.has(roomId)) roomUserPresence.set(roomId, {});
   // Patch user object for downstream use
   const userInfo = Object.assign({}, user, { id: uniqueId });
   roomUserPresence.get(roomId)[uniqueId] = getUserInfo(userInfo, undefined);
   assignColors(roomId);
-      io.to(roomId).emit('presence-update', roomUserPresence.get(roomId));
+  io.to(roomId).emit('presence-update', roomUserPresence.get(roomId));
+  // Emit current users array to the room (clients expect an array of user info)
+  io.to(roomId).emit('user-name', Object.values(roomUserPresence.get(roomId)));
 
       // --- Emit all carets to all users in the room ---
       const allCaretsMap = roomUserPresence.get(roomId);
@@ -120,8 +135,11 @@ function initSocket(server, { sessionMiddleware }) {
 
     socket.on('leave-room', (roomId) => {
       socket.leave(roomId);
-      removePresence(roomId, user.id);
+      removePresence(roomId, user._id ? String(user._id) : (user.googleId ? String(user.googleId) : (user.id ? String(user.id) : null)));
+      // Send presence-update and user list to remaining clients in room
       io.to(roomId).emit('presence-update', { users: listPresence(roomId) });
+      const usersArray = roomUserPresence.has(roomId) ? Object.values(roomUserPresence.get(roomId)) : [];
+      io.to(roomId).emit('user-name', usersArray);
     });
 
     socket.on('code-update', ({ roomId, content }) => {
@@ -129,21 +147,23 @@ function initSocket(server, { sessionMiddleware }) {
       const hash = crypto.createHash('sha1').update(content).digest('hex');
       if (lastUpdateHash.get(roomId) === hash) return;
       lastUpdateHash.set(roomId, hash);
-      socket.to(roomId).emit('code-update', { content, from: user.id });
+      socket.to(roomId).emit('code-update', { content, from: user._id ? String(user._id) : (user.googleId ? String(user.googleId) : (user.id ? String(user.id) : null)) });
     });
 
     socket.on('cursor-update', ({ roomId, cursor }) => {
       if (!roomId || !cursor) return;
-      socket.to(roomId).emit('cursor-update', { userId: user.id, cursor });
+      socket.to(roomId).emit('cursor-update', { userId: user._id ? String(user._id) : (user.googleId ? String(user.googleId) : (user.id ? String(user.id) : null)), cursor });
     });
 
     socket.on('presence-cursor', ({ position }) => {
       for (const roomId of socket.rooms) {
         if (roomId === socket.id) continue;
         if (!roomUserPresence.has(roomId)) continue;
-        if (!roomUserPresence.get(roomId)[user.id]) continue;
-        roomUserPresence.get(roomId)[user.id].position = position;
+        const uid = user._id ? String(user._id) : (user.googleId ? String(user.googleId) : (user.id ? String(user.id) : null));
+        if (!roomUserPresence.get(roomId)[uid]) continue;
+        roomUserPresence.get(roomId)[uid].position = position;
         io.to(roomId).emit('presence-update', roomUserPresence.get(roomId));
+        io.to(roomId).emit('user-name', Object.values(roomUserPresence.get(roomId)));
       }
     });
 
@@ -155,7 +175,7 @@ function initSocket(server, { sessionMiddleware }) {
     });
     socket.on('caret-position', ({ roomId, offset }) => {
       if (!roomId || typeof offset !== 'number') return;
-  const senderId = getSocketUserId();
+      const senderId = getSocketUserId();
       // Store the latest caret offset for this user in this room
       if (!roomUserPresence.has(roomId)) roomUserPresence.set(roomId, {});
       if (!roomUserPresence.get(roomId)[senderId]) {
@@ -180,6 +200,8 @@ function initSocket(server, { sessionMiddleware }) {
             .map(([uid, u]) => ({ userId: uid, offset: u.caretOffset, color: u.color }));
           clientSocket.emit('remote-caret', { allCarets });
         }
+        // After updating carets, also broadcast the user list so clients can map ids -> display info
+        io.to(roomId).emit('user-name', Object.values(allCaretsMap));
       }
     });
 
@@ -192,12 +214,13 @@ function initSocket(server, { sessionMiddleware }) {
           delete roomUserPresence.get(room)[myId];
           assignColors(room);
           io.to(room).emit('presence-update', roomUserPresence.get(room));
+          io.to(room).emit('user-name', Object.values(roomUserPresence.get(room)));
         }
       }
     });
 
     socket.on('disconnect', () => {
-      console.log('[SOCKET] disconnected:', user);
+      console.log('[SOCKET] disconnected:', user.email);
     });
   });
 

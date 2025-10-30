@@ -13,7 +13,7 @@ function ensureOwner(req, res, next) {
     req.isAuthenticated &&
     req.isAuthenticated() &&
     req.user &&
-    (req.user.email === 'nitinrajput16@gmail.com' || req.user.role === 'admin')
+    (req.user.email === 'nr750001@gmail.com' || req.user.role === 'admin')
   ) {
     return next();
   }
