@@ -685,27 +685,307 @@ button:disabled{
 /* fallback for Firefox */
 #usersList { scrollbar-width: thin; scrollbar-color: rgba(79,216,155,0.12) transparent; }
 
+@media (max-width: 580px) {
+  /* Navbar adjustments */
+  .navbar {
+      height: auto;
+      padding: 8px 16px;
+      flex-wrap: wrap;
+      gap: 8px;
+  }
+  
+  .navbar-brand {
+      font-size: 1.2em;
+      display: none;
+  }
+  
+  .navbar-links {
+      gap: 8px;
+      font-size: 0.9em;
+  }
+  
+  .navbar-links a {
+      padding: 8px 10px;
+      font-size: 0.85em;
+  }
+  
+  .navbar-theme-btn {
+      font-size: 1.2em;
+      margin-left: 8px;
+  }
+  
+  /* Main layout adjustments */
+  .fc {
+      flex-direction: column;
+  }
+  
+  /* Left pane - stays visible but shorter */
+  .left-pane {
+      width: 100%;
+      max-width: none;
+      height: auto;
+      /* max-height: 40vh; */
+      min-height: 120px;
+      border-right: none;
+      border-bottom: 1px solid #ffffff15;
+  }
+  
+  .right-pane {
+      flex: 1;
+      min-height: 0;
+  }
+  
+  /* Menu controls - horizontal scroll instead of hiding */
+  .menu {
+      max-height: none;
+      padding: 6px;
+      gap: 6px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      flex-wrap: nowrap;
+  }
+  
+  .menu::-webkit-scrollbar {
+      height: 4px;
+  }
+  
+  .menu::-webkit-scrollbar-track {
+      background: transparent;
+  }
+  
+  .menu::-webkit-scrollbar-thumb {
+      background: rgba(0, 170, 85, 0.3);
+      border-radius: 4px;
+  }
+  
+  .menu-item {
+      gap: 4px;
+      flex-shrink: 0;
+  }
+  
+  button {
+      padding: 8px 12px;
+      font-size: 11px;
+      white-space: nowrap;
+      min-height: 36px;
+  }
+  
+  #language {
+      min-width: 140px;
+      font-size: 11px;
+      padding: 8px 32px 8px 10px;
+  }
+  
+  /* File list */
+  #fileList {
+      padding: 6px;
+      max-height: 60px;
+      overflow-y: scroll;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(79,216,155,0.12) transparent;
+  }
+  
+  #fileList > .file-item {
+      font-size: 14px;
+      padding: 5px 4px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 35px;
+  }
+  
+  .file-delete-btn {
+      width: 32px;
+      height: 32px;
+      font-size: 14px;
+      flex-shrink: 0;
+  }
+  
+  /* Editor and output */
+  #editor-container {
+      min-height: 250px;
+  }
+  
+  #output-container {
+      min-height: 150px;
+      height: auto;
+      flex-direction: column;
+  }
+  
+  #stdinInput {
+      width: 100%;
+      min-height: 40px;
+      border-top: solid 1px #fff1;
+      border-bottom: 1px solid #fff1;
+      padding: 8px;
+  }
+  
+  #output {
+      height: auto;
+      min-height: 100px;
+      padding: 8px;
+      padding-right: 48px;
+      font-size: 12px;
+  }
+  
+  .clear-output-btn {
+      width: 36px;
+      height: 36px;
+      font-size: 16px;
+      bottom: 12px;
+      right: 12px;
+  }
+  
+  /* AI hint badge adjustments */
+  .ai-hint-badge {
+      bottom: 16px;
+      right: 16px;
+      width: 52px;
+      height: 52px;
+      padding: 10px;
+  }
+  
+  .ai-hint-icon {
+      font-size: 1.6em;
+  }
+  
+  .ai-hint-badge:hover,
+  .ai-hint-badge.expanded {
+      width: auto;
+      max-width: calc(100vw - 32px);
+      height: auto;
+      padding: 12px 16px;
+  }
+  
+  .ai-hint-content {
+      font-size: 0.9em;
+  }
+  
+  .ai-hint-keys kbd,
+  .ai-hint-alt kbd,
+  .ai-hint-accept kbd {
+      padding: 3px 6px;
+      font-size: 0.85em;
+      min-width: 24px;
+  }
+  
+  /* Modal adjustments */
+  .modal-box {
+      padding: 1.5rem;
+      max-width: 90%;
+      width: calc(100vw - 32px);
+      border-radius: 12px;
+  }
+  
+  .modal-title {
+      font-size: 1.1rem;
+  }
+  
+  .modal-message {
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+  }
+  
+  .modal-input {
+      padding: 10px;
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+  }
+  
+  .modal-buttons {
+      flex-direction: column;
+      gap: 8px;
+  }
+  
+  .modal-btn {
+      width: 100%;
+      padding: 12px;
+      min-height: 44px;
+  }
+  
+  /* Users list */
+  .users-joined{
+      font-size: 14px;
+      margin-bottom: 4px;
+      height: auto;
+  }
 
-@media (max-width: 600px) {
-    .navbar {
-        flex-direction: column;
-        height: auto;
-        padding: 8px 16px;
-        gap: 8px;
+   #usersList {
+        display: flex; /* Ensure it's visible */
+        min-height: 70px; /* Slightly taller on mobile */
+        padding: 4px;
+        background: rgba(255,255,255,0.05); /* Subtle background */
+        border-radius: 4px;
+        overflow: scroll;
     }
-    .navbar-links {
-        flex-direction: column;
-        gap: 12px;
+    
+    .user-item {
+        font-size: 12px;
+        padding: 8px 6px;
+        min-height: 30px; /* Touch-friendly */
+        background: rgba(255,255,255,0.03);
     }
-    .left-pane {
-        width: 100%;
-        max-width: none;
-        height: 150px;
+    
+    .user-item:active {
+        background: rgba(0, 170, 85, 0.2); /* Touch feedback */
     }
-    .main-content {
-        flex-direction: column;
+    
+    .user-item .avatar {
+        width: 32px;
+        height: 32px;
     }
-    #output-container {
-        height: auto;
-    }
+    
+  
+  /* Room controls */
+  .room-controls {
+      margin-left: 4px;
+      flex-wrap: wrap;
+  }
+  
+  /* Make all interactive elements touch-friendly */
+  input, select, textarea {
+      font-size: 16px; /* Prevents zoom on iOS */
+      min-height: 44px;
+  }
+  
+  /* Improve scrolling on mobile */
+  .left-pane,
+  #fileList,
+  #usersList,
+  .menu {
+      -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Additional small screen optimizations */
+@media (max-width: 400px) {
+  .navbar-brand {
+      font-size: 1em;
+  }
+  
+  .navbar-links a {
+      padding: 6px 8px;
+      font-size: 0.8em;
+  }
+  
+  button {
+      padding: 6px 10px;
+      font-size: 10px;
+  }
+  
+  #language {
+      min-width: 120px;
+      font-size: 10px;
+  }
+  
+  .ai-hint-badge {
+      width: 48px;
+      height: 48px;
+  }
+  
+  .ai-hint-icon {
+      font-size: 1.4em;
+  }
 }
