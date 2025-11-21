@@ -123,7 +123,9 @@ window.addEventListener('DOMContentLoaded', function() {
         button.className = `modal-btn modal-btn-${btn.type || 'secondary'}`;
         button.textContent = btn.text;
         button.addEventListener('click', () => {
-          const result = inputEl ? inputEl.value : btn.value;
+          const result = (typeof btn.value !== 'undefined')
+            ? btn.value
+            : (inputEl ? inputEl.value : null);
           document.body.removeChild(overlay);
           resolve(result);
         });
@@ -161,7 +163,7 @@ window.addEventListener('DOMContentLoaded', function() {
       input: { defaultValue },
       buttons: [
         { text: 'Cancel', type: 'secondary', value: null },
-        { text: 'OK', type: 'primary', value: true }
+        { text: 'OK', type: 'primary' }
       ]
     });
   }
