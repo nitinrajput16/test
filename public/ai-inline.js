@@ -1,6 +1,6 @@
 /**
  * AI Inline Widget (Multiline Preview) - On-Demand Mode
- * - Trigger AI suggestion: Ctrl/Cmd + Shift + Space OR Ctrl/Cmd + I
+ * - Trigger AI suggestion: Ctrl/Cmd + Shift + Space
  * - Accept suggestion: Tab
  * - Toggle full/condensed preview: Ctrl/Cmd + P
  * - Force refresh: Ctrl/Cmd + Alt + R
@@ -300,12 +300,7 @@
         log('Manual trigger via Ctrl+Shift+Space');
         force();
       }
-      // Ctrl+I: Quick trigger (alternative)
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'i') {
-        e.preventDefault();
-        log('Manual trigger via Ctrl+I');
-        force();
-      }
+      // (removed) Ctrl+I quick trigger — only Ctrl+Shift+Space remains
       // Ctrl+P: Toggle preview size
       if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
         e.preventDefault();

@@ -557,23 +557,124 @@ window.addEventListener('DOMContentLoaded', function() {
     socket.on('filelist-changed', () => {
       refreshFileList();
     });
-    // Receive current users in room (array or single)
+    // Receive current users in room (array or single) and render with mute controls
     socket.on('user-name', (users) => {
       const usersListDiv = document.getElementById('usersList');
       if (!usersListDiv) return;
       usersListDiv.innerHTML = '';
-      if (Array.isArray(users)) {
-        users.forEach(user => {
-          const userItem = document.createElement('div');
-          userItem.textContent = user.name || user.displayName || user.googleId || user.id || 'Unknown';
-          if (user.email) userItem.title = user.email;
-          if (user.color) userItem.style.color = user.color;
-          usersListDiv.appendChild(userItem);
-        });
-      } else {
+      const renderUser = (user) => {
+        const uid = user.socketId || user.id || user._id || user.googleId || user.socket || (user.name && ('user-' + user.name));
         const userItem = document.createElement('div');
-        userItem.textContent = (typeof users === 'string') ? users : (users && (users.name || users.displayName)) || String(users);
+        userItem.className = 'user-item';
+        userItem.dataset.peerId = uid;
+
+        // audio dot (activity)
+        const dot = document.createElement('div');
+        dot.className = 'audio-dot';
+        userItem.appendChild(dot);
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = user.name || user.displayName || user.googleId || uid || 'Unknown';
+        nameSpan.style.flex = '1';
+        if (user.email) nameSpan.title = user.email;
+        if (user.color) nameSpan.style.color = user.color;
+        userItem.appendChild(nameSpan);
+
+        const muteBtn = document.createElement('button');
+        muteBtn.className = 'user-mute-btn';
+        // If this entry corresponds to our socket id, make it control local mic
+        const myId = (window.socket && window.socket.id) || (window.user && (window.user._id || window.user.googleId)) || 'me';
+        const isMe = (uid === myId) || (user.isMe === true);
+        if (isMe) { muteBtn.textContent = 'Mute (you)'; muteBtn.dataset.isMe = '1'; }
+        else { muteBtn.textContent = 'Mute'; }
+
+        // local override flag
+        muteBtn.dataset.muted = '0';
+
+        muteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          // If it's me, toggle local mic
+          if (isMe) {
+            if (window.voiceChat && window.voiceChat.toggleMute) {
+              window.voiceChat.toggleMute();
+            }
+            return;
+          }
+          // For others: toggle audio element muted property locally and remember state
+          const peerId = uid;
+          const audio = document.querySelector(`audio[data-peer-id="${peerId}"]`);
+          const currentlyMuted = muteBtn.dataset.muted === '1';
+          const newMuted = !currentlyMuted;
+          muteBtn.dataset.muted = newMuted ? '1' : '0';
+          muteBtn.textContent = newMuted ? 'Unmute' : 'Mute';
+          userItem.classList.toggle('muted', newMuted);
+          if (audio) audio.muted = newMuted;
+        });
+        userItem.appendChild(muteBtn);
+
         usersListDiv.appendChild(userItem);
+      };
+
+      if (Array.isArray(users)) {
+        users.forEach(renderUser);
+      } else {
+        renderUser(typeof users === 'string' ? { name: users } : users || {});
+      }
+    });
+
+    // Update user list mute button state when peers announce mute status
+    window.addEventListener('voice:peer-muted', (e) => {
+      const { peerId, muted } = e.detail || {};
+      if (!peerId) return;
+      const usersListDiv = document.getElementById('usersList');
+      if (!usersListDiv) return;
+      const item = usersListDiv.querySelector(`.user-item[data-peer-id="${peerId}"]`);
+      if (item) {
+        const btn = item.querySelector('.user-mute-btn');
+        if (btn) {
+          if (btn.dataset && btn.dataset.isMe) {
+            btn.textContent = muted ? 'Unmute' : 'Mute (you)';
+          } else {
+            if (btn.dataset.muted !== '1') btn.textContent = muted ? 'Unmute' : 'Mute';
+          }
+        }
+        item.classList.toggle('muted', !!muted);
+      }
+    });
+
+    // Also update local entry when local mute changes
+    window.addEventListener('voice:local-muted', (e) => {
+      const muted = e.detail && e.detail.muted;
+      const usersListDiv = document.getElementById('usersList');
+      if (!usersListDiv) return;
+      const myId = (window.socket && window.socket.id) || (window.user && (window.user._id || window.user.googleId)) || 'me';
+      const item = usersListDiv.querySelector(`.user-item[data-peer-id="${myId}"]`);
+      if (item) {
+        const btn = item.querySelector('.user-mute-btn');
+        if (btn) btn.textContent = muted ? 'Unmute' : 'Mute (you)';
+        item.classList.toggle('muted', !!muted);
+      }
+    });
+
+    // Show which peer has audio (speaking/active stream) in users list
+    window.addEventListener('voice:peer-audio', (e) => {
+      const peerId = e.detail && e.detail.peerId;
+      if (!peerId) return;
+      const usersListDiv = document.getElementById('usersList'); if (!usersListDiv) return;
+      const item = usersListDiv.querySelector(`.user-item[data-peer-id="${peerId}"]`);
+      if (item) {
+        item.classList.add('speaking');
+      }
+    });
+
+    // Clear speaking/muted state when peer leaves
+    window.addEventListener('voice:peer-left', (e) => {
+      const peerId = e.detail && e.detail.peerId; if (!peerId) return;
+      const usersListDiv = document.getElementById('usersList'); if (!usersListDiv) return;
+      const item = usersListDiv.querySelector(`.user-item[data-peer-id="${peerId}"]`);
+      if (item) {
+        item.classList.remove('speaking');
+        item.classList.remove('muted');
       }
     });
     socket.on('connect_error', err => {
@@ -630,6 +731,7 @@ document.addEventListener('mouseup', () => {
   function joinRoom(roomId){
     if (!socket) return;
     currentRoom = roomId;
+    window.currentRoom = currentRoom;
     socket.emit('join-room', roomId);
     if (roomInput) roomInput.value = '';
     logOutput('Joined room: '+roomId);

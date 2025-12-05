@@ -167,6 +167,39 @@ function initSocket(server, { sessionMiddleware }) {
       }
     });
 
+    // --- Voice chat signaling (P2P WebRTC over Socket.IO) ---
+    socket.on('voice-join', ({ roomId }) => {
+      if (!roomId) return;
+      // Notify others in the room to initiate WebRTC toward this peer
+      socket.to(roomId).emit('voice-peer-joined', { peerId: socket.id });
+    });
+
+    socket.on('voice-leave', ({ roomId }) => {
+      if (!roomId) return;
+      socket.to(roomId).emit('voice-peer-left', { peerId: socket.id });
+    });
+
+    socket.on('voice-offer', ({ roomId, to, offer }) => {
+      if (!roomId || !to || !offer) return;
+      io.to(to).emit('voice-offer', { from: socket.id, offer });
+    });
+
+    socket.on('voice-answer', ({ roomId, to, answer }) => {
+      if (!roomId || !to || !answer) return;
+      io.to(to).emit('voice-answer', { from: socket.id, answer });
+    });
+
+    socket.on('voice-ice', ({ roomId, to, candidate }) => {
+      if (!roomId || !to || !candidate) return;
+      io.to(to).emit('voice-ice', { from: socket.id, candidate });
+    });
+
+    // Relay local mute status to other peers in the room
+    socket.on('voice-mute-status', ({ roomId, muted }) => {
+      if (!roomId) return;
+      socket.to(roomId).emit('voice-mute-status', { peerId: socket.id, muted });
+    });
+
     // --- BROADCAST ALL REMOTE CARET POSITIONS TO ALL USERS IN ROOM ---
 
     // Listen for filelist-changed and broadcast to all
@@ -215,6 +248,7 @@ function initSocket(server, { sessionMiddleware }) {
           assignColors(room);
           io.to(room).emit('presence-update', roomUserPresence.get(room));
           io.to(room).emit('user-name', Object.values(roomUserPresence.get(room)));
+          io.to(room).emit('voice-peer-left', { peerId: socket.id });
         }
       }
     });
