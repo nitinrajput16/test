@@ -600,15 +600,20 @@ window.addEventListener('DOMContentLoaded', function() {
             }
             return;
           }
-          // For others: toggle audio element muted property locally and remember state
+          // For others: toggle local mute preference via audio module (persists and applies when audio arrives)
           const peerId = uid;
-          const audio = document.querySelector(`audio[data-peer-id="${peerId}"]`);
           const currentlyMuted = muteBtn.dataset.muted === '1';
           const newMuted = !currentlyMuted;
           muteBtn.dataset.muted = newMuted ? '1' : '0';
           muteBtn.textContent = newMuted ? 'Unmute' : 'Mute';
           userItem.classList.toggle('muted', newMuted);
-          if (audio) audio.muted = newMuted;
+          if (window.voiceChat && typeof window.voiceChat.setRemoteMuted === 'function') {
+            window.voiceChat.setRemoteMuted(peerId, newMuted);
+          } else {
+            // fallback: try to find audio element and mute it
+            const audio = document.querySelector(`audio[data-peer-id="${peerId}"]`);
+            if (audio) audio.muted = newMuted;
+          }
         });
         userItem.appendChild(muteBtn);
 
@@ -657,14 +662,31 @@ window.addEventListener('DOMContentLoaded', function() {
     });
 
     // Show which peer has audio (speaking/active stream) in users list
+    // Mark when a peer has an active audio stream (attached) - keep separate from speaking
     window.addEventListener('voice:peer-audio', (e) => {
       const peerId = e.detail && e.detail.peerId;
       if (!peerId) return;
       const usersListDiv = document.getElementById('usersList'); if (!usersListDiv) return;
       const item = usersListDiv.querySelector(`.user-item[data-peer-id="${peerId}"]`);
       if (item) {
-        item.classList.add('speaking');
+        item.classList.add('has-audio');
       }
+    });
+
+    // Speaking VAD events: add/remove 'speaking' class while user is actively speaking
+    window.addEventListener('voice:peer-speaking', (e) => {
+      const peerId = e.detail && e.detail.peerId;
+      if (!peerId) return;
+      const usersListDiv = document.getElementById('usersList'); if (!usersListDiv) return;
+      const item = usersListDiv.querySelector(`.user-item[data-peer-id="${peerId}"]`);
+      if (item) item.classList.add('speaking');
+    });
+    window.addEventListener('voice:peer-stopped', (e) => {
+      const peerId = e.detail && e.detail.peerId;
+      if (!peerId) return;
+      const usersListDiv = document.getElementById('usersList'); if (!usersListDiv) return;
+      const item = usersListDiv.querySelector(`.user-item[data-peer-id="${peerId}"]`);
+      if (item) item.classList.remove('speaking');
     });
 
     // Clear speaking/muted state when peer leaves

@@ -4,6 +4,10 @@
   function initAudioChat({ socket, roomIdProvider, ui }) {
     const peers = new Map(); // peerId -> RTCPeerConnection
     const audioEls = new Map(); // peerId -> <audio>
+    const remoteMutePref = new Map(); // peerId -> muted (local preference)
+    const analysers = new Map(); // peerId -> { analyser, source }
+    const vadState = new Map(); // peerId -> { speaking, speakCount, silenceCount }
+    let audioCtx = null;
     let localStream = null;
     let micMuted = false;
 
@@ -69,8 +73,73 @@
         audio.remove();
       }
       audioEls.delete(peerId);
-      // Dispatch UI event for peer removal
+      remoteMutePref.delete(peerId);
+      const a = analysers.get(peerId);
+      if (a) {
+        try { if (a.source) a.source.disconnect(); } catch (e) {}
+        try { if (a.analyser) a.analyser.disconnect(); } catch (e) {}
+      }
+      analysers.delete(peerId);
+      vadState.delete(peerId);
       try { window.dispatchEvent(new CustomEvent('voice:peer-left', { detail: { peerId } })); } catch (e) { /* ignore */ }
+    }
+
+    function startVADLoop(peerId) {
+      const entry = analysers.get(peerId);
+      if (!entry) return;
+      const analyser = entry.analyser;
+      const bufferLen = analyser.fftSize;
+      const data = new Uint8Array(bufferLen);
+
+      const threshold = 20; // tuned amplitude threshold (0-255)
+      const minSpeakFrames = 2; // frames above threshold to declare speaking
+      const silenceFramesToStop = 8; // frames below threshold to stop
+
+      function step() {
+        try {
+          analyser.getByteTimeDomainData(data);
+        } catch (e) {
+          return;
+        }
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = (data[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        const level = rms * 255;
+
+        const state = vadState.get(peerId) || { speaking: false, speakCount: 0, silenceCount: 0 };
+        if (level > threshold) {
+          state.speakCount++;
+          state.silenceCount = 0;
+        } else {
+          state.silenceCount++;
+          state.speakCount = 0;
+        }
+
+        if (!state.speaking && state.speakCount >= minSpeakFrames) {
+          state.speaking = true;
+          try { window.dispatchEvent(new CustomEvent('voice:peer-speaking', { detail: { peerId } })); } catch (e) { }
+        }
+        if (state.speaking && state.silenceCount >= silenceFramesToStop) {
+          state.speaking = false;
+          try { window.dispatchEvent(new CustomEvent('voice:peer-stopped', { detail: { peerId } })); } catch (e) { }
+        }
+
+        vadState.set(peerId, state);
+        // schedule next check
+        requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    function setRemoteMuted(peerId, muted) {
+      try {
+        remoteMutePref.set(peerId, !!muted);
+        const audio = audioEls.get(peerId);
+        if (audio) audio.muted = !!muted;
+      } catch (e) { /* ignore */ }
     }
 
     function attachRemoteAudio(peerId, stream) {
@@ -84,6 +153,29 @@
         audioEls.set(peerId, el);
       }
       el.srcObject = stream;
+      // Setup analyser for voice activity detection (VAD)
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // Create a MediaStream source from the remote stream
+        const src = audioCtx.createMediaStreamSource(stream);
+        const analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 1024;
+        analyser.smoothingTimeConstant = 0.3;
+        src.connect(analyser);
+        analysers.set(peerId, { analyser, source: src });
+        // initialize vad state
+        vadState.set(peerId, { speaking: false, speakCount: 0, silenceCount: 0 });
+        // Start polling for levels (use RAF loop)
+        startVADLoop(peerId);
+      } catch (e) {
+        // AudioContext may fail in some browsers or when autoplay blocked
+        console.warn('VAD init failed for', peerId, e);
+      }
+      // Apply any local mute preference for this peer
+      try {
+        const muted = !!remoteMutePref.get(peerId);
+        el.muted = muted;
+      } catch (e) { /* ignore */ }
       // Dispatch event so UI can update (peer has an active audio stream)
       try { window.dispatchEvent(new CustomEvent('voice:peer-audio', { detail: { peerId } })); } catch (e) { /* ignore */ }
     }
@@ -214,7 +306,7 @@
     if (ui && ui.enableBtn) ui.enableBtn.addEventListener('click', () => enableVoice().catch(err => status(err.message)));
     if (ui && ui.muteBtn) ui.muteBtn.addEventListener('click', toggleMute);
 
-    return { enableVoice, disableVoice, toggleMute, peers };
+    return { enableVoice, disableVoice, toggleMute, peers, setRemoteMuted };
   }
 
   global.AudioChat = { init: initAudioChat };

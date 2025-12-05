@@ -218,7 +218,7 @@ const UIUserPresence = (function() {
     for (const [pid, st] of peers.entries()){
       const chip = document.createElement('div'); chip.className = 'peer-chip' + (st.muted ? ' muted' : '');
       const dot = document.createElement('span'); dot.className='dot'; chip.appendChild(dot);
-      const name = document.createElement('span'); name.textContent = short(pid); chip.appendChild(name);
+      // Do not show peer id or name in the island to avoid exposing identifiers
       peersWrap.appendChild(chip);
     }
     updateLocalLabel();

@@ -61,9 +61,10 @@ function initSocket(server, { sessionMiddleware }) {
   // Map: roomId -> { userId: { id, name, color, position } }
   const roomUserPresence = new Map();
 
-  function getUserInfo(user, color) {
+  function getUserInfo(user, color, socketId) {
     return {
       id: user._id ? String(user._id) : (user.googleId ? String(user.googleId) : (user.id ? String(user.id) : null)),
+      socketId: socketId || null,
       name: user.displayName || user.username || 'User',
       email: user.email,
       avatar: user.avatar,
@@ -108,9 +109,9 @@ function initSocket(server, { sessionMiddleware }) {
       addPresence(roomId, uniqueId);
       // Add to presence map
   if (!roomUserPresence.has(roomId)) roomUserPresence.set(roomId, {});
-  // Patch user object for downstream use
+  // Patch user object for downstream use and store socket id for mapping
   const userInfo = Object.assign({}, user, { id: uniqueId });
-  roomUserPresence.get(roomId)[uniqueId] = getUserInfo(userInfo, undefined);
+  roomUserPresence.get(roomId)[uniqueId] = getUserInfo(userInfo, undefined, socket.id);
   assignColors(roomId);
   io.to(roomId).emit('presence-update', roomUserPresence.get(roomId));
   // Emit current users array to the room (clients expect an array of user info)
@@ -212,7 +213,7 @@ function initSocket(server, { sessionMiddleware }) {
       // Store the latest caret offset for this user in this room
       if (!roomUserPresence.has(roomId)) roomUserPresence.set(roomId, {});
       if (!roomUserPresence.get(roomId)[senderId]) {
-        roomUserPresence.get(roomId)[senderId] = getUserInfo(user, undefined);
+        roomUserPresence.get(roomId)[senderId] = getUserInfo(user, undefined, socket.id);
       }
       assignColors(roomId);
       roomUserPresence.get(roomId)[senderId].caretOffset = offset;
