@@ -91,9 +91,9 @@
       const bufferLen = analyser.fftSize;
       const data = new Uint8Array(bufferLen);
 
-      const threshold = 20; // tuned amplitude threshold (0-255)
-      const minSpeakFrames = 2; // frames above threshold to declare speaking
-      const silenceFramesToStop = 8; // frames below threshold to stop
+      const threshold = 20; 
+      const minSpeakFrames = 2; 
+      const silenceFramesToStop = 8; 
 
       function step() {
         try {
@@ -128,7 +128,6 @@
         }
 
         vadState.set(peerId, state);
-        // schedule next check
         requestAnimationFrame(step);
       }
       requestAnimationFrame(step);
@@ -156,27 +155,22 @@
       // Setup analyser for voice activity detection (VAD)
       try {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        // Create a MediaStream source from the remote stream
         const src = audioCtx.createMediaStreamSource(stream);
         const analyser = audioCtx.createAnalyser();
         analyser.fftSize = 1024;
         analyser.smoothingTimeConstant = 0.3;
         src.connect(analyser);
         analysers.set(peerId, { analyser, source: src });
-        // initialize vad state
         vadState.set(peerId, { speaking: false, speakCount: 0, silenceCount: 0 });
-        // Start polling for levels (use RAF loop)
         startVADLoop(peerId);
       } catch (e) {
         // AudioContext may fail in some browsers or when autoplay blocked
         console.warn('VAD init failed for', peerId, e);
       }
-      // Apply any local mute preference for this peer
       try {
         const muted = !!remoteMutePref.get(peerId);
         el.muted = muted;
       } catch (e) { /* ignore */ }
-      // Dispatch event so UI can update (peer has an active audio stream)
       try { window.dispatchEvent(new CustomEvent('voice:peer-audio', { detail: { peerId } })); } catch (e) { /* ignore */ }
     }
 
@@ -215,7 +209,6 @@
           .catch(err => status('Offer error: ' + err.message));
       }
 
-      // notify UI a peer was created (offer/answer flow may still be pending)
       try { window.dispatchEvent(new CustomEvent('voice:peer-created', { detail: { peerId } })); } catch (e) { /* ignore */ }
 
       return pc;
@@ -225,7 +218,7 @@
     socket.on('voice-peer-joined', async ({ peerId }) => {
       try {
         await ensureLocalStream();
-        createPeer(peerId, true); // initiator creates offer
+        createPeer(peerId, true); 
       } catch (err) {
         status('Voice join err: ' + err.message);
       }
@@ -268,7 +261,6 @@
       destroyPeer(peerId);
     });
 
-    // remote peer mute updates
     socket.on('voice-mute-status', ({ peerId, muted }) => {
       try { window.dispatchEvent(new CustomEvent('voice:peer-muted', { detail: { peerId, muted } })); } catch (e) { /* ignore */ }
     });
@@ -299,14 +291,13 @@
     }
 
     function toggleMute() {
-      setMicEnabled(micMuted); // flip
+      setMicEnabled(micMuted); 
     }
 
-    // wire UI
     if (ui && ui.enableBtn) ui.enableBtn.addEventListener('click', () => enableVoice().catch(err => status(err.message)));
     if (ui && ui.muteBtn) ui.muteBtn.addEventListener('click', toggleMute);
 
-    return { enableVoice, disableVoice, toggleMute, peers, setRemoteMuted };
+    return { enableVoice, disableVoice, toggleMute, peers, setRemoteMuted, setMicEnabled };
   }
 
   global.AudioChat = { init: initAudioChat };

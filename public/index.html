@@ -10,10 +10,13 @@
   </script>
   </script>
   <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+  <script src="https://kit.fontawesome.com/4edb3588d0.js" crossorigin="anonymous"></script>
   <link rel="stylesheet"
         href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.47.0/min/vs/editor/editor.main.min.css">
 
-  <link rel="stylesheet" href="style2.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style2.css">
 </head>
 <body>
   <nav class="navbar">
@@ -25,11 +28,49 @@
     </ul>
     <div class="navbar-brand">Code Collabe</div>
   </nav>
-  <div class="fc">
-    <div class="left-pane">
-      <div id="fileList"></div>
-    </div>
-    <div class="right-pane">
+  <!-- Mobile top bar (visible only on small screens) -->
+  <div class="mobile-top-bar">
+    <button class="mobile-back-btn" onclick="history.back()" title="Back">‹</button>
+    <div class="mobile-room-display" id="mobileRoomDisplay">Room ID: #loading...</div>
+    <button class="mobile-options-btn" title="Options">⋮</button>
+  </div>
+  <div class="workspace">
+    <aside class="panel panel-left" id="panelLeft">
+      <div class="collapse-handle" id="collapseLeft" title="Collapse">◀</div>
+      <div class="panel-header">
+        <span>Files</span>
+        <small class="panel-subtitle">shared explorer</small>
+      </div>
+      <!-- Static file toolbar: search/newfile row and separate upload row (column layout) -->
+      <div id="fileToolbar" class="file-toolbar" style="display:flex;flex-direction:column;gap:8px;padding:8px; margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="flex:1;position:relative;display:flex;align-items:center;">
+            <span style="position:absolute;left:8px;opacity:0.7;font-size:14px;pointer-events:none;">🔍</span>
+            <input id="fileSearchInput" type="text" placeholder="Search files..." style="width:100%;padding:8px 10px 8px 34px;background:#ffffff11;border:1px solid #ffffff15;color:#fff;border-radius:6px;font-size:13px;outline:none;">
+          </div>
+            <button id="newFileBtnToolbar" title="New File" aria-label="New file" style="background:#0a5;color:#fff;border:none;padding:8px 12px;font-weight:bold;border-radius:6px;font-size:16px;cursor:pointer;"><i class="fa-solid fa-plus"></i></button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input id="fileUploadInput" type="file" title="Upload file from your machine" style="display: none;">
+          <button id="uploadFileBtn" type="button" title="Upload selected file" aria-label="Upload file" style="background:transparent;border:1px solid #ffffff22;color:#fff;padding:8px 12px;border-radius:6px;cursor:pointer;"><i class="fa-solid fa-upload"></i></button>
+        </div>
+      </div>
+      <div class="collapsed-icons" data-panel="left" aria-hidden="true">
+        <button type="button" class="collapsed-icon" title="Open files" data-action="open-files">
+          <span aria-hidden="true">📁</span>
+        </button>
+        <button type="button" class="collapsed-icon" title="Search files" data-action="search-files">
+          <span aria-hidden="true">🔍</span>
+        </button>
+        <button type="button" class="collapsed-icon" title="New file" data-action="new-file">
+          <span aria-hidden="true"><i class="fa-solid fa-upload"></i></span>
+        </button>
+      </div>
+      <div id="fileList" class="file-list"></div>
+    </aside>
+
+    <div class="resizer resizer-left" id="resizerLeft" title="Drag to resize"></div>
+    <section class="panel panel-center" id="panelCenter">
       <div class="menu">
         <select id="language" title="Select Judge0 language">
           <option value="63" data-monaco="javascript">JavaScript</option>
@@ -49,17 +90,16 @@
         </select>
         <div class="room-controls menu-item">
           <input type="text" id="roomInput" placeholder="Enter Room ID">
-          <button id="JoinRoomButton" type="button">Join Room</button>
-          <button id="RoomButton" type="button">Create Room</button>
+          <button id="JoinRoomButton" type="button">Join</button>
+          <button id="RoomButton" type="button">Create</button>
         </div>
         <div class="empty-div"></div>
         <div class="menu-item">
-          <button id="runButton" type="button">Run Code</button>
-          <button id="saveButton" type="button">Save</button>
-          <!-- <button id="logoutButton" type="button" onclick="location.href='/auth/logout'">Logout</button> -->
+          <button id="runButton" type="button" title="Run code" aria-label="Run code"><i class="fa-solid fa-play"></i></button>
+          <button id="saveButton" type="button" title="Save file" aria-label="Save file"><i class="fa-solid fa-floppy-disk"></i></button>
         </div>
       </div>
-      <div class="main-content">
+      <div class="editor-shell">
         <div id="editor-container">
           <button id="themeToggleBtn" title="Toggle Light/Dark Theme">
             <span id="themeToggleIcon" aria-label="theme">🌙</span>
@@ -71,7 +111,6 @@
               <div class="ai-hint-keys">
                 <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd>
               </div>
-              <!-- Ctrl+I removed: primary trigger is Ctrl+Shift+Space -->
               <div class="ai-hint-accept">
                 Accept: <kbd>Tab</kbd>
               </div>
@@ -79,21 +118,55 @@
           </div>
           <div id="editor"></div>
         </div>
-        <div id="voiceIslandMount" class="voice-island-mount"></div>
+      </div>
+    </section>
+
+    <div class="resizer resizer-right" id="resizerRight" title="Drag to resize"></div>
+    <aside class="panel panel-right" id="panelRight">
+      <div class="collapse-handle" id="collapseRight" title="Collapse">▶</div>
+      <div class="panel-header">
+        <span>Collaboration</span>
+        <div id="toolbarRoomDisplay" style="margin-left:6px;color:#cfefe0;font-size:10px;white-space:nowrap;"> ROOM: <span id="toolbarRoomId">loading...</span></div>
+      </div>
+      <div class="collapsed-icons" data-panel="right" aria-hidden="true">
+        <button type="button" class="collapsed-icon" title="Live Audio">
+          <span aria-hidden="true">🎙️</span>
+        </button>
+        <button type="button" class="collapsed-icon" title="Input / Output">
+          <span aria-hidden="true">⌨️</span>
+        </button>
+        <button type="button" class="collapsed-icon" title="Users">
+          <span aria-hidden="true">👥</span>
+        </button>
+      </div>
+      <div class="collab-card voice-card">
+        <div class="card-title">Live Audio</div>
+        <div class="voice-box" style="margin-top:8px;border:1px dashed #0a5;padding:10px;border-radius:10px;display:flex;flex-direction:column;gap:8px;">
+          <div class="voice-controls" style="display:flex;gap:8px;">
+            <button id="voiceJoinBtn" type="button" title="Join Voice" aria-label="Join voice" style="background:#0a5;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;"><i class="fa-solid fa-user-plus"></i></button>
+            <button id="voiceMicToggleBtn" type="button" title="Toggle Mic" aria-label="Toggle microphone" style="background:transparent;color:#fff;border:1px solid #ffffff22;padding:6px 10px;border-radius:6px;cursor:pointer;"><i class="fa-solid fa-microphone"></i></button>
+            <button id="voiceLeaveBtn" type="button" title="Leave Voice" aria-label="Leave voice" style="background:transparent;color:#fff;border:1px solid #ffffff22;padding:6px 10px;border-radius:6px;cursor:pointer;"><i class="fa-solid fa-right-from-bracket"></i></button>
+          </div>
+          <div id="voiceAudios" class="voice-audios" aria-live="polite" style="position:relative;width:100%;height:0;overflow:visible;"></div>
+        </div>
+      </div>
+      <div class="collab-card io-card">
+        <div class="card-title">Run Input / Output</div>
         <div id="output-container">
           <textarea id="stdinInput" placeholder="Enter stdin..."></textarea>
           <div class="output-wrapper">
             <pre id="output"></pre>
             <button id="clearOutputBtn" title="Clear output" class="clear-output-btn">&#128465;</button>
           </div>
-          <div class="users-joined">
-            <h3>Users:</h3>
-            <div id="usersList"></div>
-          </div>
-          <div id="voiceAudios" class="sr-only" aria-hidden="true"></div>
         </div>
       </div>
-    </div>
+      <div class="collab-card users-card">
+        <div class="card-title">In Room</div>
+        <div class="users-joined">
+          <div id="usersList"></div>
+        </div>
+      </div>
+    </aside>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -102,5 +175,53 @@
   <script src="script.js"></script>
   <script src="audioChat.js"></script>
   <script src="ui.js"></script>
+  <script src="panel-resize.js"></script>
+  <script>
+    // Mobile bottom nav markup appended dynamically for better ordering
+    (function(){
+      const mobileNav = document.createElement('nav');
+      mobileNav.id = 'mobileBottomNav';
+      mobileNav.className = 'mobile-bottom-nav';
+      mobileNav.innerHTML = `
+        <button class="mobile-nav-btn" data-target="panelLeft" title="Files">
+          <span class="nav-icon">📂</span>
+          <span class="nav-label">Files</span>
+        </button>
+        <button class="mobile-nav-btn" data-target="panelCenter" title="Editor">
+          <span class="nav-icon">✏️</span>
+          <span class="nav-label">Editor</span>
+        </button>
+        <button class="mobile-nav-btn" data-target="output" title="Output">
+          <span class="nav-icon">🖥️</span>
+          <span class="nav-label">Output</span>
+        </button>
+        <button class="mobile-nav-btn" data-target="users" title="Users">
+          <span class="nav-icon">👥</span>
+          <span class="nav-label">Users</span>
+        </button>
+        <button class="mobile-nav-btn" data-target="voice" title="Whiteboard">
+          <span class="nav-icon">🎨</span>
+          <span class="nav-label">Whiteboard</span>
+        </button>
+      `;
+      document.body.appendChild(mobileNav);
+      // basic click handling: delegate to panel-resize handlers if present
+      mobileNav.addEventListener('click', function(e){
+        const btn = e.target.closest('button');
+        if(!btn) return;
+        const target = btn.dataset.target;
+        // dispatch a custom event used by panel-resize.js
+        window.dispatchEvent(new CustomEvent('mobile-nav-select', { detail: { target }}));
+      });
+      // ensure an initial active state (editor) after nav is inserted
+      setTimeout(() => {
+        const initial = mobileNav.querySelector('button[data-target="panelCenter"]');
+        if(initial) {
+          initial.classList.add('active');
+        }
+        window.dispatchEvent(new CustomEvent('mobile-nav-select', { detail: { target: 'panelCenter' } }));
+      }, 120);
+    })();
+  </script>
 </body>
 </html>

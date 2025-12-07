@@ -152,113 +152,55 @@ const UIUserPresence = (function() {
       }
     });
     window.voiceChat = chat;
+    // Wire up explicit voice control buttons if present (Join, Mic Toggle, Leave)
+    const joinBtn = document.getElementById('voiceJoinBtn');
+    const micToggleBtn = document.getElementById('voiceMicToggleBtn');
+    const leaveBtn = document.getElementById('voiceLeaveBtn');
+    let localMuted = false;
+
+    function setMicIcon(isMuted) {
+      if (!micToggleBtn) return;
+      const icon = micToggleBtn.querySelector('i');
+      if (!icon) return;
+      icon.classList.toggle('fa-microphone', !isMuted);
+      icon.classList.toggle('fa-microphone-slash', !!isMuted);
+    }
+
+    function updateVoiceButtons(enabled, muted){
+      localMuted = !!muted;
+      if (joinBtn) joinBtn.disabled = !!enabled;
+      if (leaveBtn) leaveBtn.disabled = !enabled;
+      if (micToggleBtn) micToggleBtn.disabled = !enabled;
+      // visual active state and icon
+      if (micToggleBtn) micToggleBtn.classList.toggle('active', enabled && muted === false);
+      setMicIcon(muted === true);
+    }
+
+    if (joinBtn) joinBtn.addEventListener('click', () => { if (window.voiceChat && window.voiceChat.enableVoice) window.voiceChat.enableVoice(); });
+    if (leaveBtn) leaveBtn.addEventListener('click', () => { if (window.voiceChat && window.voiceChat.disableVoice) window.voiceChat.disableVoice(); });
+    if (micToggleBtn) micToggleBtn.addEventListener('click', () => {
+      if (!window.voiceChat) return;
+      // if not joined yet, enable voice (will also enable mic)
+      if (joinBtn && !joinBtn.disabled) {
+        if (window.voiceChat.enableVoice) window.voiceChat.enableVoice();
+        return;
+      }
+      // Prefer toggleMute if available
+      if (window.voiceChat.toggleMute) {
+        window.voiceChat.toggleMute();
+        return;
+      }
+      // Fallback: setMicEnabled to opposite of current muted state
+      if (window.voiceChat.setMicEnabled) window.voiceChat.setMicEnabled(localMuted === true);
+    });
+
+    // Listen to voice events to update button states
+    window.addEventListener('voice:enabled', () => updateVoiceButtons(true, false));
+    window.addEventListener('voice:disabled', () => updateVoiceButtons(false, false));
+    window.addEventListener('voice:local-muted', (e) => { const muted = !!(e.detail && e.detail.muted); updateVoiceButtons(true, muted); });
+    // initialize states
+    updateVoiceButtons(false, false);
   });
 })();
 
-// Voice Dynamic Island UI
-(function(){
-  const peers = new Map(); // peerId -> { hasAudio }
-  let voiceActive = false;
-  let localMuted = false;
-  function short(id){ return id ? id.slice(0,6) : 'peer'; }
-
-  function updateLocalLabel() {
-    const mic = document.getElementById('voiceIslandMic');
-    const label = document.getElementById('voiceIslandLabel');
-    if (!mic || !label) return;
-    if (!voiceActive) {
-      label.textContent = 'Join Voice';
-      mic.style.opacity = '0.5';
-    } else {
-      label.textContent = localMuted ? 'Muted' : 'Mic On';
-      mic.style.opacity = localMuted ? '0.5' : '1';
-    }
-  }
-
-  function renderIsland() {
-    let island = document.getElementById('voiceIsland');
-    if (!island) {
-      island = document.createElement('div');
-      island.id = 'voiceIsland';
-      island.className = 'voice-island';
-      // local area
-      const local = document.createElement('div'); local.className = 'local';
-      const mic = document.createElement('div'); mic.className = 'mic-icon'; mic.title='Local mic';
-      mic.innerHTML = '🎤';
-      mic.id = 'voiceIslandMic';
-      local.appendChild(mic);
-      const label = document.createElement('div'); label.className='local-label'; label.id='voiceIslandLabel'; label.textContent='Voice';
-      local.appendChild(label);
-      island.appendChild(local);
-      const peersWrap = document.createElement('div'); peersWrap.className='peers'; peersWrap.id='voiceIslandPeers';
-      island.appendChild(peersWrap);
-      const mount = document.getElementById('voiceIslandMount') || document.body;
-      mount.appendChild(island);
-
-      // click mic: if voice off, enable; else toggle mute
-      mic.addEventListener('click', () => {
-        if (!voiceActive) {
-          if (window.voiceChat && window.voiceChat.enableVoice) window.voiceChat.enableVoice();
-          return;
-        }
-        if (window.voiceChat && window.voiceChat.toggleMute) window.voiceChat.toggleMute();
-      });
-      // click label: toggle voice session on/off
-      label.addEventListener('click', () => {
-        if (!voiceActive) {
-          if (window.voiceChat && window.voiceChat.enableVoice) window.voiceChat.enableVoice();
-        } else if (window.voiceChat && window.voiceChat.disableVoice) {
-          window.voiceChat.disableVoice();
-        }
-      });
-    }
-    // update peers
-    const peersWrap = document.getElementById('voiceIslandPeers');
-    peersWrap.innerHTML = '';
-    for (const [pid, st] of peers.entries()){
-      const chip = document.createElement('div'); chip.className = 'peer-chip' + (st.muted ? ' muted' : '');
-      const dot = document.createElement('span'); dot.className='dot'; chip.appendChild(dot);
-      // Do not show peer id or name in the island to avoid exposing identifiers
-      peersWrap.appendChild(chip);
-    }
-    updateLocalLabel();
-  }
-
-  // Event listeners
-  window.addEventListener('voice:peer-created', (e) => {
-    const peerId = e.detail && e.detail.peerId;
-    if (!peerId) return;
-    peers.set(peerId, { hasAudio:false, muted:false });
-    renderIsland();
-  });
-  window.addEventListener('voice:peer-audio', (e) => {
-    const peerId = e.detail && e.detail.peerId; if (!peerId) return;
-    const st = peers.get(peerId) || { hasAudio:false, muted:false };
-    st.hasAudio = true; peers.set(peerId, st); renderIsland();
-  });
-  window.addEventListener('voice:peer-left', (e) => {
-    const peerId = e.detail && e.detail.peerId; if (!peerId) return;
-    peers.delete(peerId); renderIsland();
-  });
-  window.addEventListener('voice:peer-muted', (e) => {
-    const peerId = e.detail && e.detail.peerId; const muted = e.detail && e.detail.muted;
-    if (!peerId) return;
-    const st = peers.get(peerId) || { hasAudio:false, muted:false };
-    st.muted = !!muted;
-    peers.set(peerId, st);
-    renderIsland();
-  });
-  window.addEventListener('voice:local-muted', (e) => {
-    localMuted = !!(e.detail && e.detail.muted);
-    updateLocalLabel();
-  });
-  window.addEventListener('voice:enabled', () => { voiceActive = true; renderIsland(); });
-  window.addEventListener('voice:disabled', () => { voiceActive = false; peers.clear(); renderIsland(); });
-
-  // create island if voice is ready (or wait)
-  window.addEventListener('DOMContentLoaded', () => {
-    // create placeholder island (hidden until peers)
-    renderIsland();
-    const mic = document.getElementById('voiceIslandMic'); if (mic) mic.style.opacity = '0.6';
-  });
-})();
+// Voice Dynamic Island UI removed — explicit voice controls remain in the UI.

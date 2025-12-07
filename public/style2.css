@@ -1,3 +1,10 @@
+.file-toolbar {
+  width: 100%;
+}
+
+.panel.collapsed .file-toolbar {
+  display: none !important;
+}
 /* Nav Bar Styles */
 .navbar {
   width: 100vw;
@@ -54,6 +61,12 @@
   margin-left: 16px;
 }
 
+/* Mobile chrome hidden by default; shown only in mobile media or when .force-mobile is applied */
+.mobile-top-bar,
+.mobile-bottom-nav {
+  display: none;
+}
+
 /* File delete button for file list (inline, round, red on hover) */
 .file-delete-btn {
   background: #222c;
@@ -89,24 +102,176 @@ body {
   background: var(--bgcolor);
 }
 
-.fc {
-  width: 100vw;
-  height: 100vh;
+.workspace {
+  width: 100%;
+  height: calc(100vh - 56px);
   display: flex;
+  gap: 18px;
+  padding: 18px 24px 24px;
 }
 
-.left-pane {
-  width: 300px;
-  max-width: 90vw;
+.panel {
   background: #ffffff08;
   border: 1px solid #ffffff15;
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  box-shadow: 0 20px 60px #0004;
+  position: relative;
+}
+
+.panel-left {
+  flex: 0 0 260px;
+  max-width: 320px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.panel-center {
+  flex: 1 1 auto;
+  min-width: 720px;
+  gap: 16px;
+}
+
+.panel-right {
+  flex: 0 0 360px;
+  max-width: 380px;
+  height: 100%;
   overflow-y: auto;
 }
 
-.right-pane {
-  flex: 1;
+/* Resizer bars between panels */
+.resizer {
+  width: 8px;
+  cursor: col-resize;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.02));
+  border-radius: 6px;
+  align-self: stretch;
+  margin: 0 4px;
+}
+
+.resizer:hover { background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.04)); }
+
+/* Collapsed panel state */
+.panel.collapsed {
+  width: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  flex: 0 0 40px !important;
+  padding: 12px 6px;
+  align-items: center;
+  overflow: visible;
+}
+
+.panel.collapsed .panel-header > small,
+.panel.collapsed .file-list,
+.panel.collapsed .collab-card {
+  display: none !important;
+}
+
+.panel.collapsed .panel-header > span {
+  display: none;
+}
+
+.panel-right.collapsed .panel-header > span {
+  display: none;
+}
+
+.panel.collapsed .collapse-handle {
+  top: 6px;
+}
+
+/* Collapse handle (small button near edge) */
+.collapse-handle{
+  position: absolute;
+  top: 12px;
+  z-index: 30;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #04100c88;
+  color: #0f9;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+#collapseLeft{ left: -12px; }
+#collapseRight{ right: -12px; }
+
+/* position collapse handles anchored to their panels (slightly outside edge)
+  When panel is collapsed the handle should sit inside the narrow rail. */
+#panelLeft .collapse-handle{ left: -2px; }
+#panelRight .collapse-handle{ right: 2px; }
+
+/* When panel is collapsed, move handle inside the rail */
+.panel.collapsed #collapseLeft { left: 6px !important; }
+.panel.collapsed #collapseRight { right: 6px !important; }
+
+.collapsed-icons {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #0f9;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.panel.collapsed .collapsed-icons {
+  display: flex;
+}
+
+.collapsed-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid #0f96;
+  background: #04100cdd;
+  color: #0f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.collapsed-icon:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 10px #0a54;
+}
+
+.panel-header {
   display: flex;
   flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #0f9;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #ffffff10;
+}
+
+.panel-subtitle {
+  text-transform: none;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+  color: #ffffff88;
+}
+
+.file-list {
+  flex: 1 1 auto;
+  margin-top: 12px;
+  overflow-y: auto;
+  padding-right: 6px;
 }
 
 input {
@@ -120,28 +285,32 @@ input {
   height: 100%;
   display: flex;
   margin-left: 7px;
+  flex: 1 1 220px;
 }
 
 .menu {
   display: flex;
-  max-height: 8vw;
   align-items: center;
-  padding: 3px;
-  gap: 6px;
+  padding: 12px;
+  gap: 12px;
   flex-wrap: wrap;
+  background: #ffffff05;
+  border: 1px solid #ffffff10;
+  border-radius: 14px;
 }
 
 #language {
   cursor: pointer;
+  min-width: 140px;
 }
 
 .menu>.empty-div {
-  flex: 1;
+  flex: 1 1 auto;
 }
 
 .menu-item {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 button {
@@ -153,6 +322,7 @@ button {
   padding: 8px 15px;
   cursor: pointer;
   font-size: 12px;
+  border-radius: 999px;
 }
 
 button:disabled {
@@ -163,7 +333,7 @@ button:disabled {
 #fileList {
   list-style: decimal;
   margin: 0;
-  padding: 5px;
+  padding: 6px 0;
 }
 
 #fileList>.file-item {
@@ -173,35 +343,55 @@ button:disabled {
   color: #fff;
   cursor: pointer;
   border: 1px solid transparent;
+  border-radius: 10px;
+  margin-bottom: 6px;
 }
 
 #fileList>.file-item:hover {
   background: #0a5;
 }
 
-.main-content {
-  flex: 1 1 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+.editor-shell {
+  flex: 1 1 auto;
+  min-height: 480px;
+  border-radius: 18px;
+  border: 1px solid #ffffff10;
+  background: radial-gradient(circle at top, rgba(10, 255, 165, 0.08), transparent 55%), #04100c;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 40px #0006;
 }
 
-.main-content {
-  padding: 12px;
+.collab-card {
+  background: #ffffff05;
+  border: 1px solid #ffffff12;
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
-#output-container {
-  display: flex;
-  gap: 16px;
-  padding: 12px;
-  align-items: flex-start;
+.panel-right .collab-card:first-of-type {
+  margin-top: 20px;
 }
 
+.card-title {
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #0f9;
+}
+
+
 #stdinInput {
-  width: 260px;
-  padding: 8px;
-  border-radius: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #ffffff12;
+  background: #ffffff08;
 }
 
 #editor-container {
@@ -230,11 +420,14 @@ button:disabled {
 
 /* Users list container alignment and sizing */
 .users-joined {
-  margin-right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
 }
 
 #usersList {
-  max-height: 150px;
+  max-height: 40vh;
   overflow-y: auto;
 }
 
@@ -243,29 +436,68 @@ button:disabled {
   min-height: 0;
 }
 
+/* Ensure Monaco/editor fills its parent pane */
+#editor {
+  height: 100%;
+}
+
+/* Make editor container and shell take full available height */
+#editor-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.editor-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.monaco-editor,
+.monaco-editor .overflow-guard,
+.monaco-editor .monaco-scrollable-element {
+  height: 100% !important;
+}
+
 #output-container {
-  color: #0a5;
+  width: 100%;
   display: flex;
-  min-height: 25vh;
-  height: 30vh;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid #fff1;
+  border-radius: 14px;
+  padding: 14px;
+  background: #ffffff04;
   align-items: stretch;
-  overflow: hidden;
+  color: #0a5;
 }
 
-#voiceAudios {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  opacity: 0;
-}
 
-.voice-island-mount {
+/* Live Audio box: visible container for voice controls and audio elements */
+.voice-card .voice-box {
   display: flex;
-  justify-content: flex-end;
-  padding: 6px 12px;
+  flex-direction: column;
   gap: 8px;
-  align-items: center;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px dashed #0a5;
+  background: rgba(4,16,12,0.02);
+}
+
+.voice-card .voice-box .voice-controls button.active {
+  background: rgba(79,216,155,0.12);
+  color: #0a5;
+  border-color: rgba(79,216,155,0.22);
+}
+
+.voice-audios {
+  position: relative;
+  width: 100%;
+  height: 0;
+  overflow: visible;
 }
 
 .sr-only {
@@ -281,10 +513,8 @@ button:disabled {
 }
 
 #stdinInput {
-  width: 300px;
   background: transparent;
-  border: none;
-  border-right: 1px solid #fff1;
+  border: 1px solid #fff1;
   color: #0a5;
   outline: none;
   resize: vertical;
@@ -305,8 +535,7 @@ button:disabled {
 
 #output {
   width: 100%;
-  height: 25vh;
-  min-height: 100px;
+  min-height: 160px;
   overflow-y: auto;
   white-space: pre-wrap;
   scrollbar-color: #0a5 #04100c;
@@ -401,6 +630,20 @@ button:disabled {
   color: #8fff;
   background: none;
   border-left: 2px solid transparent;
+}
+
+@media (max-width: 1200px) {
+  .workspace {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .panel-left,
+  .panel-right {
+    flex: 1 1 auto;
+    max-width: none;
+    height: auto;
+  }
 }
 
 .ai-ghost-block--truncated::after {
@@ -803,14 +1046,12 @@ button:disabled {
   box-shadow: 0 6px 20px rgba(220, 38, 38, 0.5);
 }
 
-/* Users list (presence) styles */
 #usersList {
   display: flex;
   flex-direction: column;
   gap: 6px;
   padding: 8px;
   max-height: 25vh;
-  /* limit height so it can scroll */
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -869,10 +1110,7 @@ button:disabled {
   box-shadow: none;
 }
 
-/* hide peer chips in island: we show activity in users list instead */
-.voice-island .peers {
-  display: none;
-}
+/* peer-chip hiding for removed island — no-op retained for compatibility */
 
 /* Active speaker highlight: green border and soft glow */
 .user-item.speaking {
@@ -891,418 +1129,293 @@ button:disabled {
   100% { box-shadow: 0 0 6px rgba(79,216,155,0.12); transform: scale(1); }
 }
 
-/* Thin custom scrollbar for modern browsers */
-#usersList::-webkit-scrollbar {
-  width: 8px;
-}
-
-#usersList::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-#usersList::-webkit-scrollbar-thumb {
-  background: rgba(79, 216, 155, 0.12);
-  border-radius: 6px;
-}
-
-#usersList::-webkit-scrollbar-thumb:hover {
-  background: rgba(79, 216, 155, 0.18);
-}
-
 /* fallback for Firefox */
 #usersList {
   scrollbar-width: thin;
   scrollbar-color: rgba(79, 216, 155, 0.12) transparent;
 }
 
-/* Voice Dynamic Island (floating pill) */
-.voice-island {
-  position: relative;
-  margin-left: auto;
-  background: linear-gradient(90deg, #07120f, #04100c);
-  border: 1px solid rgba(79, 216, 155, 0.12);
-  color: #e0f8ee;
-  padding: 8px 12px;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
-  z-index: 30;
-  min-width: 160px;
+/* Voice island styles removed — using visible dotted live-audio box instead */
+
+
+
+/* ---------- Global Scrollbar Styling (match dark + green theme) ---------- */
+/* WebKit browsers (Chrome, Edge, Safari) */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
 
-.voice-island .local {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
+*::-webkit-scrollbar-track {
+  background: rgba(4,16,12,0.35);
+  border-radius: 10px;
 }
 
-.voice-island .local .mic-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #052a20;
-  color: #4fd89b;
-  font-size: 14px;
-  cursor: pointer;
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(79,216,155,0.22), rgba(79,216,155,0.14));
+  border-radius: 10px;
+  border: 2px solid rgba(4,16,12,0.55);
 }
 
-.voice-island .peers {
-  display: flex;
-  gap: 6px;
-  align-items: center;
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(79,216,155,0.36), rgba(79,216,155,0.22));
 }
 
-.voice-island .peer-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.02);
-  font-size: 12px;
-  color: #fff;
-}
-
-.voice-island .peer-chip .dot {
+/* Thinner track for compact lists */
+.file-list::-webkit-scrollbar,
+.users-joined::-webkit-scrollbar,
+#usersList::-webkit-scrollbar,
+#fileList::-webkit-scrollbar,
+.output-wrapper::-webkit-scrollbar {
   width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #4fd89b;
 }
 
-.voice-island .peer-chip.muted .dot {
-  background: #888;
+/* Monaco editor scrollbars */
+.monaco-scrollable-element::-webkit-scrollbar,
+.monaco-editor .overflow-guard::-webkit-scrollbar {
+  width: 10px !important;
 }
 
-@media (max-width:600px) {
-  .voice-island {
-    right: 10px;
-    bottom: 10px;
-    padding: 6px 8px;
-    min-width: 120px;
-  }
-
-  .voice-island .peer-chip {
-    display: none;
-  }
+/* Firefox rules */
+html {
+  scrollbar-color: rgba(79,216,155,0.22) rgba(4,16,12,0.35);
+  scrollbar-width: thin;
 }
 
+#output::-webkit-scrollbar-thumb,
+#output::-webkit-scrollbar {
+  background: linear-gradient(180deg, rgba(79,216,155,0.18), rgba(79,216,155,0.12));
+}
+
+*:focus::-webkit-scrollbar-thumb {
+  box-shadow: 0 0 0 3px rgba(79,216,155,0.12);
+}
+
+/* End global scrollbar rules */
+
+
+/* ========== MOBILE LAYOUT (580px and below) ========== */
 @media (max-width: 580px) {
-
-  /* Navbar adjustments */
+  /* Hide the desktop navbar */
   .navbar {
-    height: auto;
-    padding: 8px 16px;
-    flex-wrap: wrap;
-    gap: 8px;
+    display: none !important;
   }
 
-  .navbar-brand {
-    font-size: 1.2em;
-    display: none;
-  }
-
-  .navbar-links {
-    gap: 8px;
-    font-size: 0.9em;
-  }
-
-  .navbar-links a {
-    padding: 8px 10px;
-    font-size: 0.85em;
-  }
-
-  .navbar-theme-btn {
-    font-size: 1.2em;
-    margin-left: 8px;
-  }
-
-  /* Main layout adjustments */
-  .fc {
-    flex-direction: column;
-  }
-
-  /* Left pane - stays visible but shorter */
-  .left-pane {
+  /* Mobile Top Bar - Blue gradient with back/room/options */
+  .mobile-top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
-    max-width: none;
-    height: auto;
-    /* max-height: 40vh; */
-    min-height: 120px;
-    border-right: none;
-    border-bottom: 1px solid #ffffff15;
-  }
-
-  .right-pane {
-    flex: 1;
-    min-height: 0;
-  }
-
-  /* Menu controls - horizontal scroll instead of hiding */
-  .menu {
-    max-height: none;
-    padding: 6px;
-    gap: 6px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    flex-wrap: nowrap;
-  }
-
-  .menu::-webkit-scrollbar {
-    height: 4px;
-  }
-
-  .menu::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .menu::-webkit-scrollbar-thumb {
-    background: rgba(0, 170, 85, 0.3);
-    border-radius: 4px;
-  }
-
-  .menu-item {
-    gap: 4px;
-    flex-shrink: 0;
-  }
-
-  button {
-    padding: 8px 12px;
-    font-size: 11px;
-    white-space: nowrap;
-    min-height: 36px;
-  }
-
-  #language {
-    min-width: 140px;
-    font-size: 11px;
-    padding: 8px 32px 8px 10px;
-  }
-
-  /* File list */
-  #fileList {
-    padding: 6px;
-    max-height: 60px;
-    overflow-y: scroll;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(79, 216, 155, 0.12) transparent;
-  }
-
-  #fileList>.file-item {
-    font-size: 14px;
-    padding: 5px 4px;
+    height: 56px;
+    background: linear-gradient(135deg, #0a5, #075);
+    border-bottom: 1px solid rgba(79, 216, 155, 0.2);
     display: flex;
     align-items: center;
-    gap: 5px;
-    min-height: 35px;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
 
-  .file-delete-btn {
-    width: 32px;
-    height: 32px;
-    font-size: 14px;
-    flex-shrink: 0;
-  }
-
-  /* Editor and output */
-  #editor-container {
-    min-height: 250px;
-  }
-
-  #output-container {
-    min-height: 150px;
-    height: auto;
-    flex-direction: column;
-  }
-
-  #stdinInput {
-    width: 100%;
-    min-height: 40px;
-    border-top: solid 1px #fff1;
-    border-bottom: 1px solid #fff1;
+  .mobile-top-bar button {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
     padding: 8px;
-  }
-
-  #output {
-    height: auto;
-    min-height: 100px;
-    padding: 8px;
-    padding-right: 48px;
-    font-size: 12px;
-  }
-
-  .clear-output-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 16px;
-    bottom: 12px;
-    right: 12px;
-  }
-
-  /* AI hint badge adjustments */
-  .ai-hint-badge {
-    bottom: 16px;
-    right: 16px;
-    width: 52px;
-    height: 52px;
-    padding: 10px;
-  }
-
-  .ai-hint-icon {
-    font-size: 1.6em;
-  }
-
-  .ai-hint-badge:hover,
-  .ai-hint-badge.expanded {
-    width: auto;
-    max-width: calc(100vw - 32px);
-    height: auto;
-    padding: 12px 16px;
-  }
-
-  .ai-hint-content {
-    font-size: 0.9em;
-  }
-
-  .ai-hint-keys kbd,
-  .ai-hint-alt kbd,
-  .ai-hint-accept kbd {
-    padding: 3px 6px;
-    font-size: 0.85em;
-    min-width: 24px;
-  }
-
-  /* Modal adjustments */
-  .modal-box {
-    padding: 1.5rem;
-    max-width: 90%;
-    width: calc(100vw - 32px);
-    border-radius: 12px;
-  }
-
-  .modal-title {
-    font-size: 1.1rem;
-  }
-
-  .modal-message {
-    font-size: 0.95rem;
-    margin-bottom: 1rem;
-  }
-
-  .modal-input {
-    padding: 10px;
-    font-size: 0.95rem;
-    margin-bottom: 1rem;
-  }
-
-  .modal-buttons {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .modal-btn {
-    width: 100%;
-    padding: 12px;
-    min-height: 44px;
-  }
-
-  /* Users list */
-  .users-joined {
-    font-size: 14px;
-    margin-bottom: 4px;
-    height: auto;
-  }
-
-  #usersList {
     display: flex;
-    /* Ensure it's visible */
-    min-height: 70px;
-    /* Slightly taller on mobile */
-    padding: 4px;
-    background: rgba(255, 255, 255, 0.05);
-    /* Subtle background */
+    align-items: center;
+    justify-content: center;
     border-radius: 4px;
-    overflow: scroll;
+    transition: background 0.2s;
   }
 
-  .user-item {
-    font-size: 12px;
-    padding: 8px 6px;
-    min-height: 30px;
-    /* Touch-friendly */
-    background: rgba(255, 255, 255, 0.03);
+  .mobile-top-bar button:hover {
+    background: rgba(255, 255, 255, 0.1);
   }
 
-  .user-item:active {
-    background: rgba(0, 170, 85, 0.2);
-    /* Touch feedback */
+  .mobile-room-display {
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    flex: 1;
+    text-align: center;
+    letter-spacing: 0.5px;
   }
 
-  .user-item .avatar {
-    width: 32px;
-    height: 32px;
+  /* Workspace: single panel view with top/bottom chrome */
+  .workspace {
+    display: flex !important;
+    flex-direction: column;
+    padding-top: 56px !important;
+    padding-bottom: 60px !important;
+    height: 100vh;
+    overflow: hidden;
   }
 
-
-  /* Room controls */
-  .room-controls {
-    margin-left: 4px;
-    flex-wrap: wrap;
+  /* Hide left/right panels by default, show based on active tab */
+  #panelLeft,
+  #panelCenter,
+  #panelRight {
+    display: none !important;
+    position: fixed;
+    top: 56px;
+    left: 0;
+    width: 100%;
+    height: calc(100vh - 56px - 60px);
+    background: var(--bgcolor);
+    overflow-y: auto;
+    z-index: 10;
   }
 
-  /* Make all interactive elements touch-friendly */
-  input,
-  select,
-  textarea {
-    font-size: 16px;
-    /* Prevents zoom on iOS */
-    min-height: 44px;
+  /* Show active panel */
+  #panelLeft.mobile-active,
+  #panelCenter.mobile-active,
+  #panelRight.mobile-active {
+    display: flex !important;
   }
 
-  /* Improve scrolling on mobile */
-  .left-pane,
-  #fileList,
-  #usersList,
-  .menu {
-    -webkit-overflow-scrolling: touch;
+  /* Hide all resizers and collapse handles on mobile */
+  .resizer,
+  .collapse-handle {
+    display: none !important;
   }
+
+  /* File list - full screen */
+  #panelLeft {
+    padding: 16px;
+  }
+
+  /* Editor - clean full screen */
+  #panelCenter {
+    padding: 0;
+  }
+  .menu-item{
+    font-size: 14px;
+    max-height: 20px;
+  }
+
+  #editor-container {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Right panel cards - stack vertically */
+  #panelRight {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .card {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  /* Mobile Bottom Navigation - Light background with icons + labels */
+  .mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 60px;
+    background: #0d1814;
+    border-top: 1px solid rgba(79, 216, 155, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 1000;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Support for buttons appended dynamically (no class) and for buttons with class */
+  .mobile-bottom-nav button,
+  .mobile-bottom-nav .mobile-nav-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.2s;
+    flex: 1;
+    max-width: 80px;
+  }
+
+  .mobile-bottom-nav button .nav-icon,
+  .mobile-bottom-nav .mobile-nav-btn .nav-icon {
+    font-size: 22px;
+  }
+
+  .mobile-bottom-nav button .nav-label,
+  .mobile-bottom-nav .mobile-nav-btn .nav-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  .mobile-bottom-nav button.active,
+  .mobile-bottom-nav .mobile-nav-btn.active {
+    color: #0a5;
+    background: rgba(79, 216, 155, 0.1);
+  }
+
+  .mobile-bottom-nav button:hover,
+  .mobile-bottom-nav .mobile-nav-btn:hover {
+    color: #0a5;
+  }
+
+  /* Voice island removed for mobile; live audio box used instead */
 }
 
-/* Additional small screen optimizations */
-@media (max-width: 400px) {
-  .navbar-brand {
-    font-size: 1em;
-  }
+/* Force mobile mode class - can be toggled via ?mobile=1 */
+.force-mobile .workspace {
+  display: flex !important;
+  flex-direction: column;
+  padding-top: 56px !important;
+  padding-bottom: 60px !important;
+  height: 100vh;
+  overflow: hidden;
+}
 
-  .navbar-links a {
-    padding: 6px 8px;
-    font-size: 0.8em;
-  }
+.force-mobile .navbar {
+  display: none !important;
+}
 
-  button {
-    padding: 6px 10px;
-    font-size: 10px;
-  }
+.force-mobile #panelLeft,
+.force-mobile #panelCenter,
+.force-mobile #panelRight {
+  display: none !important;
+  position: fixed;
+  top: 56px;
+  left: 0;
+  width: 100%;
+  height: calc(100vh - 56px - 60px);
+  background: var(--bgcolor);
+  overflow-y: auto;
+  z-index: 10;
+}
 
-  #language {
-    min-width: 120px;
-    font-size: 10px;
-  }
+.force-mobile #panelLeft.mobile-active,
+.force-mobile #panelCenter.mobile-active,
+.force-mobile #panelRight.mobile-active {
+  display: flex !important;
+}
 
-  .ai-hint-badge {
-    width: 48px;
-    height: 48px;
-  }
+.force-mobile .resizer,
+.force-mobile .collapse-handle {
+  display: none !important;
+}
 
-  .ai-hint-icon {
-    font-size: 1.4em;
-  }
+.force-mobile .mobile-top-bar,
+.force-mobile .mobile-bottom-nav {
+  display: flex !important;
 }

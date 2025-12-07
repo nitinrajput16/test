@@ -192,82 +192,115 @@ window.addEventListener('DOMContentLoaded', function() {
   // ---------------- DOM ELEMENTS ----------------
   const fileListDiv = document.getElementById('fileList');
   
-  // Add search container with icon and input
-  const searchContainer = document.createElement('div');
-  searchContainer.style.display = 'flex';
-  searchContainer.style.alignItems = 'center';
-  searchContainer.style.gap = '6px';
-  searchContainer.style.marginBottom = '6px';
-  searchContainer.style.padding = '0 5px';
+  // If a static toolbar exists in HTML, bind to its elements; otherwise create dynamically
+  let searchInput = document.getElementById('fileSearchInput');
+  let newFileBtn = document.getElementById('newFileBtnToolbar');
+  const existingToolbar = document.getElementById('fileToolbar');
 
-  const searchWrapper = document.createElement('div');
-  searchWrapper.style.position = 'relative';
-  searchWrapper.style.flex = '1';
-  searchWrapper.style.display = 'flex';
-  searchWrapper.style.alignItems = 'center';
+  if (!existingToolbar) {
+    // Add search container with icon and input (dynamic fallback)
+    const searchContainer = document.createElement('div');
+    searchContainer.classList.add('file-toolbar');
+    searchContainer.style.display = 'flex';
+    searchContainer.style.alignItems = 'center';
+    searchContainer.style.gap = '6px';
+    searchContainer.style.marginBottom = '6px';
+    searchContainer.style.padding = '0 5px';
 
-  const searchIcon = document.createElement('span');
-  searchIcon.textContent = '🔍';
-  searchIcon.style.position = 'absolute';
-  searchIcon.style.left = '8px';
-  searchIcon.style.fontSize = '14px';
-  searchIcon.style.pointerEvents = 'none';
-  searchIcon.style.opacity = '0.7';
+    const searchWrapper = document.createElement('div');
+    searchWrapper.style.position = 'relative';
+    searchWrapper.style.flex = '1';
+    searchWrapper.style.display = 'flex';
+    searchWrapper.style.alignItems = 'center';
 
-  const searchInput = document.createElement('input');
-  searchInput.type = 'text';
-  searchInput.placeholder = 'Search files...';
-  searchInput.style.width = '100%';
-  searchInput.style.padding = '6px 8px 6px 30px';
-  searchInput.style.background = '#ffffff11';
-  searchInput.style.border = '1px solid #ffffff15';
-  searchInput.style.color = '#fff';
-  searchInput.style.borderRadius = '4px';
-  searchInput.style.fontSize = '12px';
-  searchInput.style.outline = 'none';
-  
-  searchInput.addEventListener('focus', () => {
-    searchInput.style.borderColor = '#0a5';
-    searchInput.style.background = '#ffffff18';
-  });
-  
-  searchInput.addEventListener('blur', () => {
-    searchInput.style.borderColor = '#ffffff15';
+    const searchIcon = document.createElement('span');
+    searchIcon.textContent = '🔍';
+    searchIcon.style.position = 'absolute';
+    searchIcon.style.left = '8px';
+    searchIcon.style.fontSize = '14px';
+    searchIcon.style.pointerEvents = 'none';
+    searchIcon.style.opacity = '0.7';
+
+    searchInput = document.createElement('input');
+    searchInput.type = 'text';
+    searchInput.placeholder = 'Search files...';
+    searchInput.style.width = '100%';
+    searchInput.style.padding = '6px 8px 6px 30px';
     searchInput.style.background = '#ffffff11';
-  });
+    searchInput.style.border = '1px solid #ffffff15';
+    searchInput.style.color = '#fff';
+    searchInput.style.borderRadius = '4px';
+    searchInput.style.fontSize = '12px';
+    searchInput.style.outline = 'none';
+    
+    searchInput.addEventListener('focus', () => {
+      searchInput.style.borderColor = '#0a5';
+      searchInput.style.background = '#ffffff18';
+    });
+    
+    searchInput.addEventListener('blur', () => {
+      searchInput.style.borderColor = '#ffffff15';
+      searchInput.style.background = '#ffffff11';
+    });
 
-  searchInput.addEventListener('input', (e) => {
-    filterFileList(e.target.value.toLowerCase());
-  });
+    searchInput.addEventListener('input', (e) => {
+      filterFileList(e.target.value.toLowerCase());
+    });
 
-  searchWrapper.appendChild(searchIcon);
-  searchWrapper.appendChild(searchInput);
-  searchContainer.appendChild(searchWrapper);
+    searchWrapper.appendChild(searchIcon);
+    searchWrapper.appendChild(searchInput);
+    searchContainer.appendChild(searchWrapper);
 
-  // Add New File button
-  const newFileBtn = document.createElement('button');
-  newFileBtn.textContent = '+';
-  newFileBtn.title = 'New File';
-  newFileBtn.style.background = '#0a5';
-  newFileBtn.style.color = '#fff';
-  newFileBtn.style.border = 'none';
-  newFileBtn.style.padding = '6px 12px';
-  newFileBtn.style.fontWeight = 'bold';
-  newFileBtn.style.cursor = 'pointer';
-  newFileBtn.style.borderRadius = '4px';
-  newFileBtn.style.fontSize = '16px';
-  newFileBtn.addEventListener('click', () => {
-    setEditorValue('');
-    currentFilename = null;
-    highlightActiveFile();
-    logOutput('New blank file. Use Save to name and store it.');
-  });
+    // Add New File button
+    newFileBtn = document.createElement('button');
+    newFileBtn.textContent = '+';
+    newFileBtn.title = 'New File';
+    newFileBtn.id = 'newFileBtnToolbar';
+    newFileBtn.style.background = '#0a5';
+    newFileBtn.style.color = '#fff';
+    newFileBtn.style.border = 'none';
+    newFileBtn.style.padding = '6px 12px';
+    newFileBtn.style.fontWeight = 'bold';
+    newFileBtn.style.cursor = 'pointer';
+    newFileBtn.style.borderRadius = '4px';
+    newFileBtn.style.fontSize = '16px';
+    newFileBtn.addEventListener('click', () => {
+      setEditorValue('');
+      currentFilename = null;
+      highlightActiveFile();
+      logOutput('New blank file. Use Save to name and store it.');
+    });
 
-  searchContainer.appendChild(newFileBtn);
+    searchContainer.appendChild(newFileBtn);
 
-  if (fileListDiv && fileListDiv.parentElement) {
-    fileListDiv.parentElement.insertBefore(searchContainer, fileListDiv);
+    if (fileListDiv && fileListDiv.parentElement) {
+      fileListDiv.parentElement.insertBefore(searchContainer, fileListDiv);
+    }
+  } else {
+    // Bind search input behavior when using static toolbar
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => filterFileList(e.target.value.toLowerCase()));
+      searchInput.addEventListener('focus', () => { searchInput.style.borderColor = '#0a5'; searchInput.style.background = '#ffffff18'; });
+      searchInput.addEventListener('blur', () => { searchInput.style.borderColor = '#ffffff15'; searchInput.style.background = '#ffffff11'; });
+    }
+    if (newFileBtn) {
+      newFileBtn.addEventListener('click', () => {
+        setEditorValue('');
+        currentFilename = null;
+        highlightActiveFile();
+        logOutput('New blank file. Use Save to name and store it.');
+      });
+    }
   }
+
+  // expose helper functions so other modules can trigger search/new actions
+  window.createNewFile = function(){
+    try{ newFileBtn && newFileBtn.click(); }catch(e){}
+  };
+
+  window.focusFileSearch = function(){
+    try{ searchInput && searchInput.focus(); }catch(e){}
+  };
 
   // Filter file list function
   function filterFileList(searchTerm) {
@@ -340,6 +373,53 @@ window.addEventListener('DOMContentLoaded', function() {
     'md': 'markdown',
     'txt': 'plaintext'
   };
+
+  // ---------------- FILE UPLOAD (bind to static toolbar) ----------------
+  (function(){
+    const fileInput = document.getElementById('fileUploadInput');
+    const uploadBtn = document.getElementById('uploadFileBtn');
+
+    async function handleUploadFile(file){
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(ev){
+        const content = ev.target.result;
+        const filename = file.name;
+        const ext = (filename.split('.').pop() || '').toLowerCase();
+        const monacoLang = extToMonaco[ext] || 'plaintext';
+        try{
+          const res = await api('POST','/api/code/save',{
+            filename,
+            code: content,
+            language: monacoLang,
+            roomId: currentRoom
+          });
+          currentFilename = res.filename || filename;
+          setEditorValue(content);
+          setEditorLanguageByFilename(currentFilename);
+          highlightActiveFile();
+          refreshFileList();
+          logOutput('Uploaded: ' + currentFilename);
+        }catch(err){
+          logOutput('Upload failed: ' + (err.message || err));
+        }
+      };
+      reader.onerror = function(){ logOutput('File read error'); };
+      reader.readAsText(file, 'utf-8');
+    }
+
+    if (uploadBtn && fileInput) {
+      uploadBtn.addEventListener('click', function(){
+        const f = fileInput.files && fileInput.files[0];
+        if (!f){ fileInput.click(); return; }
+        handleUploadFile(f);
+      });
+      fileInput.addEventListener('change', function(){
+        const f = fileInput.files && fileInput.files[0];
+        if (f) handleUploadFile(f);
+      });
+    }
+  })();
 
   // -------------- UTILS ----------------
   function simpleHash(str){
@@ -757,6 +837,17 @@ document.addEventListener('mouseup', () => {
     socket.emit('join-room', roomId);
     if (roomInput) roomInput.value = '';
     logOutput('Joined room: '+roomId);
+    
+    // Update mobile top bar with room ID
+    const mobileRoomDisplay = document.getElementById('mobileRoomDisplay');
+    if(mobileRoomDisplay){
+      mobileRoomDisplay.textContent = 'Room ID: ' + roomId;
+    }
+    // Update toolbar room display in left panel
+    const toolbarRoomId = document.getElementById('toolbarRoomId');
+    if (toolbarRoomId) {
+      toolbarRoomId.textContent = '' + roomId;
+    }
     // 'user-name' is handled centrally in initSocket; don't re-register here to avoid duplicates
     // Send caret position immediately after joining
     setTimeout(() => {
@@ -1108,6 +1199,15 @@ document.addEventListener('mouseup', () => {
   }
 
   // -------------- INIT SEQUENCE ----------------
+  // Initialize mobile room display with initial room ID
+  const mobileRoomDisplay = document.getElementById('mobileRoomDisplay');
+  if(mobileRoomDisplay){
+    mobileRoomDisplay.textContent = 'Room ID: #' + currentRoom;
+  }
+  // Initialize toolbar room display (left panel) with initial room ID
+  const toolbarRoomId = document.getElementById('toolbarRoomId');
+  if (toolbarRoomId) toolbarRoomId.textContent = '#' + currentRoom;
+  
   initSocket();
   initMonaco();
   refreshFileList();
