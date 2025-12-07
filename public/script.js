@@ -293,6 +293,27 @@ window.addEventListener('DOMContentLoaded', function() {
     }
   }
 
+  // Whiteboard button: navigate to whiteboard page for current room
+  (function bindWhiteboardButton(){
+    const wbBtn = document.getElementById('whiteboardBtn');
+    if (!wbBtn) return;
+    wbBtn.addEventListener('click', async () => {
+      // Prefer the editor's currentRoom variable if present
+      const currentRoom = window.currentRoom || window.roomId || window.WHITEBOARD_ROOM;
+      let room = currentRoom;
+      if (!room) {
+        // ask user for a room id
+        try {
+          const val = await customPrompt('Enter room id for whiteboard', '');
+          if (!val) return;
+          room = val.trim();
+        } catch (_e) { return; }
+      }
+      const url = `/whiteboard?room=${encodeURIComponent(room)}`;
+      window.location.href = url;
+    });
+  })();
+
   // expose helper functions so other modules can trigger search/new actions
   window.createNewFile = function(){
     try{ newFileBtn && newFileBtn.click(); }catch(e){}
@@ -644,9 +665,15 @@ window.addEventListener('DOMContentLoaded', function() {
       usersListDiv.innerHTML = '';
       const renderUser = (user) => {
         const uid = user.socketId || user.id || user._id || user.googleId || user.socket || (user.name && ('user-' + user.name));
+        const normalizedUserId = user.id || user._id || user.googleId || uid;
+        const isCurrentSocket = !!(user.socketId && window.socket && user.socketId === window.socket.id);
+        if (isCurrentSocket && normalizedUserId) {
+          window.myServerUserId = normalizedUserId;
+        }
         const userItem = document.createElement('div');
         userItem.className = 'user-item';
         userItem.dataset.peerId = uid;
+        if (user.socketId) userItem.dataset.socketId = user.socketId;
 
         // audio dot (activity)
         const dot = document.createElement('div');
@@ -664,7 +691,7 @@ window.addEventListener('DOMContentLoaded', function() {
         muteBtn.className = 'user-mute-btn';
         // If this entry corresponds to our socket id, make it control local mic
         const myId = (window.socket && window.socket.id) || (window.user && (window.user._id || window.user.googleId)) || 'me';
-        const isMe = (uid === myId) || (user.isMe === true);
+        const isMe = isCurrentSocket || (normalizedUserId && normalizedUserId === myId) || (user.isMe === true);
         if (isMe) { muteBtn.textContent = 'Mute (you)'; muteBtn.dataset.isMe = '1'; }
         else { muteBtn.textContent = 'Mute'; }
 
@@ -758,22 +785,65 @@ window.addEventListener('DOMContentLoaded', function() {
       const peerId = e.detail && e.detail.peerId;
       if (!peerId) return;
       const usersListDiv = document.getElementById('usersList'); if (!usersListDiv) return;
-      const item = usersListDiv.querySelector(`.user-item[data-peer-id="${peerId}"]`);
-      if (item) item.classList.add('speaking');
+      // Try multiple matching strategies
+      let item = usersListDiv.querySelector(`.user-item[data-socket-id="${peerId}"]`);
+      if (!item) item = usersListDiv.querySelector(`.user-item[data-peer-id="${peerId}"]`);
+      // Fallback: check all items manually
+      if (!item) {
+        const items = usersListDiv.querySelectorAll('.user-item');
+        for (const it of items) {
+          if (it.dataset.socketId === peerId || it.dataset.peerId === peerId) {
+            item = it;
+            break;
+          }
+        }
+      }
+      if (item) {
+        item.classList.add('speaking');
+      } else {
+        console.warn('[VOICE] Speaking peer not found:', peerId);
+        console.log('[VOICE] Available users:', Array.from(usersListDiv.querySelectorAll('.user-item')).map(i => ({ socketId: i.dataset.socketId, peerId: i.dataset.peerId })));
+      }
     });
     window.addEventListener('voice:peer-stopped', (e) => {
       const peerId = e.detail && e.detail.peerId;
       if (!peerId) return;
       const usersListDiv = document.getElementById('usersList'); if (!usersListDiv) return;
-      const item = usersListDiv.querySelector(`.user-item[data-peer-id="${peerId}"]`);
-      if (item) item.classList.remove('speaking');
+      // Try multiple matching strategies
+      let item = usersListDiv.querySelector(`.user-item[data-socket-id="${peerId}"]`);
+      if (!item) item = usersListDiv.querySelector(`.user-item[data-peer-id="${peerId}"]`);
+      // Fallback: check all items manually
+      if (!item) {
+        const items = usersListDiv.querySelectorAll('.user-item');
+        for (const it of items) {
+          if (it.dataset.socketId === peerId || it.dataset.peerId === peerId) {
+            item = it;
+            break;
+          }
+        }
+      }
+      if (item) {
+        item.classList.remove('speaking');
+      }
     });
 
     // Clear speaking/muted state when peer leaves
     window.addEventListener('voice:peer-left', (e) => {
       const peerId = e.detail && e.detail.peerId; if (!peerId) return;
       const usersListDiv = document.getElementById('usersList'); if (!usersListDiv) return;
-      const item = usersListDiv.querySelector(`.user-item[data-peer-id="${peerId}"]`);
+      // Try multiple matching strategies
+      let item = usersListDiv.querySelector(`.user-item[data-socket-id="${peerId}"]`);
+      if (!item) item = usersListDiv.querySelector(`.user-item[data-peer-id="${peerId}"]`);
+      // Fallback: check all items manually
+      if (!item) {
+        const items = usersListDiv.querySelectorAll('.user-item');
+        for (const it of items) {
+          if (it.dataset.socketId === peerId || it.dataset.peerId === peerId) {
+            item = it;
+            break;
+          }
+        }
+      }
       if (item) {
         item.classList.remove('speaking');
         item.classList.remove('muted');
@@ -897,11 +967,80 @@ document.addEventListener('mouseup', () => {
   (function() {
     let remoteCaretDecorations = {};
     let remoteCaretOffsets = {};
+    let remoteSelectionDecorations = {};
+    let remoteSelectionRanges = {};
     function getMyUserId() {
+      if (window.myServerUserId) return window.myServerUserId;
       return (window.user && (window.user._id || window.user.googleId || window.user.id))
         || (window.__CC_DEBUG__ && window.__CC_DEBUG__.userId)
         || (socket && socket.id)
         || 'me';
+    }
+    function hexToRgba(hex, alpha) {
+      if (!hex) return `rgba(79, 216, 155, ${alpha})`;
+      let h = hex.replace('#', '');
+      if (h.length === 3) h = h.split('').map(ch => ch + ch).join('');
+      const bigint = parseInt(h, 16);
+      if (Number.isNaN(bigint)) return `rgba(79, 216, 155, ${alpha})`;
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    function applyRemoteSelections() {
+      if (!editor || typeof monaco === 'undefined') return;
+      const model = editor.getModel();
+      if (!model) return;
+      Object.keys(remoteSelectionRanges).forEach(userId => {
+        const data = remoteSelectionRanges[userId];
+        if (!data || typeof data.start !== 'number' || typeof data.end !== 'number' || data.start === data.end) {
+          if (remoteSelectionDecorations[userId]) {
+            remoteSelectionDecorations[userId] = editor.deltaDecorations(remoteSelectionDecorations[userId] || [], []);
+            delete remoteSelectionDecorations[userId];
+          }
+          delete remoteSelectionRanges[userId];
+          return;
+        }
+        const docLen = model.getValueLength();
+        const start = Math.max(0, Math.min(data.start, docLen));
+        const end = Math.max(0, Math.min(data.end, docLen));
+        if (start === end) {
+          if (remoteSelectionDecorations[userId]) {
+            remoteSelectionDecorations[userId] = editor.deltaDecorations(remoteSelectionDecorations[userId] || [], []);
+            delete remoteSelectionDecorations[userId];
+          }
+          delete remoteSelectionRanges[userId];
+          return;
+        }
+        const startPos = model.getPositionAt(start);
+        const endPos = model.getPositionAt(end);
+        const selectionClass = `remote-selection-color-${userId}`;
+        const styleId = `${selectionClass}-style`;
+        const color = data.color || '#4fd89b';
+        if (!document.getElementById(styleId)) {
+          const style = document.createElement('style');
+          style.id = styleId;
+          const bg = hexToRgba(color, 0.25);
+          const border = hexToRgba(color, 0.55);
+          style.innerHTML = `.monaco-editor .${selectionClass} { background-color: ${bg}; border-bottom: 1px solid ${border}; border-radius: 2px; }`;
+          document.head.appendChild(style);
+        }
+        remoteSelectionDecorations[userId] = editor.deltaDecorations(remoteSelectionDecorations[userId] || [], [
+          {
+            range: new monaco.Range(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column),
+            options: {
+              inlineClassName: selectionClass,
+              stickiness: 1
+            }
+          }
+        ]);
+      });
+      Object.keys(remoteSelectionDecorations).forEach(userId => {
+        if (!remoteSelectionRanges[userId]) {
+          remoteSelectionDecorations[userId] = editor.deltaDecorations(remoteSelectionDecorations[userId] || [], []);
+          delete remoteSelectionDecorations[userId];
+        }
+      });
     }
     function sendCaretPosition() {
       if (!editor || !socket || !currentRoom) return;
@@ -913,6 +1052,34 @@ document.addEventListener('mouseup', () => {
     function setupCaretSharing() {
       if (!editor || !socket) return;
       editor.onDidChangeCursorPosition(sendCaretPosition);
+      let selectionDebounce;
+      let lastSelectionSignature = null;
+      function emitSelectionUpdate() {
+        if (!editor || !socket || !currentRoom) return;
+        const model = editor.getModel();
+        const selection = editor.getSelection();
+        if (!model || !selection) return;
+        const startOffset = model.getOffsetAt(selection.getStartPosition());
+        const endOffset = model.getOffsetAt(selection.getEndPosition());
+        const start = Math.min(startOffset, endOffset);
+        const end = Math.max(startOffset, endOffset);
+        if (start === end) {
+          if (lastSelectionSignature !== 'none') {
+            lastSelectionSignature = 'none';
+            socket.emit('selection-update', { roomId: currentRoom, selection: null });
+          }
+          return;
+        }
+        const signature = `${start}:${end}`;
+        if (signature === lastSelectionSignature) return;
+        lastSelectionSignature = signature;
+        socket.emit('selection-update', { roomId: currentRoom, selection: { start, end } });
+      }
+      editor.onDidChangeCursorSelection(() => {
+        clearTimeout(selectionDebounce);
+        selectionDebounce = setTimeout(emitSelectionUpdate, 80);
+      });
+      emitSelectionUpdate();
       socket.on('remote-caret', (payload) => {
         if (!editor) return;
   const myId = getMyUserId();
@@ -970,6 +1137,27 @@ document.addEventListener('mouseup', () => {
           ]);
         }
       });
+      socket.on('remote-selection', (payload) => {
+        if (!editor) return;
+        const myId = getMyUserId();
+        const selections = Array.isArray(payload && payload.selections) ? payload.selections : [];
+        const keep = new Set();
+        selections.forEach(({ userId, start, end, color }) => {
+          if (!userId || userId === myId) return;
+          if (typeof start === 'number' && typeof end === 'number' && start !== end) {
+            remoteSelectionRanges[userId] = { start: Math.min(start, end), end: Math.max(start, end), color };
+            keep.add(userId);
+          } else {
+            delete remoteSelectionRanges[userId];
+          }
+        });
+        Object.keys(remoteSelectionRanges).forEach(userId => {
+          if (!keep.has(userId)) {
+            delete remoteSelectionRanges[userId];
+          }
+        });
+        applyRemoteSelections();
+      });
       // Re-apply remote carets after content changes
       editor.onDidChangeModelContent(() => {
         const model = editor.getModel();
@@ -991,6 +1179,7 @@ document.addEventListener('mouseup', () => {
             ]);
           }
         });
+        applyRemoteSelections();
       });
     }
     // Wait for both editor and socket to be ready

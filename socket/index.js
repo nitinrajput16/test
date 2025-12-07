@@ -201,6 +201,18 @@ function initSocket(server, { sessionMiddleware }) {
       socket.to(roomId).emit('voice-mute-status', { peerId: socket.id, muted });
     });
 
+    // --- Lightweight collaborative whiteboard ---
+    // Accept any stroke payload (points, shape, text or updates) and forward to room
+    socket.on('whiteboard:draw', ({ roomId, stroke }) => {
+      if (!roomId || !stroke) return;
+      socket.to(roomId).emit('whiteboard:draw', { stroke });
+    });
+
+    socket.on('whiteboard:clear', ({ roomId }) => {
+      if (!roomId) return;
+      socket.to(roomId).emit('whiteboard:clear');
+    });
+
     // --- BROADCAST ALL REMOTE CARET POSITIONS TO ALL USERS IN ROOM ---
 
     // Listen for filelist-changed and broadcast to all
@@ -237,6 +249,28 @@ function initSocket(server, { sessionMiddleware }) {
         // After updating carets, also broadcast the user list so clients can map ids -> display info
         io.to(roomId).emit('user-name', Object.values(allCaretsMap));
       }
+    });
+
+    socket.on('selection-update', ({ roomId, selection }) => {
+      if (!roomId) return;
+      const senderId = getSocketUserId();
+      if (!roomUserPresence.has(roomId)) roomUserPresence.set(roomId, {});
+      if (!roomUserPresence.get(roomId)[senderId]) {
+        roomUserPresence.get(roomId)[senderId] = getUserInfo(user, undefined, socket.id);
+      }
+      const entry = roomUserPresence.get(roomId)[senderId];
+      if (selection && typeof selection.start === 'number' && typeof selection.end === 'number' && selection.start !== selection.end) {
+        const start = Math.min(selection.start, selection.end);
+        const end = Math.max(selection.start, selection.end);
+        entry.selection = { start, end };
+      } else {
+        delete entry.selection;
+      }
+      assignColors(roomId);
+      const selections = Object.entries(roomUserPresence.get(roomId))
+        .filter(([, info]) => info.selection && typeof info.selection.start === 'number' && typeof info.selection.end === 'number' && info.selection.start !== info.selection.end)
+        .map(([uid, info]) => ({ userId: uid, start: info.selection.start, end: info.selection.end, color: info.color }));
+      io.to(roomId).emit('remote-selection', { selections });
     });
 
     socket.on('disconnecting', () => {

@@ -102,6 +102,16 @@ router.get('/editor', ensureAuth, (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
+router.get('/whiteboard', ensureAuth, (req, res) => {
+  const fallbackId = (req.user && (req.user.googleId || (req.user._id ? String(req.user._id) : null))) || 'shared-room';
+  const roomId = (req.query.room && String(req.query.room)) || fallbackId;
+  res.render('whiteboard', {
+    title: 'Whiteboard - Edit',
+    user: req.user,
+    roomId
+  });
+});
+
 // Admin example (owner only)
 router.get('/admin', ensureOwner, (req, res) => {
   res.render('dashboard', {

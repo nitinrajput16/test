@@ -62,13 +62,13 @@
         <div class="recent-files">
             <div class="card" style="margin-bottom:2rem;">
                 <h3 class="section-title" style="margin-bottom:1rem;">📁 Files</h3>
-                <ul class="activity-list">
+                <ul class="activity-list file-list">
                     <% if (Array.isArray(fileList) && fileList.length) { %>
                         <% fileList.slice(0, 5).forEach(function(file) { %>
-                            <li class="activity-item">
+                            <li class="activity-item" data-updated="<%= file.updatedAt ? new Date(file.updatedAt).toISOString() : '' %>">
                                 <span class="activity-text"><%= file.filename || file.name || 'untitled' %></span>
                                 <span class="activity-time">
-                                    <%= file.updatedAt ? new Date(file.updatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—' %>
+                                    <span class="time-label"><%= file.updatedAt ? new Date(file.updatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—' %></span>
                                 </span>
                             </li>
                         <% }); %>
@@ -78,7 +78,7 @@
                 </ul>
             </div>
         </div>
-        <script>
+                <script>
             // Dynamically populate dashboard data from backend models
             (async () => {
                 // Helper to format relative time
@@ -106,6 +106,23 @@
                     return 'just now';
                 }
 
+                // Return a human-friendly label: 'Today at HH:MM' if same local day, otherwise relative time
+                function formatRecentTime(dateStr) {
+                    if (!dateStr) return '—';
+                    const d = new Date(dateStr);
+                    const now = new Date();
+                    const isSameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+                    if (isSameDay) {
+                        return 'Today at ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    }
+                    const diffHours = Math.abs(now - d) / (1000 * 60 * 60);
+                    if (diffHours < 48) {
+                        return timeAgo(d);
+                    }
+                    // fallback: localized date
+                    return d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+                }
+
                 // Map stats keys to card index
                 const statOrder = ['projects', 'filesSaved', 'todaysCoding', 'streak'];
 
@@ -119,18 +136,20 @@
                 }
 
                 function applyRecentFiles(files) {
-                    const list = document.querySelector('.recent-files .file-list');
+                    const list = document.querySelector('.recent-files .activity-list') || document.querySelector('.recent-files .file-list');
                     if (!list) return;
+                    // clear existing (server-side) entries
                     list.innerHTML = '';
                     files.slice(0, 10).forEach(f => {
                         const li = document.createElement('li');
-                        li.className = 'file-item';
+                        li.className = 'activity-item';
+                        li.setAttribute('data-updated', f.updatedAt || '');
                         const name = document.createElement('span');
-                        name.className = 'file-name';
+                        name.className = 'activity-text';
                         name.textContent = f.name || f.filename || 'untitled';
                         const date = document.createElement('span');
-                        date.className = 'file-date';
-                        date.textContent = f.updatedAt ? timeAgo(f.updatedAt) : '—';
+                        date.className = 'activity-time';
+                        date.textContent = f.updatedAt ? formatRecentTime(f.updatedAt) : '—';
                         li.appendChild(name);
                         li.appendChild(date);
                         list.appendChild(li);
