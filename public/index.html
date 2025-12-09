@@ -8,7 +8,6 @@
   <script>
     window.MONACO_BASE_URL = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.47.0/min";
   </script>
-  </script>
   <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
   <script src="https://kit.fontawesome.com/4edb3588d0.js" crossorigin="anonymous"></script>
   <link rel="stylesheet"
@@ -18,7 +17,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style2.css">
 </head>
-<body>
+<body data-room="">
   <nav class="navbar">
     <ul class="navbar-links">
       <li><a href="/">Home</a></li>
@@ -100,25 +99,128 @@
           <button id="whiteboardBtn" type="button" title="Open Whiteboard" aria-label="Open whiteboard"><i class="fa-solid fa-chalkboard"></i></button>
         </div>
       </div>
-      <div class="editor-shell">
-        <div id="editor-container">
-          <button id="themeToggleBtn" title="Toggle Light/Dark Theme">
-            <span id="themeToggleIcon" aria-label="theme">🌙</span>
-          </button>
-          <div id="ai-hint" class="ai-hint-badge" title="AI Assistant - Click for shortcuts">
-            <span class="ai-hint-icon">🤖</span>
-            <div class="ai-hint-content">
-              <div class="ai-hint-title">AI Assistant</div>
-              <div class="ai-hint-keys">
-                <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd>
-              </div>
-              <div class="ai-hint-accept">
-                Accept: <kbd>Tab</kbd>
+      <div class="editor-whiteboard-wrapper" id="editorWhiteboardWrapper">
+        <div class="editor-shell">
+          <div id="editor-container">
+            <button id="themeToggleBtn" title="Toggle Light/Dark Theme">
+              <span id="themeToggleIcon" aria-label="theme">🌙</span>
+            </button>
+            <div id="ai-hint" class="ai-hint-badge" title="AI Assistant - Click for shortcuts">
+              <span class="ai-hint-icon">🤖</span>
+              <div class="ai-hint-content">
+                <div class="ai-hint-title">AI Assistant</div>
+                <div class="ai-hint-keys">
+                  <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd>
+                </div>
+                <div class="ai-hint-accept">
+                  Accept: <kbd>Tab</kbd>
+                </div>
               </div>
             </div>
+            <div id="editor"></div>
           </div>
-          <div id="editor"></div>
+          <!-- Output resizer and console panel placed inside editor-shell so output sits below editor -->
+          <div class="resizer resizer-horizontal" id="resizerOutput" title="Drag to resize output" aria-label="Resize Output"></div>
+          <section class="panel-output panel" id="panelOutput" aria-label="Output Panel">
+            <div class="panel-output-heading">
+              <div class="panel-header">
+                <span>Console</span>
+                <small class="panel-subtitle">Run Input / Output</small>
+              </div>
+              <div class="output-tabs" role="tablist" aria-label="Console sections">
+                <button type="button" class="output-tab active" id="outputTab" role="tab" data-target="outputSection" aria-selected="true">Output</button>
+                <button type="button" class="output-tab" id="stdinTab" role="tab" data-target="stdinSection" aria-selected="false">StdIn</button>
+                <button type="button" class="output-tab" id="errorsTab" role="tab" data-target="errorsSection" aria-selected="false">Errors</button>
+              </div>
+            </div>
+            <div class="output-sections">
+              <div class="output-section active" id="outputSection" role="tabpanel" aria-labelledby="outputTab">
+                <div class="output-wrapper">
+                  <pre id="output"></pre>
+                  <button id="clearOutputBtn" title="Clear output" class="clear-output-btn">&#128465;</button>
+                </div>
+              </div>
+              <div class="output-section" id="stdinSection" role="tabpanel" aria-labelledby="stdinTab" aria-hidden="true">
+                <label for="stdinInput" class="stdin-label">Standard Input</label>
+                <textarea id="stdinInput" placeholder="Type stdin that will be piped into your program..."></textarea>
+                <p class="stdin-hint">This input is sent with every Run request.</p>
+              </div>
+              <div class="output-section" id="errorsSection" role="tabpanel" aria-labelledby="errorsTab" aria-hidden="true">
+                <div class="errors-wrapper">
+                  <pre id="stderrOutput">No stderr output yet.</pre>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
+        <div class="resizer resizer-inline" id="inlineResizer" title="Drag to resize whiteboard" aria-hidden="true"></div>
+        <div class="whiteboard-panel collapsed" id="inlineWhiteboardPanel" aria-hidden="true" data-width="420">
+          <div class="whiteboard-panel-header">
+            <div>
+              <span class="whiteboard-title">Whiteboard</span>
+              <span class="whiteboard-room">Room <span id="whiteboardRoomLabel">loading...</span></span>
+            </div>
+            <div class="whiteboard-panel-controls">
+              <button id="whiteboardDetachBtn" type="button" class="whiteboard-action" title="Open in new tab" aria-label="Detach whiteboard">
+                <i class="fa-solid fa-up-right-from-square"></i>
+              </button>
+              <button id="whiteboardMinimizeBtn" type="button" class="whiteboard-action" title="Hide whiteboard" aria-label="Hide whiteboard">
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+          <div class="inline-wb-toolbar" role="toolbar" aria-label="Whiteboard tools">
+            <div class="tool-group">
+              <button type="button" class="tool-btn active" data-tool="pen" aria-pressed="true" title="Pen (P)">
+                <span>Pen</span>
+              </button>
+              <button type="button" class="tool-btn" data-tool="eraser" aria-pressed="false" title="Eraser (E)">
+                <span>Eraser</span>
+              </button>
+              <button type="button" class="tool-btn" data-tool="line" aria-pressed="false" title="Line (L)">
+                <span>Line</span>
+              </button>
+              <button type="button" class="tool-btn" data-tool="rect" aria-pressed="false" title="Rectangle (R)">
+                <span>Rect</span>
+              </button>
+              <button type="button" class="tool-btn" data-tool="ellipse" aria-pressed="false" title="Ellipse (O)">
+                <span>Ellipse</span>
+              </button>
+              <button type="button" class="tool-btn" data-tool="text" aria-pressed="false" title="Text (T)">
+                <span>Text</span>
+              </button>
+              <button type="button" class="tool-btn" data-tool="select" aria-pressed="false" title="Select (V)">
+                <span>Select</span>
+              </button>
+            </div>
+            <div class="tool-group size-group">
+              <label for="brushSize">Size</label>
+              <input id="brushSize" type="range" min="1" max="30" value="4" step="1">
+              <span id="brushSizeValue">4px</span>
+            </div>
+            <div class="tool-group colors" aria-label="Color picker">
+              <button type="button" class="color-swatch active" data-color="#111111" title="Ink Black" style="--swatch:#111111"></button>
+              <button type="button" class="color-swatch" data-color="#0a9663" title="Emerald" style="--swatch:#0a9663"></button>
+              <button type="button" class="color-swatch" data-color="#e74c3c" title="Coral" style="--swatch:#e74c3c"></button>
+              <button type="button" class="color-swatch" data-color="#f1c40f" title="Sun" style="--swatch:#f1c40f"></button>
+              <button type="button" class="color-swatch" data-color="#2980b9" title="Ocean" style="--swatch:#2980b9"></button>
+              <input type="color" id="customColor" title="Custom color" value="#111111">
+            </div>
+            <div class="tool-group tail">
+              <button type="button" id="undoBtn" title="Undo (Ctrl+Z)">Undo</button>
+              <button type="button" id="redoBtn" title="Redo (Ctrl+Y)">Redo</button>
+              <button type="button" id="clearBoard" class="danger" title="Clear board">Clear</button>
+            </div>
+          </div>
+          <div class="inline-wb-canvas">
+            <canvas id="whiteboardCanvas" aria-label="Collaborative whiteboard" role="img"></canvas>
+            <canvas id="whiteboardOverlay" aria-hidden="true"></canvas>
+            <div id="textInputWrapper">
+              <input id="wbTextInput" type="text" placeholder="Type and press Enter">
+            </div>
+          </div>
+        </div>
+        
       </div>
     </section>
 
@@ -151,16 +253,7 @@
           <div id="voiceAudios" class="voice-audios" aria-live="polite" style="position:relative;width:100%;height:0;overflow:visible;"></div>
         </div>
       </div>
-      <div class="collab-card io-card">
-        <div class="card-title">Run Input / Output</div>
-        <div id="output-container">
-          <textarea id="stdinInput" placeholder="Enter stdin..."></textarea>
-          <div class="output-wrapper">
-            <pre id="output"></pre>
-            <button id="clearOutputBtn" title="Clear output" class="clear-output-btn">&#128465;</button>
-          </div>
-        </div>
-      </div>
+      <!-- IO card moved to center panel (panelOutput) -->
       <div class="collab-card users-card">
         <div class="card-title">In Room</div>
         <div class="users-joined">
@@ -174,6 +267,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.47.0/min/vs/loader.min.js"></script>
   <script src="ai-inline.js"></script>
   <script src="script.js"></script>
+  <script src="whiteboard.js"></script>
   <script src="audioChat.js"></script>
   <script src="ui.js"></script>
   <script src="panel-resize.js"></script>

@@ -1,5 +1,5 @@
 const { Server } = require('socket.io');
-const crypto = require('crypto');
+const { createRoomState, applyServerOperation } = require('../lib/ot');
 
 /**
  * Initialize Socket.IO with session sharing & basic collaboration events.
@@ -41,7 +41,39 @@ function initSocket(server, { sessionMiddleware }) {
   });
 
   const roomPresence = new Map(); // roomId -> Set<userId>
-  const lastUpdateHash = new Map(); // roomId -> hash
+  const roomDocs = new Map(); // roomId -> { serverDoc, serverVersion, history }
+  const roomBoards = new Map(); // roomId -> Array of whiteboard items
+
+  function cloneBoardSnapshot(input) {
+    try {
+      return JSON.parse(JSON.stringify(input || []));
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function getRoomState(roomId) {
+    if (!roomDocs.has(roomId)) {
+      roomDocs.set(roomId, createRoomState(''));
+    }
+    return roomDocs.get(roomId);
+  }
+
+  function emitRoomSync(roomId, targetSocket) {
+    const state = getRoomState(roomId);
+    state.syncSeq = (state.syncSeq || 0) + 1;
+    const payload = {
+      roomId,
+      doc: state.serverDoc,
+      version: state.serverVersion,
+      syncId: state.syncSeq
+    };
+    if (targetSocket) {
+      targetSocket.emit('ot-sync', payload);
+    } else {
+      io.to(roomId).emit('ot-sync', payload);
+    }
+  }
 
   function addPresence(room, uid) {
     if (!roomPresence.has(room)) roomPresence.set(room, new Set());
@@ -55,6 +87,13 @@ function initSocket(server, { sessionMiddleware }) {
   }
   function listPresence(room) {
     return roomPresence.has(room) ? Array.from(roomPresence.get(room)) : [];
+  }
+
+  function getBoardState(roomId) {
+    if (!roomBoards.has(roomId)) {
+      roomBoards.set(roomId, []);
+    }
+    return roomBoards.get(roomId);
   }
 
   // --- Presence Avatars/Cursors ---
@@ -99,7 +138,7 @@ function initSocket(server, { sessionMiddleware }) {
         roomUserPresence.get(roomId)[uid].color = COLORS[idx % COLORS.length];
       });
     }
-    console.log('[SOCKET] connected:', user.email);
+    // console.log('[SOCKET] connected:', user.email);
 
     socket.on('join-room', (roomId) => {
       if (!roomId) return;
@@ -116,6 +155,8 @@ function initSocket(server, { sessionMiddleware }) {
   io.to(roomId).emit('presence-update', roomUserPresence.get(roomId));
   // Emit current users array to the room (clients expect an array of user info)
   io.to(roomId).emit('user-name', Object.values(roomUserPresence.get(roomId)));
+
+      emitRoomSync(roomId, socket);
 
       // --- Emit all carets to all users in the room ---
       const allCaretsMap = roomUserPresence.get(roomId);
@@ -143,12 +184,40 @@ function initSocket(server, { sessionMiddleware }) {
       io.to(roomId).emit('user-name', usersArray);
     });
 
-    socket.on('code-update', ({ roomId, content }) => {
-      if (!roomId || typeof content !== 'string') return;
-      const hash = crypto.createHash('sha1').update(content).digest('hex');
-      if (lastUpdateHash.get(roomId) === hash) return;
-      lastUpdateHash.set(roomId, hash);
-      socket.to(roomId).emit('code-update', { content, from: user._id ? String(user._id) : (user.googleId ? String(user.googleId) : (user.id ? String(user.id) : null)) });
+    socket.on('ot-request-state', ({ roomId }) => {
+      if (!roomId) return;
+      emitRoomSync(roomId, socket);
+    });
+
+    socket.on('ot-reset-doc', ({ roomId, doc }) => {
+      if (!roomId || typeof doc !== 'string') return;
+      const state = getRoomState(roomId);
+      state.serverDoc = doc;
+      state.serverVersion = 0;
+      state.history = [];
+      emitRoomSync(roomId);
+    });
+
+    socket.on('ot-operation', ({ roomId, operation }) => {
+      if (!roomId || !operation) return;
+      const state = getRoomState(roomId);
+      const sanitized = {
+        type: operation.type === 'delete' ? 'delete' : 'insert',
+        pos: Math.max(0, Number(operation.pos) || 0),
+        text: operation.type === 'insert' ? String(operation.text || '') : undefined,
+        length: operation.type === 'delete' ? Math.max(0, Number(operation.length) || 0) : undefined,
+        clientVersion: Number(operation.clientVersion) || 0,
+        userId: getSocketUserId()
+      };
+      if (sanitized.type === 'insert' && !sanitized.text) return;
+      if (sanitized.type === 'delete' && !sanitized.length) return;
+      const applied = applyServerOperation(state, sanitized);
+      io.to(roomId).emit('ot-operation', { roomId, operation: applied, version: state.serverVersion });
+    });
+
+    socket.on('active-file', ({ roomId, filename, language }) => {
+      if (!roomId || !filename) return;
+      socket.to(roomId).emit('active-file', { filename, language });
     });
 
     socket.on('cursor-update', ({ roomId, cursor }) => {
@@ -201,16 +270,76 @@ function initSocket(server, { sessionMiddleware }) {
       socket.to(roomId).emit('voice-mute-status', { peerId: socket.id, muted });
     });
 
-    // --- Lightweight collaborative whiteboard ---
-    // Accept any stroke payload (points, shape, text or updates) and forward to room
+    // --- Event-driven collaborative whiteboard (no interval) ---
+    // Stroke lifecycle: start -> point batches -> end
+    socket.on('whiteboard:stroke-start', ({ roomId, strokeId, color, size, tool }) => {
+      if (!roomId || !strokeId) return;
+      socket.to(roomId).emit('whiteboard:stroke-start', { strokeId, color, size, tool });
+    });
+
+    socket.on('whiteboard:stroke-point', ({ roomId, strokeId, points }) => {
+      if (!roomId || !strokeId || !Array.isArray(points)) return;
+      // Broadcast point batch to other clients
+      socket.to(roomId).emit('whiteboard:stroke-point', { strokeId, points });
+    });
+
+    socket.on('whiteboard:stroke-end', ({ roomId, strokeId, points }) => {
+      if (!roomId || !strokeId) return;
+      // Broadcast end event
+      socket.to(roomId).emit('whiteboard:stroke-end', { strokeId, points });
+      // Store completed stroke for reconnection (optional, implement if needed)
+    });
+
+    // Shape/text objects (instant complete)
+    socket.on('whiteboard:shape', ({ roomId, shape }) => {
+      if (!roomId || !shape) return;
+      socket.to(roomId).emit('whiteboard:shape', { shape });
+    });
+
+    socket.on('whiteboard:text', ({ roomId, text }) => {
+      if (!roomId || !text) return;
+      socket.to(roomId).emit('whiteboard:text', { text });
+    });
+
+    // Update events for moved/edited objects
+    socket.on('whiteboard:update-stroke', ({ roomId, strokeId, points }) => {
+      if (!roomId || !strokeId || !Array.isArray(points)) return;
+      socket.to(roomId).emit('whiteboard:update-stroke', { strokeId, points });
+    });
+
+    socket.on('whiteboard:update-shape', ({ roomId, shape }) => {
+      if (!roomId || !shape) return;
+      socket.to(roomId).emit('whiteboard:update-shape', { shape });
+    });
+
+    socket.on('whiteboard:update-text', ({ roomId, text }) => {
+      if (!roomId || !text) return;
+      socket.to(roomId).emit('whiteboard:update-text', { text });
+    });
+
     socket.on('whiteboard:draw', ({ roomId, stroke }) => {
       if (!roomId || !stroke) return;
       socket.to(roomId).emit('whiteboard:draw', { stroke });
     });
 
+    socket.on('whiteboard:overwrite', ({ roomId, board }) => {
+      if (!roomId || !Array.isArray(board)) return;
+      const snapshot = cloneBoardSnapshot(board);
+      roomBoards.set(roomId, snapshot);
+      socket.to(roomId).emit('whiteboard:overwrite', { board: cloneBoardSnapshot(snapshot) });
+    });
+
     socket.on('whiteboard:clear', ({ roomId }) => {
       if (!roomId) return;
       socket.to(roomId).emit('whiteboard:clear');
+      roomBoards.set(roomId, []);
+    });
+
+    // Reconnection: send full stroke history
+    socket.on('whiteboard:request-sync', ({ roomId }) => {
+      if (!roomId) return;
+      const board = cloneBoardSnapshot(getBoardState(roomId));
+      socket.emit('whiteboard:sync', { board });
     });
 
     // --- BROADCAST ALL REMOTE CARET POSITIONS TO ALL USERS IN ROOM ---
@@ -289,7 +418,7 @@ function initSocket(server, { sessionMiddleware }) {
     });
 
     socket.on('disconnect', () => {
-      console.log('[SOCKET] disconnected:', user.email);
+      // console.log('[SOCKET] disconnected:', user.email);
     });
   });
 

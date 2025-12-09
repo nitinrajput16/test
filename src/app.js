@@ -1,5 +1,5 @@
-require('dotenv').config();
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const http = require('http');
 const express = require('express');
 const cors = require('cors');
@@ -86,7 +86,7 @@ app.use('/profile', require('./routes/api/profile'));
 app.use('/api/editor', require('./routes/api/editor'));
 
 // ---------- STATIC (AFTER PROTECTION) ----------
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '../public')));
 
 // ---------- SOCKET.IO ----------
 initSocket(server, { sessionMiddleware });
@@ -112,7 +112,7 @@ app.use((err, req, res, _next) => {
 server.listen(PORT, () => {
   console.log('=====================================');
   console.log(`🌐 URL: http://${HOST}:${PORT}`);
-  console.log(`👤 Author: nr750001`);
+  console.log(`👤 Author: nitin...`);
   console.log('=====================================');
 });
 

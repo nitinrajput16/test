@@ -7,7 +7,7 @@ const router = express.Router();
 // Root logic - Landing page
 router.get('/', (req, res) => {
   if (req.isAuthenticated && req.isAuthenticated()) return res.redirect('/editor');
-  return res.sendFile(path.join(__dirname, '..', 'public', 'landing.html'));
+  return res.sendFile(path.join(__dirname, '../../public', 'landing.html'));
 });
 
 // Login
@@ -99,7 +99,7 @@ router.get('/profile', ensureAuth, (req, res) => {
 
 // Protected static SPA editor
 router.get('/editor', ensureAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, '../../public', 'index.html'));
 });
 
 router.get('/whiteboard', ensureAuth, (req, res) => {

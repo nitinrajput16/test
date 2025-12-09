@@ -190,7 +190,9 @@
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ prefix, language: lang }),
-        signal: aborter.signal
+        signal: aborter.signal,
+        // include credentials so session cookie is sent to authenticated endpoint
+        credentials: 'same-origin'
       })
         .then(async r => {
           let data;

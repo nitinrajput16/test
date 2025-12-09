@@ -214,7 +214,7 @@ window.addEventListener('DOMContentLoaded', function() {
     searchWrapper.style.alignItems = 'center';
 
     const searchIcon = document.createElement('span');
-    searchIcon.textContent = '🔍';
+    searchIcon.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i>';
     searchIcon.style.position = 'absolute';
     searchIcon.style.left = '8px';
     searchIcon.style.fontSize = '14px';
@@ -265,10 +265,13 @@ window.addEventListener('DOMContentLoaded', function() {
     newFileBtn.style.borderRadius = '4px';
     newFileBtn.style.fontSize = '16px';
     newFileBtn.addEventListener('click', () => {
-      setEditorValue('');
+      setEditorValue('', true, 'toolbar-new-file');
       currentFilename = null;
       highlightActiveFile();
       logOutput('New blank file. Use Save to name and store it.');
+      if (otApi) otApi.resetWithDocument('', true);
+      markSavedSnapshot('');
+      needFileListRefresh = false;
     });
 
     searchContainer.appendChild(newFileBtn);
@@ -285,33 +288,130 @@ window.addEventListener('DOMContentLoaded', function() {
     }
     if (newFileBtn) {
       newFileBtn.addEventListener('click', () => {
-        setEditorValue('');
+        setEditorValue('', true, 'toolbar-new-file');
         currentFilename = null;
         highlightActiveFile();
         logOutput('New blank file. Use Save to name and store it.');
+        if (otApi) otApi.resetWithDocument('', true);
+        markSavedSnapshot('');
+        needFileListRefresh = false;
       });
     }
   }
 
-  // Whiteboard button: navigate to whiteboard page for current room
-  (function bindWhiteboardButton(){
-    const wbBtn = document.getElementById('whiteboardBtn');
-    if (!wbBtn) return;
-    wbBtn.addEventListener('click', async () => {
-      // Prefer the editor's currentRoom variable if present
-      const currentRoom = window.currentRoom || window.roomId || window.WHITEBOARD_ROOM;
-      let room = currentRoom;
-      if (!room) {
-        // ask user for a room id
-        try {
-          const val = await customPrompt('Enter room id for whiteboard', '');
-          if (!val) return;
-          room = val.trim();
-        } catch (_e) { return; }
-      }
-      const url = `/whiteboard?room=${encodeURIComponent(room)}`;
-      window.location.href = url;
+  const bodyEl = document.body;
+  const whiteboardPanel = document.getElementById('inlineWhiteboardPanel');
+  const whiteboardToggleBtn = document.getElementById('whiteboardBtn');
+  const whiteboardMinimizeBtn = document.getElementById('whiteboardMinimizeBtn');
+  const whiteboardDetachBtn = document.getElementById('whiteboardDetachBtn');
+  const whiteboardRoomLabel = document.getElementById('whiteboardRoomLabel');
+  const inlineResizerHandle = document.getElementById('inlineResizer');
+  const INLINE_PANEL_MIN = 320;
+  const INLINE_PANEL_MAX = 900;
+  let inlinePanelWidth = whiteboardPanel ? parseFloat(whiteboardPanel.dataset.width) || 420 : 420;
+
+  function setInlinePanelWidth(width, options = {}) {
+    if (!whiteboardPanel) return;
+    const target = Math.max(INLINE_PANEL_MIN, Math.min(INLINE_PANEL_MAX, width || inlinePanelWidth || 420));
+    inlinePanelWidth = target;
+    whiteboardPanel.style.flex = `0 0 ${target}px`;
+    whiteboardPanel.style.width = `${target}px`;
+    whiteboardPanel.dataset.width = String(Math.round(target));
+    if (!options.silent && bodyEl && bodyEl.classList.contains('whiteboard-open')) {
+      requestAnimationFrame(() => {
+        window.inlineWhiteboard && window.inlineWhiteboard.refreshSize && window.inlineWhiteboard.refreshSize();
+      });
+    }
+  }
+
+  window.setInlineWhiteboardWidth = function(width, options) {
+    setInlinePanelWidth(width, options);
+  };
+
+  function updateWhiteboardRoomLabel(roomId) {
+    if (whiteboardRoomLabel) {
+      whiteboardRoomLabel.textContent = roomId ? `#${roomId}` : '—';
+    }
+  }
+
+  function openInlineWhiteboard() {
+    if (!whiteboardPanel || !bodyEl) return;
+    setInlinePanelWidth(inlinePanelWidth, { silent: true });
+    whiteboardPanel.classList.remove('collapsed');
+    whiteboardPanel.setAttribute('aria-hidden', 'false');
+    bodyEl.classList.add('whiteboard-open');
+    if (inlineResizerHandle) {
+      inlineResizerHandle.setAttribute('aria-hidden', 'false');
+    }
+    if (whiteboardToggleBtn) {
+      whiteboardToggleBtn.setAttribute('aria-pressed', 'true');
+    }
+    // allow layout to settle before measuring canvas
+    requestAnimationFrame(() => {
+      window.inlineWhiteboard && window.inlineWhiteboard.refreshSize && window.inlineWhiteboard.refreshSize();
     });
+  }
+
+  function closeInlineWhiteboard() {
+    if (!whiteboardPanel || !bodyEl) return;
+    const rect = whiteboardPanel.getBoundingClientRect();
+    if (rect && rect.width) {
+      setInlinePanelWidth(rect.width, { silent: true });
+    }
+    whiteboardPanel.classList.add('collapsed');
+    whiteboardPanel.setAttribute('aria-hidden', 'true');
+    bodyEl.classList.remove('whiteboard-open');
+    if (inlineResizerHandle) {
+      inlineResizerHandle.setAttribute('aria-hidden', 'true');
+    }
+    if (whiteboardToggleBtn) {
+      whiteboardToggleBtn.setAttribute('aria-pressed', 'false');
+    }
+  }
+
+  function toggleInlineWhiteboard() {
+    if (!bodyEl) return;
+    if (bodyEl.classList.contains('whiteboard-open')) {
+      closeInlineWhiteboard();
+    } else {
+      openInlineWhiteboard();
+    }
+  }
+
+  (function bindInlineWhiteboardButtons(){
+    if (whiteboardToggleBtn && !whiteboardToggleBtn.hasAttribute('aria-pressed')) {
+      whiteboardToggleBtn.setAttribute('aria-pressed', 'false');
+    }
+    if (whiteboardToggleBtn) {
+      whiteboardToggleBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        toggleInlineWhiteboard();
+      });
+    }
+    if (whiteboardMinimizeBtn) {
+      whiteboardMinimizeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeInlineWhiteboard();
+      });
+    }
+    if (whiteboardDetachBtn) {
+      whiteboardDetachBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        let room = window.currentRoom || window.WHITEBOARD_ROOM;
+        if (!room) {
+          try {
+            const val = await customPrompt('Enter room id for whiteboard', '');
+            if (!val) return;
+            room = val.trim();
+          } catch (_err) {
+            return;
+          }
+        }
+        if (room) {
+          window.open(`/whiteboard?room=${encodeURIComponent(room)}`, '_blank');
+        }
+      });
+    }
   })();
 
   // expose helper functions so other modules can trigger search/new actions
@@ -340,6 +440,9 @@ window.addEventListener('DOMContentLoaded', function() {
   const langSelect  = document.getElementById('language');
   const stdinInput  = document.getElementById('stdinInput');
   const outputEl    = document.getElementById('output');
+  const stderrOutput = document.getElementById('stderrOutput');
+  const outputTabs  = document.querySelectorAll('.output-tab');
+  const outputSections = document.querySelectorAll('.output-section');
   const clearOutputBtn = document.getElementById('clearOutputBtn');
   const roomInput   = document.getElementById('roomInput');
   const roomButton  = document.getElementById('RoomButton');
@@ -349,10 +452,23 @@ window.addEventListener('DOMContentLoaded', function() {
   let editor;
   let socket;
   let currentRoom = 'default-room-' + Math.random().toString(36).slice(2, 10);
-  let lastBroadcastHash = null;
-  let suppressNextChange = false;
+  if (bodyEl) {
+    if (!bodyEl.dataset.room) bodyEl.dataset.room = currentRoom;
+  }
+  window.currentRoom = currentRoom;
+  window.WHITEBOARD_ROOM = currentRoom;
   let currentFilename = null;
+  let pendingEditorValue = null;
+  let pendingLanguageMonaco = null;
   let aiController = null;
+  let otApi = null;
+  const AUTOSAVE_INTERVAL_MS = 5000;
+  let autosaveTimerId = null;
+  let autosaveInFlight = false;
+  let pendingAutosave = null;
+  let lastSavedHash = null;
+  let needFileListRefresh = false;
+  let emptySaveWarningShown = false;
 
   // Judge0 language_id -> Monaco language id
   const judge0ToMonaco = {
@@ -395,6 +511,382 @@ window.addEventListener('DOMContentLoaded', function() {
     'txt': 'plaintext'
   };
 
+  function setActiveOutputTab(targetId){
+    if(!outputTabs || !outputTabs.length) return;
+    outputTabs.forEach(btn => {
+      const isActive = btn.dataset.target === targetId;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-selected', String(isActive));
+    });
+    if(outputSections && outputSections.length){
+      outputSections.forEach(section => {
+        const isActive = section.id === targetId;
+        section.classList.toggle('active', isActive);
+        section.setAttribute('aria-hidden', String(!isActive));
+      });
+    }
+    if(targetId === 'stdinSection' && stdinInput){
+      stdinInput.focus();
+      stdinInput.setSelectionRange(stdinInput.value.length, stdinInput.value.length);
+    }
+  }
+
+  if(outputTabs && outputTabs.length){
+    outputTabs.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.target || 'outputSection';
+        setActiveOutputTab(target);
+      });
+    });
+  }
+
+  const defaultOutputTab = document.querySelector('.output-tab.active');
+  if(defaultOutputTab){
+    setActiveOutputTab(defaultOutputTab.dataset.target || 'outputSection');
+  }
+
+  function simpleHash(str = '') {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+      h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+    }
+    return h >>> 0;
+  }
+
+  const EMPTY_DOC_HASH = simpleHash('');
+
+  function getCurrentMonacoLanguage() {
+    if (!langSelect) return 'plaintext';
+    const opt = langSelect.options[langSelect.selectedIndex];
+    return (opt && opt.dataset && opt.dataset.monaco) ? opt.dataset.monaco : 'plaintext';
+  }
+
+  const OP_INSERT = 'insert';
+  const OP_DELETE = 'delete';
+
+  function getSelfUserId() {
+    if (window.myServerUserId) return window.myServerUserId;
+    if (window.user && (window.user._id || window.user.googleId || window.user.id)) {
+      return window.user._id || window.user.googleId || window.user.id;
+    }
+    if (socket && socket.id) return socket.id;
+    return 'me';
+  }
+
+  function createOtEngine() {
+    const state = {
+      localDoc: '',
+      clientVersion: 0,
+      pendingOps: [],
+      cursorOffset: 0
+    };
+    let socketRef = null;
+    let editorRef = null;
+    let suppressLocal = false;
+    let pendingServerDoc = null;
+    let pendingSyncDoc = null;
+    let lastSyncId = 0;
+
+    const cloneOp = (op) => {
+      if (!op) return null;
+      return op.type === OP_INSERT
+        ? { type: OP_INSERT, pos: op.pos, text: op.text || '', clientVersion: op.clientVersion || 0, userId: op.userId }
+        : { type: OP_DELETE, pos: op.pos, length: op.length || 0, clientVersion: op.clientVersion || 0, userId: op.userId };
+    };
+
+    const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+
+    const applyToDoc = (doc, op) => {
+      if (!op) return doc;
+      if (op.type === OP_INSERT) {
+        const pos = clamp(op.pos, 0, doc.length);
+        return doc.slice(0, pos) + (op.text || '') + doc.slice(pos);
+      }
+      const start = clamp(op.pos, 0, doc.length);
+      const end = clamp(op.pos + op.length, 0, doc.length);
+      return doc.slice(0, start) + doc.slice(end);
+    };
+
+    const transform = (op, against) => {
+      if (!op || !against || op === against) return cloneOp(op);
+      const result = cloneOp(op);
+      if (against.type === OP_INSERT) {
+        if (result.type === OP_INSERT) {
+          if (against.pos < result.pos || (against.pos === result.pos && (against.userId || '') < (result.userId || ''))) {
+            result.pos += (against.text || '').length;
+          }
+        } else {
+          if (against.pos <= result.pos) {
+            result.pos += (against.text || '').length;
+          } else if (against.pos < result.pos + result.length) {
+            result.length += (against.text || '').length;
+          }
+        }
+        return result;
+      }
+      // against delete
+      if (result.type === OP_INSERT) {
+        const delStart = against.pos;
+        const delEnd = against.pos + against.length;
+        if (result.pos <= delStart) return result;
+        if (result.pos >= delEnd) {
+          result.pos -= against.length;
+          return result;
+        }
+        result.pos = delStart;
+        return result;
+      }
+      const resStart = result.pos;
+      const resEnd = result.pos + result.length;
+      const delStart = against.pos;
+      const delEnd = against.pos + against.length;
+      if (resEnd <= delStart) return result;
+      if (resStart >= delEnd) {
+        result.pos -= against.length;
+        return result;
+      }
+      const overlapStart = Math.max(resStart, delStart);
+      const overlapEnd = Math.min(resEnd, delEnd);
+      const overlap = overlapEnd - overlapStart;
+      result.length -= overlap;
+      if (resStart >= delStart) {
+        result.pos -= Math.min(against.length, resStart - delStart);
+      }
+      if (result.length < 0) result.length = 0;
+      return result;
+    };
+
+    const adjustCursor = (cursor, op, userId) => {
+      if (!op) return cursor;
+      let pos = cursor;
+      if (op.type === OP_INSERT) {
+        if (op.pos < pos || (op.pos === pos && op.userId === userId)) {
+          pos += (op.text || '').length;
+        }
+      } else if (op.pos < pos) {
+        pos -= Math.min(op.length, pos - op.pos);
+      }
+      if (pos < 0) pos = 0;
+      return pos;
+    };
+
+    const queueAndSend = (baseOp) => {
+      if (!socketRef || !currentRoom) return;
+      if (baseOp.type === OP_INSERT && !baseOp.text) return;
+      if (baseOp.type === OP_DELETE && !baseOp.length) return;
+      const enriched = {
+        ...baseOp,
+        clientVersion: state.clientVersion,
+        userId: getSelfUserId()
+      };
+      state.pendingOps.push(enriched);
+      state.clientVersion += 1;
+      socketRef.emit('ot-operation', { roomId: currentRoom, operation: enriched });
+    };
+
+    const applyRemoteOperation = (op) => {
+      if (!op) return;
+      if (!editorRef || typeof monaco === 'undefined') {
+        state.localDoc = applyToDoc(state.localDoc, op);
+        state.cursorOffset = adjustCursor(state.cursorOffset, op, getSelfUserId());
+        pendingSyncDoc = state.localDoc;
+        return;
+      }
+      const model = editorRef.getModel();
+      if (!model) {
+        state.localDoc = applyToDoc(state.localDoc, op);
+        state.cursorOffset = adjustCursor(state.cursorOffset, op, getSelfUserId());
+        pendingSyncDoc = state.localDoc;
+        return;
+      }
+      suppressLocal = true;
+      if (op.type === OP_INSERT) {
+        const insertionOffset = clamp(op.pos, 0, model.getValueLength());
+        const pos = model.getPositionAt(insertionOffset);
+        editorRef.executeEdits('ot-remote-insert', [
+          {
+            range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+            text: op.text,
+            forceMoveMarkers: true
+          }
+        ]);
+      } else {
+        const startOffset = clamp(op.pos, 0, model.getValueLength());
+        const endOffset = clamp(op.pos + op.length, 0, model.getValueLength());
+        const startPos = model.getPositionAt(startOffset);
+        const endPos = model.getPositionAt(endOffset);
+        editorRef.executeEdits('ot-remote-delete', [
+          {
+            range: new monaco.Range(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column),
+            text: '',
+            forceMoveMarkers: true
+          }
+        ]);
+      }
+      suppressLocal = false;
+      state.localDoc = applyToDoc(state.localDoc, op);
+      state.cursorOffset = adjustCursor(state.cursorOffset, op, getSelfUserId());
+      const modelLength = model.getValueLength();
+      const clamped = clamp(state.cursorOffset, 0, modelLength);
+      const newPos = model.getPositionAt(clamped);
+      editorRef.setPosition(newPos);
+    };
+
+    const handleLocalChange = (event) => {
+      if (suppressLocal || !socketRef || !currentRoom) return;
+      if (!event || !event.changes || !event.changes.length) return;
+      const ordered = [...event.changes].sort((a, b) => a.rangeOffset - b.rangeOffset);
+      let offsetDelta = 0;
+      ordered.forEach(change => {
+        const actualOffset = change.rangeOffset + offsetDelta;
+        if (change.rangeLength > 0) {
+          const delOp = {
+            type: OP_DELETE,
+            pos: actualOffset,
+            length: change.rangeLength
+          };
+          state.localDoc = applyToDoc(state.localDoc, delOp);
+          queueAndSend(delOp);
+          offsetDelta -= change.rangeLength;
+        }
+        if (change.text) {
+          const insOp = {
+            type: OP_INSERT,
+            pos: actualOffset,
+            text: change.text
+          };
+          state.localDoc = applyToDoc(state.localDoc, insOp);
+          queueAndSend(insOp);
+          offsetDelta += change.text.length;
+        }
+      });
+    };
+
+    const handleServerOp = ({ roomId, operation, version }) => {
+      if (!operation || roomId !== currentRoom) return;
+      if (operation.userId === getSelfUserId()) {
+        state.pendingOps.shift();
+        state.clientVersion = version;
+        return;
+      }
+      let incoming = cloneOp(operation);
+      state.pendingOps = state.pendingOps.map((pending) => {
+        const updatedPending = transform(pending, incoming);
+        incoming = transform(incoming, pending);
+        return updatedPending;
+      });
+      applyRemoteOperation(incoming);
+      state.clientVersion = version;
+    };
+
+    const handleSync = ({ roomId, doc, version, syncId }) => {
+      if (roomId !== currentRoom) return;
+      if (typeof syncId === 'number') {
+        if (syncId <= lastSyncId) {
+          return;
+        }
+        lastSyncId = syncId;
+      }
+      const nextDoc = typeof doc === 'string' ? doc : '';
+      state.localDoc = nextDoc;
+      state.clientVersion = typeof version === 'number' ? version : 0;
+      state.pendingOps = [];
+      pendingSyncDoc = nextDoc;
+      if (!editorRef) return;
+      suppressLocal = true;
+      editorRef.setValue(nextDoc);
+      suppressLocal = false;
+      pendingSyncDoc = null;
+    };
+
+    const updateCursorOffset = () => {
+      if (!editorRef) return;
+      const model = editorRef.getModel();
+      if (!model) return;
+      const pos = editorRef.getPosition();
+      if (!pos) return;
+      state.cursorOffset = model.getOffsetAt(pos);
+    };
+
+    const attachSocket = (sock) => {
+      if (!sock) return;
+      if (socketRef) {
+        socketRef.off('ot-sync', handleSync);
+        socketRef.off('ot-operation', handleServerOp);
+      }
+      socketRef = sock;
+      socketRef.on('ot-sync', handleSync);
+      socketRef.on('ot-operation', handleServerOp);
+      if (pendingServerDoc !== null && currentRoom) {
+        socketRef.emit('ot-reset-doc', { roomId: currentRoom, doc: pendingServerDoc });
+        pendingServerDoc = null;
+      }
+    };
+
+    const attachEditor = (ed) => {
+      if (!ed) return;
+      editorRef = ed;
+      if (pendingSyncDoc !== null) {
+        suppressLocal = true;
+        editorRef.setValue(pendingSyncDoc);
+        suppressLocal = false;
+        state.localDoc = pendingSyncDoc;
+        pendingSyncDoc = null;
+      } else {
+        state.localDoc = getEditorValue();
+      }
+      ed.onDidChangeModelContent(handleLocalChange);
+      ed.onDidChangeCursorPosition(updateCursorOffset);
+    };
+
+    const requestState = (roomId) => {
+      if (!socketRef || !roomId) return;
+      socketRef.emit('ot-request-state', { roomId });
+    };
+
+    const resetWithDocument = (doc, pushToServer) => {
+      state.localDoc = typeof doc === 'string' ? doc : '';
+      state.pendingOps = [];
+      state.clientVersion = 0;
+      if (!pushToServer) {
+        lastSyncId = 0;
+      }
+      if (pushToServer) {
+        if (socketRef && currentRoom) {
+          socketRef.emit('ot-reset-doc', { roomId: currentRoom, doc: state.localDoc });
+        } else {
+          pendingServerDoc = state.localDoc;
+        }
+      }
+    };
+
+    const suspendLocalChanges = () => {
+      suppressLocal = true;
+    };
+
+    const resumeLocalChanges = ({ syncDoc, resetPending } = {}) => {
+      if (typeof syncDoc === 'string') {
+        state.localDoc = syncDoc;
+        if (resetPending) {
+          state.pendingOps = [];
+          state.clientVersion = 0;
+        }
+      }
+      suppressLocal = false;
+    };
+
+    return {
+      attachSocket,
+      attachEditor,
+      requestState,
+      resetWithDocument,
+      suspendLocalChanges,
+      resumeLocalChanges
+    };
+  }
+
+  otApi = createOtEngine();
+
   // ---------------- FILE UPLOAD (bind to static toolbar) ----------------
   (function(){
     const fileInput = document.getElementById('fileUploadInput');
@@ -416,11 +908,12 @@ window.addEventListener('DOMContentLoaded', function() {
             roomId: currentRoom
           });
           currentFilename = res.filename || filename;
-          setEditorValue(content);
+          setEditorValue(content, true, 'upload-file');
           setEditorLanguageByFilename(currentFilename);
           highlightActiveFile();
           refreshFileList();
           logOutput('Uploaded: ' + currentFilename);
+          if (otApi) otApi.resetWithDocument(content, true);
         }catch(err){
           logOutput('Upload failed: ' + (err.message || err));
         }
@@ -443,14 +936,6 @@ window.addEventListener('DOMContentLoaded', function() {
   })();
 
   // -------------- UTILS ----------------
-  function simpleHash(str){
-    let h=0, i=0;
-    while(i<str.length){
-      h = (Math.imul(31,h) + str.charCodeAt(i++)) | 0;
-    }
-    return h;
-  }
-
   function logOutput(msg){
     if (!outputEl) return;
     outputEl.textContent += (outputEl.textContent ? '\n' : '') + msg;
@@ -458,7 +943,15 @@ window.addEventListener('DOMContentLoaded', function() {
   }
 
   function api(method, url, body){
-    const opts = { method, headers: { 'Content-Type':'application/json' } };
+    const opts = {
+      method,
+      headers: {
+        'Content-Type':'application/json',
+        'Cache-Control':'no-cache'
+      },
+      cache: 'no-store',
+      credentials: 'same-origin'
+    };
     if (body) opts.body = JSON.stringify(body);
     return fetch(url, opts)
       .then(r => r.json().catch(()=>({}))
@@ -466,6 +959,100 @@ window.addEventListener('DOMContentLoaded', function() {
           if(!r.ok) throw new Error(data.error || ('HTTP '+r.status));
           return data;
         }));
+  }
+
+  function markSavedSnapshot(content){
+    const snapshot = typeof content === 'string' ? content : getEditorValue();
+    lastSavedHash = simpleHash(snapshot || '');
+  }
+
+  async function persistDocumentContent(content, hash, { keepalive = false, allowEmptySave = false } = {}) {
+    if (!currentFilename) return;
+    const payload = {
+      filename: currentFilename,
+      code: content,
+      language: getCurrentMonacoLanguage(),
+      roomId: currentRoom
+    };
+    const isEmptyPayload = hash === EMPTY_DOC_HASH;
+    const previouslySavedNonEmpty = lastSavedHash !== null && lastSavedHash !== EMPTY_DOC_HASH;
+    if (isEmptyPayload && previouslySavedNonEmpty && !allowEmptySave) {
+      if (!emptySaveWarningShown) {
+        // logOutput('Autosave skipped to avoid wiping non-empty file. Use Save to confirm if you intend to clear it.');
+        emptySaveWarningShown = true;
+      }
+      return;
+    }
+    emptySaveWarningShown = false;
+    if (keepalive && navigator.sendBeacon) {
+      try {
+        const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+        navigator.sendBeacon('/api/code/save', blob);
+        lastSavedHash = hash;
+        if (needFileListRefresh) {
+          needFileListRefresh = false;
+          refreshFileList();
+        }
+        return;
+      } catch (_err) {
+        // fall through to fetch keepalive
+      }
+    }
+    const opts = {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify(payload)
+    };
+    if (keepalive) opts.keepalive = true;
+    const res = await fetch('/api/code/save', opts);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    lastSavedHash = hash;
+    if (needFileListRefresh) {
+      needFileListRefresh = false;
+      refreshFileList();
+    }
+  }
+
+  function autosaveInternal(reason, options = {}) {
+    if (!editor || !currentFilename) return Promise.resolve();
+    const content = getEditorValue();
+    const hash = simpleHash(content);
+    if (!options.force && hash === lastSavedHash) return Promise.resolve();
+    return persistDocumentContent(content, hash, options)
+      .catch(err => {
+        console.warn('[Autosave]', reason, err.message || err);
+        throw err;
+      });
+  }
+
+  function queueAutosave(reason = 'interval', options = {}) {
+    if (!editor || !currentFilename) return;
+    if (autosaveInFlight) {
+      pendingAutosave = { reason, options };
+      return;
+    }
+    autosaveInFlight = true;
+    autosaveInternal(reason, options).finally(() => {
+      autosaveInFlight = false;
+      if (pendingAutosave) {
+        const next = pendingAutosave;
+        pendingAutosave = null;
+        queueAutosave(next.reason, next.options);
+      }
+    });
+  }
+
+  function startAutosaveLoop(){
+    if (autosaveTimerId) clearInterval(autosaveTimerId);
+    autosaveTimerId = setInterval(() => queueAutosave('interval'), AUTOSAVE_INTERVAL_MS);
+  }
+
+  function autosaveOnExit(){
+    if (!editor || !currentFilename) return;
+    const content = getEditorValue();
+    const hash = simpleHash(content);
+    persistDocumentContent(content, hash, { keepalive: true }).catch(()=>{});
   }
 
   // -------------- FILE OPERATIONS ----------------
@@ -477,18 +1064,26 @@ window.addEventListener('DOMContentLoaded', function() {
         const name = f.filename || f;
         const div = document.createElement('div');
         div.className = 'file-item';
+        div.dataset.filename = name;
+        div.tabIndex = 0;
+        div.addEventListener('click', () => loadFile(name));
+        div.addEventListener('keydown', (evt) => {
+          if (evt.key === 'Enter' || evt.key === ' ') {
+            evt.preventDefault();
+            loadFile(name);
+          }
+        });
 
         // File name span
         const nameSpan = document.createElement('span');
         nameSpan.textContent = name;
         nameSpan.style.flex = '1';
         nameSpan.style.cursor = 'pointer';
-        nameSpan.addEventListener('click', () => loadFile(name));
         div.appendChild(nameSpan);
 
         // Rename icon
         const renameBtn = document.createElement('button');
-        renameBtn.innerHTML = '✏️';
+        renameBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
         renameBtn.title = 'Rename file';
         renameBtn.style.marginLeft = '8px';
         renameBtn.style.background = 'none';
@@ -511,7 +1106,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
         // Delete icon styled for file list
         const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = '🗑️'; // trash can icon
+        deleteBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>'; // trash can icon
         deleteBtn.title = 'Delete file';
         deleteBtn.className = 'file-delete-btn';
         deleteBtn.style.marginLeft = '4px';
@@ -523,7 +1118,10 @@ window.addEventListener('DOMContentLoaded', function() {
             .then(() => {
               if (currentFilename === name) {
                 currentFilename = null;
-                setEditorValue('');
+                setEditorValue('', true, 'delete-file');
+                if (otApi) otApi.resetWithDocument('', true);
+                markSavedSnapshot('');
+                needFileListRefresh = false;
               }
               if (window.socket) window.socket.emit('filelist-changed');
               refreshFileList();
@@ -552,7 +1150,8 @@ window.addEventListener('DOMContentLoaded', function() {
 
   function highlightActiveFile(){
     [...fileListDiv.children].forEach(ch => {
-      ch.classList.toggle('active', ch.textContent === currentFilename);
+      const fname = ch.dataset && ch.dataset.filename;
+      ch.classList.toggle('active', fname === currentFilename);
     });
   }
 
@@ -567,24 +1166,32 @@ window.addEventListener('DOMContentLoaded', function() {
   }
 
   function setEditorLanguageByFilename(filename) {
-    if (!editor || !window.monaco) return;
     const ext = (filename.split('.').pop() || '').toLowerCase();
     const lang = extToMonaco[ext] || 'plaintext';
+    if (!editor || !window.monaco) {
+      pendingLanguageMonaco = lang;
+      return;
+    }
     const model = editor.getModel();
     if (model) monaco.editor.setModelLanguage(model, lang);
     setLanguageSelectByMonaco(lang);
+    pendingLanguageMonaco = null;
   }
 
   function loadFile(name){
     api('GET','/api/code/load?filename='+encodeURIComponent(name))
       .then(data => {
         currentFilename = data.filename;
-        setEditorValue(data.code);
+        setEditorValue(data.code, true, 'load-file');
         setEditorLanguageByFilename(data.filename);
         highlightActiveFile();
         logOutput('Loaded: '+data.filename);
-        lastBroadcastHash = null;
-        scheduleBroadcast();
+        markSavedSnapshot(data.code);
+        needFileListRefresh = false;
+        if (socket) {
+          socket.emit('active-file', { roomId: currentRoom, filename: data.filename, language: data.language });
+        }
+        if (otApi) otApi.resetWithDocument(data.code, true);
       })
       .catch(e => logOutput('Load error: '+e.message));
   }
@@ -596,10 +1203,20 @@ window.addEventListener('DOMContentLoaded', function() {
       if (!name) return;
       currentFilename = name.trim();
     }
+    const content = getEditorValue();
+    const hash = simpleHash(content);
+    const isEmptyPayload = hash === EMPTY_DOC_HASH;
+    const previouslySavedNonEmpty = lastSavedHash !== null && lastSavedHash !== EMPTY_DOC_HASH;
+    if (isEmptyPayload && previouslySavedNonEmpty) {
+      const confirmed = await customConfirm('This will erase the previously saved content for '+currentFilename+'. Save empty file?');
+      if (!confirmed) return;
+    }
+    const languageOption = langSelect && langSelect.options[langSelect.selectedIndex];
+    const language = (languageOption && languageOption.dataset && languageOption.dataset.monaco) || 'plaintext';
     api('POST','/api/code/save',{
       filename: currentFilename,
-      code: getEditorValue(),
-      language: langSelect && langSelect.options[langSelect.selectedIndex].dataset.monaco || 'plaintext',
+      code: content,
+      language,
       roomId: currentRoom
     })
       .then(d => {
@@ -607,6 +1224,12 @@ window.addEventListener('DOMContentLoaded', function() {
         highlightActiveFile();
         logOutput('Saved: '+d.filename);
         refreshFileList();
+        markSavedSnapshot(content);
+        emptySaveWarningShown = false;
+        needFileListRefresh = false;
+        if (socket) {
+          socket.emit('active-file', { roomId: currentRoom, filename: d.filename, language: getCurrentMonacoLanguage() });
+        }
       })
       .catch(e => logOutput('Save error: '+e.message));
   }
@@ -619,13 +1242,38 @@ window.addEventListener('DOMContentLoaded', function() {
     }
     runBtn.disabled = true;
     logOutput('Running...');
+    if (stderrOutput) stderrOutput.textContent = 'Waiting for stderr...';
     api('POST','/api/code/run',{
       source_code: getEditorValue(),
       language_id: parseInt(langSelect.value,10),
       stdin: stdinInput.value
     })
-      .then(d => logOutput(formatRunResult(d)))
-      .catch(e => logOutput('Run error: '+e.message))
+      .then(d => {
+        // If there are compilation errors or stderr, show them in the Errors tab
+        const hasStderr = d && typeof d.stderr === 'string' && d.stderr.trim();
+        const hasCompile = d && typeof d.compile_output === 'string' && d.compile_output.trim();
+        if (hasStderr || hasCompile) {
+          updateErrorPanel(d);
+          // switch to Errors tab so user sees the problem
+          setActiveOutputTab('errorsSection');
+          // Only show stdout in the Output tab (if present) as a short note
+          if (d.stdout) {
+            logOutput('STDOUT:\n' + d.stdout);
+          } else {
+            logOutput('Run completed with errors. See Errors tab for details.');
+          }
+        } else {
+          // No errors: show usual output
+          setActiveOutputTab('outputSection');
+          logOutput(formatRunResult(d));
+        }
+      })
+      .catch(e => {
+        // Runtime failure (network / server error) - show concise note and switch to Errors
+        updateErrorPanel({ stderr: e.message || 'Run error' });
+        setActiveOutputTab('errorsSection');
+        logOutput('Run failed. See Errors tab for details.');
+      })
       .finally(()=> runBtn.disabled = false);
   }
 
@@ -639,6 +1287,18 @@ window.addEventListener('DOMContentLoaded', function() {
     return lines.join('\n\n');
   }
 
+  function updateErrorPanel(result){
+    if(!stderrOutput) return;
+    const segments = [];
+    if(result && typeof result.stderr === 'string' && result.stderr.trim()){
+      segments.push('STDERR\n' + result.stderr.trim());
+    }
+    if(result && typeof result.compile_output === 'string' && result.compile_output.trim()){
+      segments.push('COMPILER\n' + result.compile_output.trim());
+    }
+    stderrOutput.textContent = segments.length ? segments.join('\n\n') : 'No stderr output.';
+  }
+
   // -------------- SOCKET / COLLAB ----------------
   function initSocket(){
     if (typeof io === 'undefined') {
@@ -647,16 +1307,19 @@ window.addEventListener('DOMContentLoaded', function() {
     }
     socket = io();
     window.socket = socket;
+    if (otApi) otApi.attachSocket(socket);
     socket.on('connect', () => {
       joinRoom(currentRoom);
     });
-    socket.on('code-update', ({ content }) => {
-      if (getEditorValue() === content) return;
-      suppressNextChange = true;
-      setEditorValue(content);
-    });
     socket.on('filelist-changed', () => {
       refreshFileList();
+    });
+    socket.on('active-file', ({ filename, language }) => {
+      if (!filename || currentFilename) return;
+      currentFilename = filename;
+      setLanguageSelectByMonaco(language || 'plaintext');
+      logOutput('Active file shared: ' + filename);
+      needFileListRefresh = true;
     });
     // Receive current users in room (array or single) and render with mute controls
     socket.on('user-name', (users) => {
@@ -855,56 +1518,69 @@ window.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
-const container = document.getElementById('output-container');
-let isResizing = false;
-let startY = 0;
-let startHeight = 0;
-const edgeThreshold = 6; // pixels from top edge
+const outputPanel = document.getElementById('panelOutput');
+if (outputPanel) {
+  let isResizing = false;
+  let startY = 0;
+  let startHeight = 0;
+  const edgeThreshold = 6; // pixels from top edge
 
-// Change cursor when near the top edge
-container.addEventListener('mousemove', (e) => {
-  const rect = container.getBoundingClientRect();
-  if (e.clientY <= rect.top + edgeThreshold) {
-    container.style.cursor = 'ns-resize';
-  } else {
-    container.style.cursor = 'default';
-  }
-});
+  // Change cursor when near the top edge
+  outputPanel.addEventListener('mousemove', (e) => {
+    const rect = outputPanel.getBoundingClientRect();
+    if (e.clientY <= rect.top + edgeThreshold) {
+      outputPanel.style.cursor = 'ns-resize';
+    } else {
+      outputPanel.style.cursor = 'default';
+    }
+  });
 
-// Start resizing when mousedown on top edge
-container.addEventListener('mousedown', (e) => {
-  const rect = container.getBoundingClientRect();
-  if (e.clientY <= rect.top + edgeThreshold) {
-    isResizing = true;
-    startY = e.clientY;
-    startHeight = rect.height;
-    document.body.style.userSelect = 'none'; // prevent text selection
-  }
-});
+  // Start resizing when mousedown on top edge
+  outputPanel.addEventListener('mousedown', (e) => {
+    const rect = outputPanel.getBoundingClientRect();
+    if (e.clientY <= rect.top + edgeThreshold) {
+      isResizing = true;
+      startY = e.clientY;
+      startHeight = rect.height;
+      document.body.style.userSelect = 'none'; // prevent text selection
+    }
+  });
 
-// Handle dragging
-document.addEventListener('mousemove', (e) => {
-  if (!isResizing) return;
-  const deltaY = startY - e.clientY; // note the minus for top dragging
-  const newHeight = startHeight + deltaY;
-  container.style.height = Math.max(150, Math.min(800, newHeight)) + 'px';
-});
+  // Handle dragging
+  document.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+    const deltaY = startY - e.clientY; // note the minus for top dragging
+    const newHeight = startHeight + deltaY;
+    outputPanel.style.height = Math.max(150, Math.min(800, newHeight)) + 'px';
+  });
 
-// Stop resizing on mouseup
-document.addEventListener('mouseup', () => {
-  if (isResizing) {
-    isResizing = false;
-    document.body.style.userSelect = 'auto';
-    container.style.cursor = 'default';
-  }
-});
+  // Stop resizing on mouseup
+  document.addEventListener('mouseup', () => {
+    if (isResizing) {
+      isResizing = false;
+      document.body.style.userSelect = 'auto';
+      outputPanel.style.cursor = 'default';
+      if (typeof applyWorkspaceResizeEffects === 'function') applyWorkspaceResizeEffects();
+    }
+  });
+}
 
 
   function joinRoom(roomId){
     if (!socket) return;
     currentRoom = roomId;
     window.currentRoom = currentRoom;
+    window.WHITEBOARD_ROOM = roomId;
+    if (bodyEl) {
+      bodyEl.dataset.room = roomId;
+    }
+    updateWhiteboardRoomLabel(roomId);
+    if (window.inlineWhiteboard && window.inlineWhiteboard.setRoom) {
+      window.inlineWhiteboard.setRoom(roomId);
+    }
+    if (otApi) otApi.resetWithDocument(getEditorValue(), false);
     socket.emit('join-room', roomId);
+    if (otApi) otApi.requestState(roomId);
     if (roomInput) roomInput.value = '';
     logOutput('Joined room: '+roomId);
     
@@ -928,20 +1604,6 @@ document.addEventListener('mouseup', () => {
         socket.emit('caret-position', { roomId: currentRoom, offset });
       }
     }, 200);
-  }
-
-  // -------------- BROADCAST EDITS ----------------
-  let broadcastTimer;
-  function scheduleBroadcast(){
-    clearTimeout(broadcastTimer);
-    broadcastTimer = setTimeout(()=>{
-      const content = getEditorValue();
-      const hash = simpleHash(content);
-      if (hash !== lastBroadcastHash){
-        lastBroadcastHash = hash;
-        socket.emit('code-update',{ roomId: currentRoom, content });
-      }
-    }, 250);
   }
 
   // --- PRESENCE: Send cursor position on change and on room join ---
@@ -1304,14 +1966,19 @@ document.addEventListener('mouseup', () => {
       // Expose globally for debugging (optional)
       window.editor = editor;
 
-      // Collaboration listener
-      editor.onDidChangeModelContent(()=>{
-        if (suppressNextChange){
-          suppressNextChange = false;
-          return;
-        }
-        scheduleBroadcast();
-      });
+      if (otApi) otApi.attachEditor(editor);
+
+      if (pendingEditorValue !== null) {
+        const pendingDoc = pendingEditorValue;
+        pendingEditorValue = null;
+        setEditorValue(pendingDoc, true, 'pending-buffer');
+      }
+      if (pendingLanguageMonaco) {
+        const model = editor.getModel();
+        if (model) monaco.editor.setModelLanguage(model, pendingLanguageMonaco);
+        setLanguageSelectByMonaco(pendingLanguageMonaco);
+        pendingLanguageMonaco = null;
+      }
 
       // After creating editor:
       window.editor = editor;
@@ -1325,15 +1992,23 @@ document.addEventListener('mouseup', () => {
     }, err => {
       logOutput('Monaco load error: '+err.message);
       console.error(err);
-    });
+    }); 
   }
 
   function getEditorValue(){
     return editor ? editor.getValue() : '';
   }
 
-  function setEditorValue(val){
-    if (editor) editor.setValue(val);
+  function setEditorValue(val, suppressOt = true, source = 'unknown'){
+    const safeVal = typeof val === 'string' ? val : '';
+    if (!editor) {
+      pendingEditorValue = safeVal;
+      return;
+    }
+    if (suppressOt && otApi) otApi.suspendLocalChanges();
+    editor.setValue(safeVal);
+    if (suppressOt && otApi) otApi.resumeLocalChanges({ syncDoc: safeVal, resetPending: true });
+    pendingEditorValue = null;
   }
 
   // -------------- LANGUAGE CHANGE ----------------
@@ -1396,10 +2071,14 @@ document.addEventListener('mouseup', () => {
   // Initialize toolbar room display (left panel) with initial room ID
   const toolbarRoomId = document.getElementById('toolbarRoomId');
   if (toolbarRoomId) toolbarRoomId.textContent = '#' + currentRoom;
+  updateWhiteboardRoomLabel(currentRoom);
   
   initSocket();
   initMonaco();
   refreshFileList();
+  startAutosaveLoop();
+  window.addEventListener('beforeunload', autosaveOnExit);
+  window.addEventListener('pagehide', autosaveOnExit);
 
   // -------------- DEBUG HELPERS ----------------
   window.__CC_DEBUG__ = {

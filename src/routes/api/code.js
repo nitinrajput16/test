@@ -17,12 +17,22 @@ router.post('/run', ensureAuth, async (req, res) => {
   try {
     const { source_code, language_id, stdin } = req.body || {};
     if (!source_code || !language_id) return res.status(400).json({ error: 'source_code and language_id required' });
+    // Sanitize source_code: remove Markdown code fences if pasted into the editor
+    function stripCodeFences(s) {
+      if (!s) return s;
+      // Replace fenced blocks like ```lang\n...code...\n``` with the inner code
+      return s.replace(/```[\s\S]*?```/g, (m) => {
+        // remove the opening fence and optional language tag
+        return m.replace(/^```[^\n]*\n?/, '').replace(/```$/, '');
+      });
+    }
+    const sanitizedSource = stripCodeFences(source_code);
     // Encode source_code and stdin in base64
     function toBase64(str) {
       return Buffer.from(str || '', 'utf8').toString('base64');
     }
     const body = {
-      source_code: toBase64(source_code),
+      source_code: toBase64(sanitizedSource),
       language_id,
       stdin: toBase64(stdin || ''),
       base64_encoded: true
@@ -41,6 +51,8 @@ router.post('/run', ensureAuth, async (req, res) => {
     }
     if (data.stdout) data.stdout = decodeBase64(data.stdout);
     if (data.stderr) data.stderr = decodeBase64(data.stderr);
+    // Judge0 may return compile_output as base64 when base64_encoded=true
+    if (data.compile_output) data.compile_output = decodeBase64(data.compile_output);
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: 'Failed to run code' });
@@ -67,9 +79,19 @@ router.get('/load', ensureAuth, async (req, res) => {
     if (!filename) return res.status(400).json({ error: 'filename required' });
     const doc = await CodeFile.findOne({ googleId: req.user.googleId, filename });
     if (!doc) return res.status(404).json({ error: 'File not found' });
+    const codeValue = typeof doc.code === 'string'
+      ? doc.code
+      : (Buffer.isBuffer(doc.code)
+        ? doc.code.toString('utf8')
+        : (doc.code && typeof doc.code.toString === 'function'
+          ? doc.code.toString()
+          : ''));
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.json({
       filename: doc.filename,
-      code: doc.code,
+      code: codeValue,
       language: doc.language,
       updatedAt: doc.updatedAt
     });

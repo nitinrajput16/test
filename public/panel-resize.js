@@ -4,6 +4,14 @@
    - Double-click or click collapse handle to toggle small-icon sidebar
    - Calls Monaco layout when available
 */
+
+function applyWorkspaceResizeEffects(){
+  window.dispatchEvent(new Event('resize'));
+  if(window.editor && typeof window.editor.layout === 'function'){
+    try{ window.editor.layout(); }catch(e){}
+  }
+}
+
 (function(){
   const left = document.getElementById('panelLeft');
   const right = document.getElementById('panelRight');
@@ -23,13 +31,6 @@
 
   const MIN_PANEL = 48; // min px when dragging
   const MAX_PANEL = 600;
-
-  function onResizeDone(){
-    window.dispatchEvent(new Event('resize'));
-    if(window.editor && typeof window.editor.layout === 'function'){
-      try{ window.editor.layout(); }catch(e){}
-    }
-  }
 
   // dragging helpers
   function startDrag(resizer, side){
@@ -51,7 +52,7 @@
         right.style.width = newW + 'px';
         lastRight = newW;
       }
-      onResizeDone();
+      applyWorkspaceResizeEffects();
     }
 
     function onUp(){
@@ -97,7 +98,7 @@
       panel.style.width = '40px';
       updateHandle(side, true);
     }
-    onResizeDone();
+    applyWorkspaceResizeEffects();
     // update toolbar room visibility when right panel collapses/restores
     try{ updateToolbarRoomVisibility(); }catch(e){}
   }
@@ -119,7 +120,7 @@
       right.style.flex = '0 0 ' + target + 'px';
       right.style.width = target + 'px';
     }
-    onResizeDone();
+    applyWorkspaceResizeEffects();
   }
 
   // initialize attributes for accessibility
@@ -204,7 +205,7 @@
     } else if(target === 'panelCenter'){
       center.classList.add('mobile-active');
       // ensure editor resizes
-      onResizeDone();
+      applyWorkspaceResizeEffects();
       // focus editor on mobile so keyboard opens and layout stabilizes
       if(window.editor && typeof window.editor.focus === 'function'){
         try{ window.editor.focus(); }catch(e){}
@@ -225,7 +226,7 @@
       const voice = right.querySelector('.voice-card'); if(voice) voice.style.display='flex';
     }
     // small delay for layout
-    setTimeout(onResizeDone, 80);
+    setTimeout(applyWorkspaceResizeEffects, 80);
   }
 
   // If page loads on mobile, default to editor
@@ -251,3 +252,86 @@
   }catch(e){}
 
 })();
+
+  (function(){
+    const inlineResizer = document.getElementById('inlineResizer');
+    const inlinePanel = document.getElementById('inlineWhiteboardPanel');
+    if(!inlineResizer || !inlinePanel) return;
+
+    const MIN_WIDTH = 320;
+    const MAX_WIDTH = 900;
+
+    function clamp(width){
+      return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, width));
+    }
+
+    inlineResizer.addEventListener('mousedown', function(e){
+      if(!document.body.classList.contains('whiteboard-open')) return;
+      e.preventDefault();
+      const startX = e.clientX;
+      const startWidth = inlinePanel.getBoundingClientRect().width || parseFloat(inlinePanel.dataset.width) || 420;
+
+      function onMove(ev){
+        const delta = startX - ev.clientX;
+        const width = clamp(startWidth + delta);
+        if(typeof window.setInlineWhiteboardWidth === 'function') {
+          window.setInlineWhiteboardWidth(width, { silent: true });
+        } else {
+          inlinePanel.style.flex = '0 0 ' + width + 'px';
+          inlinePanel.style.width = width + 'px';
+          inlinePanel.dataset.width = String(Math.round(width));
+        }
+        applyWorkspaceResizeEffects();
+      }
+
+      function onUp(){
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        if(window.inlineWhiteboard && typeof window.inlineWhiteboard.refreshSize === 'function'){
+          window.inlineWhiteboard.refreshSize();
+        }
+        applyWorkspaceResizeEffects();
+      }
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  })();
+
+  // Horizontal resizer for center output panel
+  (function(){
+    const resizerOut = document.getElementById('resizerOutput');
+    const panelOutput = document.getElementById('panelOutput');
+    const center = document.getElementById('panelCenter');
+    const editorShell = document.querySelector('.editor-shell');
+    if(!resizerOut || !panelOutput || !center) return;
+
+    const MIN_HEIGHT = 80;
+    const MAX_HEIGHT = window.innerHeight * 0.75;
+
+    function clamp(h){ return Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, h)); }
+
+    resizerOut.addEventListener('mousedown', function(e){
+      e.preventDefault();
+      const startY = e.clientY;
+      const startHeight = panelOutput.getBoundingClientRect().height;
+
+      function onMove(ev){
+        const dy = ev.clientY - startY;
+        const newH = clamp(startHeight - dy);
+        panelOutput.style.flex = '0 0 ' + Math.round(newH) + 'px';
+        panelOutput.style.height = Math.round(newH) + 'px';
+        applyWorkspaceResizeEffects();
+      }
+
+      function onUp(){
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  })();
+
+  // (output panel is now placed permanently inside the editor shell in HTML)
