@@ -15,7 +15,7 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 // Bind to 0.0.0.0 by default so cloud hosts (Render, Heroku, etc.) can reach the server
-const HOST = process.env.HOST;
+const HOST = process.env.HOST || '0.0.0.0';
 
 // ---------- DATABASE ----------
 (async () => {
