@@ -229,7 +229,7 @@
       <div class="collapse-handle" id="collapseRight" title="Collapse">▶</div>
       <div class="panel-header">
         <span>Collaboration</span>
-        <div id="toolbarRoomDisplay" style="margin-left:6px;color:#cfefe0;font-size:10px;white-space:nowrap;"> ROOM: <span id="toolbarRoomId">loading...</span></div>
+        <div id="toolbarRoomDisplay" style="margin-left:6px;color:#cfefe0;font-size:10px;white-space:nowrap;"> ROOM ID: <span id="toolbarRoomId">loading...</span></div>
       </div>
       <div class="collapsed-icons" data-panel="right" aria-hidden="true">
         <button type="button" class="collapsed-icon" title="Live Audio">
@@ -253,7 +253,25 @@
           <div id="voiceAudios" class="voice-audios" aria-live="polite" style="position:relative;width:100%;height:0;overflow:visible;"></div>
         </div>
       </div>
-      <!-- IO card moved to center panel (panelOutput) -->
+      <div class="collab-card share-card">
+        <div class="share-card-head">
+          <div>
+            <div class="card-title">Share Room</div>
+            <p class="share-card-desc">Copy the invite link for this room.</p>
+          </div>
+          <button id="shareRoomButton" type="button" class="share-room-btn" aria-live="polite">
+            <span class="share-room-btn-label" data-default="Copy Link" data-success="Copied!">Copy Link</span>
+          </button>
+        </div>
+        <div class="share-link-row">
+          <input id="shareRoomLink" type="text" readonly value="Generating link..." aria-label="Room invite link">
+          <button id="shareRoomIconBtn" type="button" class="share-room-icon" title="Copy invite link" aria-label="Copy invite link">
+            <i class="fa-regular fa-copy"></i>
+          </button>
+        </div>
+        <p class="share-room-hint">People with this link can join instantly.</p>
+      </div>
+
       <div class="collab-card users-card">
         <div class="card-title">In Room</div>
         <div class="users-joined">

@@ -334,6 +334,169 @@ window.addEventListener('DOMContentLoaded', function() {
     }
   }
 
+  function ensureShareRoomRefs() {
+    if (!shareRoomLinkInput) shareRoomLinkInput = document.getElementById('shareRoomLink');
+    if (!shareRoomButton) shareRoomButton = document.getElementById('shareRoomButton');
+    if (!shareRoomIconBtn) shareRoomIconBtn = document.getElementById('shareRoomIconBtn');
+    if (!shareRoomBtnLabel && shareRoomButton) {
+      shareRoomBtnLabel = shareRoomButton.querySelector('.share-room-btn-label');
+    }
+    return Boolean(shareRoomLinkInput || shareRoomButton || shareRoomIconBtn);
+  }
+
+  function bindShareRoomEvents() {
+    if (shareRoomEventsBound) return;
+    if (!ensureShareRoomRefs()) return;
+    if (shareRoomButton) {
+      shareRoomButton.addEventListener('click', copyRoomInviteLink);
+    }
+    if (shareRoomIconBtn) {
+      shareRoomIconBtn.addEventListener('click', copyRoomInviteLink);
+    }
+    if (shareRoomLinkInput) {
+      const selectShareLink = () => {
+        shareRoomLinkInput.focus();
+        shareRoomLinkInput.select();
+      };
+      shareRoomLinkInput.addEventListener('focus', selectShareLink);
+      shareRoomLinkInput.addEventListener('click', selectShareLink);
+    }
+    shareRoomEventsBound = true;
+  }
+
+  function getRoomIdFromUrl() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const raw = params.get('room');
+      return raw ? raw.trim() : null;
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  function buildRoomInviteLink(roomId) {
+    try {
+      const url = new URL(window.location.href);
+      if (roomId) {
+        url.searchParams.set('room', roomId);
+      } else {
+        url.searchParams.delete('room');
+      }
+      url.hash = '';
+      return url.toString();
+    } catch (_err) {
+      const base = window.location.origin + window.location.pathname;
+      return roomId ? `${base}?room=${encodeURIComponent(roomId)}` : base;
+    }
+  }
+
+  function updateRoomQueryParam(roomId) {
+    if (!window.history || !window.history.replaceState) return;
+    try {
+      const invite = buildRoomInviteLink(roomId);
+      const withHash = window.location.hash ? invite + window.location.hash : invite;
+      window.history.replaceState({}, document.title, withHash);
+    } catch (err) {
+      console.warn('[ShareRoom] Unable to update URL', err);
+    }
+  }
+
+  function updateShareRoomLink(roomId) {
+    ensureShareRoomRefs();
+    if (!shareRoomLinkInput) {
+      pendingShareRoomId = roomId;
+      return;
+    }
+    pendingShareRoomId = null;
+    if (!roomId) {
+      shareRoomLinkInput.value = 'Join or create a room to generate a link';
+      shareRoomLinkInput.dataset.state = 'empty';
+      return;
+    }
+    shareRoomLinkInput.dataset.state = 'ready';
+    shareRoomLinkInput.value = buildRoomInviteLink(roomId);
+  }
+
+  let shareRoomResetTimer = null;
+
+  function setShareRoomButtonState(state) {
+    ensureShareRoomRefs();
+    if (!shareRoomBtnLabel) return;
+    const defaultText = shareRoomBtnLabel.dataset.default || 'Copy Link';
+    const successText = shareRoomBtnLabel.dataset.success || 'Copied!';
+    if (state === 'success') {
+      shareRoomBtnLabel.textContent = successText;
+      shareRoomBtnLabel.dataset.state = 'success';
+      if (shareRoomResetTimer) clearTimeout(shareRoomResetTimer);
+      shareRoomResetTimer = setTimeout(() => setShareRoomButtonState('default'), 1800);
+    } else {
+      shareRoomBtnLabel.textContent = defaultText;
+      shareRoomBtnLabel.dataset.state = 'default';
+    }
+  }
+
+  function fallbackCopyFromInput(text) {
+    return new Promise((resolve, reject) => {
+      ensureShareRoomRefs();
+      if (!shareRoomLinkInput) {
+        reject(new Error('share-room input missing'));
+        return;
+      }
+      shareRoomLinkInput.select();
+      shareRoomLinkInput.setSelectionRange(0, shareRoomLinkInput.value.length);
+      try {
+        const ok = document.execCommand && document.execCommand('copy');
+        if (ok) {
+          resolve();
+        } else {
+          reject(new Error('execCommand copy failed'));
+        }
+      } catch (err) {
+        reject(err);
+      } finally {
+        shareRoomLinkInput.setSelectionRange(text.length, text.length);
+      }
+    });
+  }
+
+  function copyRoomInviteLink(event) {
+    if (event) event.preventDefault();
+    ensureShareRoomRefs();
+    if (!shareRoomLinkInput) return;
+    const link = (shareRoomLinkInput.value || '').trim();
+    if (!link || shareRoomLinkInput.dataset.state === 'empty') return;
+    const hasClipboardApi = navigator.clipboard && typeof navigator.clipboard.writeText === 'function';
+    let copyPromise;
+    if (hasClipboardApi) {
+      copyPromise = navigator.clipboard.writeText(link).catch(() => fallbackCopyFromInput(link));
+    } else {
+      copyPromise = fallbackCopyFromInput(link);
+    }
+    copyPromise
+      .then(() => {
+        setShareRoomButtonState('success');
+      })
+      .catch(err => {
+        console.warn('[ShareRoom] Copy failed', err);
+      });
+  }
+
+  function initShareRoomUI() {
+    ensureShareRoomRefs();
+    bindShareRoomEvents();
+    if (pendingShareRoomId !== null) {
+      updateShareRoomLink(pendingShareRoomId);
+    } else {
+      updateShareRoomLink(currentRoom);
+    }
+    setShareRoomButtonState('default');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initShareRoomUI);
+  } else {
+    initShareRoomUI();
+  }
   function openInlineWhiteboard() {
     if (!whiteboardPanel || !bodyEl) return;
     setInlinePanelWidth(inlinePanelWidth, { silent: true });
@@ -447,11 +610,21 @@ window.addEventListener('DOMContentLoaded', function() {
   const roomInput   = document.getElementById('roomInput');
   const roomButton  = document.getElementById('RoomButton');
   const joinRoomButton = document.getElementById('JoinRoomButton');
+  let shareRoomLinkInput = document.getElementById('shareRoomLink');
+  let shareRoomButton = document.getElementById('shareRoomButton');
+  let shareRoomIconBtn = document.getElementById('shareRoomIconBtn');
+  let shareRoomBtnLabel = shareRoomButton ? shareRoomButton.querySelector('.share-room-btn-label') : null;
+  let shareRoomEventsBound = false;
+  let pendingShareRoomId = null;
 
   // -------------- STATE ----------------
   let editor;
   let socket;
   let currentRoom = 'default-room-' + Math.random().toString(36).slice(2, 10);
+  const roomFromUrl = getRoomIdFromUrl();
+  if (roomFromUrl) {
+    currentRoom = roomFromUrl;
+  }
   if (bodyEl) {
     if (!bodyEl.dataset.room) bodyEl.dataset.room = currentRoom;
   }
@@ -1567,7 +1740,6 @@ if (outputPanel) {
 
 
   function joinRoom(roomId){
-    if (!socket) return;
     currentRoom = roomId;
     window.currentRoom = currentRoom;
     window.WHITEBOARD_ROOM = roomId;
@@ -1575,13 +1747,17 @@ if (outputPanel) {
       bodyEl.dataset.room = roomId;
     }
     updateWhiteboardRoomLabel(roomId);
+    updateShareRoomLink(roomId);
+    updateRoomQueryParam(roomId);
+    setShareRoomButtonState('default');
     if (window.inlineWhiteboard && window.inlineWhiteboard.setRoom) {
       window.inlineWhiteboard.setRoom(roomId);
     }
+    if (roomInput) roomInput.value = '';
+    if (!socket) return;
     if (otApi) otApi.resetWithDocument(getEditorValue(), false);
     socket.emit('join-room', roomId);
     if (otApi) otApi.requestState(roomId);
-    if (roomInput) roomInput.value = '';
     logOutput('Joined room: '+roomId);
     
     // Update mobile top bar with room ID
@@ -2072,6 +2248,9 @@ if (outputPanel) {
   const toolbarRoomId = document.getElementById('toolbarRoomId');
   if (toolbarRoomId) toolbarRoomId.textContent = '#' + currentRoom;
   updateWhiteboardRoomLabel(currentRoom);
+  updateShareRoomLink(currentRoom);
+  updateRoomQueryParam(currentRoom);
+  setShareRoomButtonState('default');
   
   initSocket();
   initMonaco();

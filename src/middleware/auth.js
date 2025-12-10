@@ -1,6 +1,30 @@
+function sanitizeReturnPath(value) {
+  if (!value) return null;
+  let decoded = value;
+  try {
+    decoded = decodeURIComponent(value);
+  } catch (_) {
+    decoded = value;
+  }
+  if (typeof decoded !== 'string') return null;
+  if (!decoded.startsWith('/')) return null;
+  return decoded;
+}
+
+function rememberReturnPath(req, explicitPath) {
+  if (!req || !req.session) return;
+  const target = sanitizeReturnPath(explicitPath || req.originalUrl || req.url);
+  if (target) {
+    req.session.returnTo = target;
+  }
+}
+
 function ensureAuth(req, res, next) {
   if (req.isAuthenticated && req.isAuthenticated()) return next();
-  return res.redirect('/login?error=auth_required');
+  rememberReturnPath(req);
+  const target = (req.session && req.session.returnTo) || '/editor';
+  const loginUrl = `/login?error=auth_required&next=${encodeURIComponent(target)}`;
+  return res.redirect(loginUrl);
 }
 
 function ensureGuest(req, res, next) {
@@ -23,4 +47,4 @@ function ensureOwner(req, res, next) {
   });
 }
 
-module.exports = { ensureAuth, ensureGuest, ensureOwner };
+module.exports = { ensureAuth, ensureGuest, ensureOwner, rememberReturnPath, sanitizeReturnPath };

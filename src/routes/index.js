@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const { ensureAuth, ensureGuest, ensureOwner } = require('../middleware/auth');
+const { ensureAuth, ensureGuest, ensureOwner, sanitizeReturnPath } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -12,10 +12,15 @@ router.get('/', (req, res) => {
 
 // Login
 router.get('/login', ensureGuest, (req, res) => {
+  const nextPath = sanitizeReturnPath(req.query.next);
+  if (nextPath && req.session) {
+    req.session.returnTo = nextPath;
+  }
   res.render('login', {
     title: 'Login - Edit',
     error: req.query.error || null,
-    message: req.query.message || null
+    message: req.query.message || null,
+    next: nextPath || null
   });
 });
 

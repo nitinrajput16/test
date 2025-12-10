@@ -14,7 +14,8 @@ const { initSocket } = require('./socket');
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || 'localhost';
+// Bind to 0.0.0.0 by default so cloud hosts (Render, Heroku, etc.) can reach the server
+const HOST = process.env.HOST || '0.0.0.0';
 
 // ---------- DATABASE ----------
 (async () => {
@@ -109,9 +110,10 @@ app.use((err, req, res, _next) => {
 });
 
 // ---------- START ----------
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   console.log('=====================================');
-  console.log(`🌐 URL: http://${HOST}:${PORT}`);
+  console.log(`🌐 Listening on port ${PORT} (bound to ${HOST})`);
+  if (process.env.APP_URL) console.log(`🔗 Public URL: ${process.env.APP_URL}`);
   console.log(`👤 Author: nitin...`);
   console.log('=====================================');
 });
