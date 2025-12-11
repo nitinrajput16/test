@@ -84,9 +84,10 @@
       try { window.dispatchEvent(new CustomEvent('voice:peer-left', { detail: { peerId } })); } catch (e) { /* ignore */ }
     }
 
-    function startVADLoop(peerId) {
+    function startVADLoop(peerId, token) {
       const entry = analysers.get(peerId);
       if (!entry) return;
+      const myToken = token || entry.token;
       const analyser = entry.analyser;
       const bufferLen = analyser.fftSize;
       const data = new Uint8Array(bufferLen);
@@ -96,6 +97,10 @@
       const silenceFramesToStop = 8; 
 
       function step() {
+        const latest = analysers.get(peerId);
+        if (!latest || (myToken && latest.token !== myToken)) {
+          return;
+        }
         try {
           analyser.getByteTimeDomainData(data);
         } catch (e) {
@@ -160,9 +165,10 @@
         analyser.fftSize = 1024;
         analyser.smoothingTimeConstant = 0.3;
         src.connect(analyser);
-        analysers.set(peerId, { analyser, source: src });
+        const token = Symbol('vad-loop');
+        analysers.set(peerId, { analyser, source: src, token });
         vadState.set(peerId, { speaking: false, speakCount: 0, silenceCount: 0 });
-        startVADLoop(peerId);
+        startVADLoop(peerId, token);
       } catch (e) {
         // AudioContext may fail in some browsers or when autoplay blocked
         console.warn('VAD init failed for', peerId, e);

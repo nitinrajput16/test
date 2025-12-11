@@ -119,6 +119,12 @@ function initSocket(server, { sessionMiddleware }) {
     function getSocketUserId() {
       return (user && (user._id ? String(user._id) : (user.googleId ? String(user.googleId) : (user.id ? String(user.id) : null)))) || socket.id;
     }
+    // Share resolved user id with client immediately so OT acks match
+    try {
+      socket.emit('whoami', { userId: getSocketUserId(), socketId: socket.id });
+    } catch (err) {
+      console.warn('[socket] whoami emit failed', err.message);
+    }
 
     // Helper to assign unique color per user in a room
     function assignColors(roomId) {
@@ -176,12 +182,23 @@ function initSocket(server, { sessionMiddleware }) {
     });
 
     socket.on('leave-room', (roomId) => {
+      if (!roomId) return;
       socket.leave(roomId);
-      removePresence(roomId, user._id ? String(user._id) : (user.googleId ? String(user.googleId) : (user.id ? String(user.id) : null)));
-      // Send presence-update and user list to remaining clients in room
-      io.to(roomId).emit('presence-update', { users: listPresence(roomId) });
-      const usersArray = roomUserPresence.has(roomId) ? Object.values(roomUserPresence.get(roomId)) : [];
-      io.to(roomId).emit('user-name', usersArray);
+      const uniqueId = getSocketUserId();
+      removePresence(roomId, uniqueId);
+
+      if (roomUserPresence.has(roomId)) {
+        delete roomUserPresence.get(roomId)[uniqueId];
+        if (!Object.keys(roomUserPresence.get(roomId)).length) {
+          roomUserPresence.delete(roomId);
+        } else {
+          assignColors(roomId);
+        }
+      }
+
+      const presenceSnapshot = roomUserPresence.has(roomId) ? roomUserPresence.get(roomId) : {};
+      io.to(roomId).emit('presence-update', presenceSnapshot);
+      io.to(roomId).emit('user-name', Object.values(presenceSnapshot));
     });
 
     socket.on('ot-request-state', ({ roomId }) => {

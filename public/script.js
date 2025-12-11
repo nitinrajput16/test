@@ -1480,6 +1480,14 @@ window.addEventListener('DOMContentLoaded', function() {
     }
     socket = io();
     window.socket = socket;
+    socket.on('whoami', (payload) => {
+      if (payload && payload.userId) {
+        window.myServerUserId = payload.userId;
+      }
+      if (payload && payload.socketId) {
+        window.mySocketId = payload.socketId;
+      }
+    });
     if (otApi) otApi.attachSocket(socket);
     socket.on('connect', () => {
       joinRoom(currentRoom);
