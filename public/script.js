@@ -749,8 +749,6 @@ window.addEventListener('DOMContentLoaded', function() {
   function createOtEngine() {
     const state = {
       localDoc: '',
-      clientVersion: 0,
-      pendingOps: [],
       cursorOffset: 0
     };
     let socketRef = null;
@@ -759,6 +757,14 @@ window.addEventListener('DOMContentLoaded', function() {
     let pendingServerDoc = null;
     let pendingSyncDoc = null;
     let lastSyncId = 0;
+
+    // IMPORTANT: This tracks the SERVER document version from `ot-sync` / server broadcasts.
+    // Never use a local counter for clientVersion; that causes desync.
+    state.serverVersion = 0;
+
+    // Classic OT client: 1 outstanding op + a buffer of subsequent local ops.
+    let outstandingOp = null;
+    const bufferOps = [];
 
     const cloneOp = (op) => {
       if (!op) return null;
@@ -843,22 +849,63 @@ window.addEventListener('DOMContentLoaded', function() {
       return pos;
     };
 
-    const queueAndSend = (baseOp) => {
+    const sendOutstanding = () => {
       if (!socketRef || !currentRoom) return;
-      if (baseOp.type === OP_INSERT && !baseOp.text) return;
-      if (baseOp.type === OP_DELETE && !baseOp.length) return;
+      if (!outstandingOp) return;
+      if (outstandingOp.type === OP_INSERT && !outstandingOp.text) return;
+      if (outstandingOp.type === OP_DELETE && !outstandingOp.length) return;
+
+      // Base the op on the last known server version.
       const enriched = {
-        ...baseOp,
-        clientVersion: state.clientVersion,
+        ...cloneOp(outstandingOp),
+        clientVersion: state.serverVersion,
         userId: getSelfUserId()
       };
-      state.pendingOps.push(enriched);
-      state.clientVersion += 1;
       socketRef.emit('ot-operation', { roomId: currentRoom, operation: enriched });
+    };
+
+    const queueLocalOp = (op) => {
+      if (!op) return;
+      // Apply optimistically to local doc first.
+      state.localDoc = applyToDoc(state.localDoc, op);
+
+      if (!outstandingOp) {
+        outstandingOp = cloneOp(op);
+        sendOutstanding();
+        return;
+      }
+      bufferOps.push(cloneOp(op));
+    };
+
+    const transformIncomingThroughLocal = (incomingOp) => {
+      let incoming = cloneOp(incomingOp);
+      if (!incoming) return null;
+
+      if (outstandingOp) {
+        const out0 = cloneOp(outstandingOp);
+        const in0 = cloneOp(incoming);
+        outstandingOp = transform(out0, in0);
+        incoming = transform(in0, out0);
+      }
+
+      for (let i = 0; i < bufferOps.length; i += 1) {
+        const buf0 = cloneOp(bufferOps[i]);
+        const in0 = cloneOp(incoming);
+        bufferOps[i] = transform(buf0, in0);
+        incoming = transform(in0, buf0);
+      }
+
+      return incoming;
     };
 
     const applyRemoteOperation = (op) => {
       if (!op) return;
+
+      // Drop no-op deletes produced by transforms.
+      if (op.type === OP_DELETE && (!op.length || op.length <= 0)) {
+        return;
+      }
+
       if (!editorRef || typeof monaco === 'undefined') {
         state.localDoc = applyToDoc(state.localDoc, op);
         state.cursorOffset = adjustCursor(state.cursorOffset, op, getSelfUserId());
@@ -872,6 +919,13 @@ window.addEventListener('DOMContentLoaded', function() {
         pendingSyncDoc = state.localDoc;
         return;
       }
+
+      // Use the real current cursor offset (prevents stale offsets -> jumps).
+      try {
+        const curPos = editorRef.getPosition && editorRef.getPosition();
+        if (curPos) state.cursorOffset = model.getOffsetAt(curPos);
+      } catch (_e) {}
+
       suppressLocal = true;
       if (op.type === OP_INSERT) {
         const insertionOffset = clamp(op.pos, 0, model.getValueLength());
@@ -886,6 +940,13 @@ window.addEventListener('DOMContentLoaded', function() {
       } else {
         const startOffset = clamp(op.pos, 0, model.getValueLength());
         const endOffset = clamp(op.pos + op.length, 0, model.getValueLength());
+
+        // If delete collapses to nothing after clamping, ignore it.
+        if (endOffset <= startOffset) {
+          suppressLocal = false;
+          return;
+        }
+
         const startPos = model.getPositionAt(startOffset);
         const endPos = model.getPositionAt(endOffset);
         editorRef.executeEdits('ot-remote-delete', [
@@ -898,11 +959,12 @@ window.addEventListener('DOMContentLoaded', function() {
       }
       suppressLocal = false;
       state.localDoc = applyToDoc(state.localDoc, op);
-      state.cursorOffset = adjustCursor(state.cursorOffset, op, getSelfUserId());
-      const modelLength = model.getValueLength();
-      const clamped = clamp(state.cursorOffset, 0, modelLength);
-      const newPos = model.getPositionAt(clamped);
-      editorRef.setPosition(newPos);
+
+      // Let Monaco manage the cursor/selection; avoid forcing a new position (prevents cursor jumps).
+      try {
+        const newPos = editorRef.getPosition && editorRef.getPosition();
+        if (newPos) state.cursorOffset = model.getOffsetAt(newPos);
+      } catch (_e) {}
     };
 
     const handleLocalChange = (event) => {
@@ -918,8 +980,7 @@ window.addEventListener('DOMContentLoaded', function() {
             pos: actualOffset,
             length: change.rangeLength
           };
-          state.localDoc = applyToDoc(state.localDoc, delOp);
-          queueAndSend(delOp);
+          queueLocalOp(delOp);
           offsetDelta -= change.rangeLength;
         }
         if (change.text) {
@@ -928,8 +989,7 @@ window.addEventListener('DOMContentLoaded', function() {
             pos: actualOffset,
             text: change.text
           };
-          state.localDoc = applyToDoc(state.localDoc, insOp);
-          queueAndSend(insOp);
+          queueLocalOp(insOp);
           offsetDelta += change.text.length;
         }
       });
@@ -937,19 +997,34 @@ window.addEventListener('DOMContentLoaded', function() {
 
     const handleServerOp = ({ roomId, operation, version }) => {
       if (!operation || roomId !== currentRoom) return;
-      if (operation.userId === getSelfUserId()) {
-        state.pendingOps.shift();
-        state.clientVersion = version;
+      const nextVersion = typeof version === 'number' ? version : null;
+
+      // If we receive a huge version jump, prefer resync over trying to apply.
+      if (nextVersion !== null && nextVersion > state.serverVersion + 5 && !outstandingOp && bufferOps.length === 0) {
+        socketRef.emit('ot-request-state', { roomId: currentRoom });
         return;
       }
-      let incoming = cloneOp(operation);
-      state.pendingOps = state.pendingOps.map((pending) => {
-        const updatedPending = transform(pending, incoming);
-        incoming = transform(incoming, pending);
-        return updatedPending;
-      });
+
+      if (operation.userId === getSelfUserId()) {
+        // Server echo for our outstanding op.
+        if (nextVersion !== null) state.serverVersion = nextVersion;
+        outstandingOp = null;
+
+        if (bufferOps.length) {
+          outstandingOp = bufferOps.shift();
+          sendOutstanding();
+        }
+        return;
+      }
+
+      const incoming = transformIncomingThroughLocal(operation);
+      // If transforms produced an invalid delete, resync rather than corrupting state.
+      if (incoming && incoming.type === OP_DELETE && (!incoming.length || incoming.length < 0)) {
+        socketRef.emit('ot-request-state', { roomId: currentRoom });
+        return;
+      }
       applyRemoteOperation(incoming);
-      state.clientVersion = version;
+      if (nextVersion !== null) state.serverVersion = nextVersion;
     };
 
     const handleSync = ({ roomId, doc, version, syncId }) => {
@@ -962,8 +1037,9 @@ window.addEventListener('DOMContentLoaded', function() {
       }
       const nextDoc = typeof doc === 'string' ? doc : '';
       state.localDoc = nextDoc;
-      state.clientVersion = typeof version === 'number' ? version : 0;
-      state.pendingOps = [];
+      state.serverVersion = typeof version === 'number' ? version : 0;
+      outstandingOp = null;
+      bufferOps.length = 0;
       pendingSyncDoc = nextDoc;
       if (!editorRef) return;
       suppressLocal = true;
@@ -1019,8 +1095,9 @@ window.addEventListener('DOMContentLoaded', function() {
 
     const resetWithDocument = (doc, pushToServer) => {
       state.localDoc = typeof doc === 'string' ? doc : '';
-      state.pendingOps = [];
-      state.clientVersion = 0;
+      state.serverVersion = 0;
+      outstandingOp = null;
+      bufferOps.length = 0;
       if (!pushToServer) {
         lastSyncId = 0;
       }
@@ -1041,8 +1118,9 @@ window.addEventListener('DOMContentLoaded', function() {
       if (typeof syncDoc === 'string') {
         state.localDoc = syncDoc;
         if (resetPending) {
-          state.pendingOps = [];
-          state.clientVersion = 0;
+          state.serverVersion = 0;
+          outstandingOp = null;
+          bufferOps.length = 0;
         }
       }
       suppressLocal = false;
@@ -2226,7 +2304,7 @@ if (outputPanel) {
           const langId = (editor.getModel && editor.getModel()) ? editor.getModel().getLanguageId() : '';
           const fencedLang = langId ? langId : '';
           const prompt =
-            'Explain this selected code snippet clearly (what it does, important parts, and any potential issues).\n' +
+            'Explain this selected code snippet consizely.\n' +
             'If you suggest changes, provide the updated code too.\n\n' +
             '```' + fencedLang + '\n' + code + '\n```';
 

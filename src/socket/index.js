@@ -228,6 +228,14 @@ function initSocket(server, { sessionMiddleware }) {
       };
       if (sanitized.type === 'insert' && !sanitized.text) return;
       if (sanitized.type === 'delete' && !sanitized.length) return;
+
+      // If the client claims a base version in the future, don't apply it.
+      // This prevents doc corruption when clients use a wrong local counter.
+      if (sanitized.clientVersion > state.serverVersion) {
+        emitRoomSync(roomId, socket);
+        return;
+      }
+
       const applied = applyServerOperation(state, sanitized);
       io.to(roomId).emit('ot-operation', { roomId, operation: applied, version: state.serverVersion });
     });
