@@ -103,12 +103,9 @@ router.post('/inline', ensureAuth, async (req, res) => {
           }
         }
         // log raw for diagnostics (shorten to first 2000 chars)
-        if (raw && raw.toString) console.debug('[AI] raw response', modelName, (raw+'').slice(0,2000));
         let cleaned = extractFence(raw || '');
-        // If cleaning removed content but raw has something, use raw as fallback
         if (!cleaned && raw && String(raw).trim()) {
           cleaned = String(raw).trim();
-          console.warn('[AI] using raw response as fallback for model', modelName);
         }
         if (!cleaned) {
           console.warn('[AI] inline empty suggestion from model', modelName);

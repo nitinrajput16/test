@@ -409,6 +409,88 @@ body {
     background: rgba(4, 16, 12, 0.5);
 }
 
+/* Infinite supported languages bar */
+.languages-marquee {
+    width: 100%;
+    overflow: hidden;
+    padding: 0.5rem 0;
+    position: relative;
+
+    /* Fade at left/right edges; center fully visible */
+    --marquee-fade: clamp(72px, 12vw, 220px);
+    -webkit-mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        #000 var(--marquee-fade),
+        #000 calc(100% - var(--marquee-fade)),
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to right,
+        transparent 0,
+        #000 var(--marquee-fade),
+        #000 calc(100% - var(--marquee-fade)),
+        transparent 100%
+    );
+}
+
+@supports not ((mask-image: linear-gradient(to right, transparent, #000)) or (-webkit-mask-image: linear-gradient(to right, transparent, #000))) {
+    .languages-marquee::before,
+    .languages-marquee::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: var(--marquee-fade);
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .languages-marquee::before {
+        left: 0;
+        background: linear-gradient(to right, rgba(4, 16, 12, 0.85), transparent);
+    }
+
+    .languages-marquee::after {
+        right: 0;
+        background: linear-gradient(to left, rgba(4, 16, 12, 0.85), transparent);
+    }
+}
+
+.languages-marquee-track {
+    display: flex;
+    width: max-content;
+    align-items: center;
+    animation: languagesMarquee 28s linear infinite;
+    will-change: transform;
+}
+
+.languages-marquee-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+    padding-right: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .languages-marquee {
+        overflow-x: auto;
+    }
+
+    .languages-marquee-track {
+        animation: none;
+    }
+}
+
+@keyframes languagesMarquee {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
 .languages-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));

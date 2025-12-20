@@ -10,6 +10,11 @@ router.get('/', (req, res) => {
   return res.sendFile(path.join(__dirname, '../../public', 'landing.html'));
 });
 
+// Always serve landing page (even when authenticated)
+router.get('/landing', (_req, res) => {
+  return res.sendFile(path.join(__dirname, '../../public', 'landing.html'));
+});
+
 // Login
 router.get('/login', ensureGuest, (req, res) => {
   const nextPath = sanitizeReturnPath(req.query.next);

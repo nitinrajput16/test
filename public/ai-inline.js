@@ -294,6 +294,13 @@
 
     editor.addCommand(monaco.KeyCode.Tab, accept);
 
+    // Bind inside Monaco so the shortcut works even when the editor captures key events.
+    // Ctrl/Cmd + Shift + Space
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Space, () => {
+      log('Manual trigger via Monaco Ctrl/Cmd+Shift+Space');
+      force();
+    });
+
     // Keyboard shortcuts
     window.addEventListener('keydown', (e) => {
       // Ctrl+Shift+Space: Trigger AI suggestion
@@ -355,8 +362,8 @@
     // Alias for earlier expectations
     global.__AIGHOST_STATE__ = api;
 
-    // Don't auto-fetch on initialization - wait for user trigger (Ctrl+Alt+S)
-    log('AI suggestions ready. Press Ctrl+Alt+S to get suggestions.');
+    // Don't auto-fetch on initialization - wait for user trigger
+    log('AI suggestions ready. Press Ctrl/Cmd+Shift+Space to get suggestions.');
 
     return api;
   }

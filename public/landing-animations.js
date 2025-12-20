@@ -43,7 +43,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const typeTarget = document.querySelector('.hero-title .gradient-text');
             if (!typeTarget) return;
 
-            const words = ['Together', 'Collectively', 'At once', 'In sync', 'As a Team', 'With each other'];
+            const words = ['Together', 'Collectively', 'At once', 'In sync', 'As a Team', 'With all'];
             let w = 0, i = 0, deleting = false;
 
             const typeSpeed = 100;
@@ -184,39 +184,17 @@ window.addEventListener('DOMContentLoaded', () => {
         ease: 'back.out(1.7)'
     });
 
-    // Language badges animation
-    gsap.utils.toArray('.language-badge').forEach((badge, index) => {
-        gsap.from(badge, {
-            scrollTrigger: {
-                trigger: '.languages-grid',
-                start: 'top 80%',
-                toggleActions: 'play none none reverse'
-            },
-            scale: 0,
-            opacity: 0,
-            duration: 0.5,
-            delay: index * 0.05,
-            ease: 'back.out(1.7)'
-        });
-
-        // Hover animation
-        badge.addEventListener('mouseenter', () => {
-            gsap.to(badge, {
-                scale: 1.1,
-                boxShadow: '0 10px 30px rgba(0, 170, 85, 0.3)',
-                duration: 0.3,
-                ease: 'power2.out'
-            });
-        });
-
-        badge.addEventListener('mouseleave', () => {
-            gsap.to(badge, {
-                scale: 1,
-                boxShadow: '0 0 0 rgba(0, 170, 85, 0)',
-                duration: 0.3,
-                ease: 'power2.out'
-            });
-        });
+    // Supported languages marquee entrance (badges are continuously moving)
+    gsap.from('.languages-marquee', {
+        scrollTrigger: {
+            trigger: '.languages',
+            start: 'top 80%',
+            toggleActions: 'play none none reverse'
+        },
+        y: 24,
+        opacity: 0,
+        duration: 0.8,
+        ease: 'power3.out'
     });
 
     // CTA section animation

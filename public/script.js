@@ -2127,6 +2127,141 @@ if (outputPanel) {
         renderWhitespace:'selection'
       });
 
+      // ----- Ask AI on selection (small bubble near selected code) -----
+      (function setupAskAiSelection(){
+        if (!editor) return;
+
+        const askEl = document.createElement('button');
+        askEl.type = 'button';
+        askEl.className = 'ai-selection-ask';
+        askEl.textContent = 'Ask AI';
+        askEl.setAttribute('aria-hidden', 'true');
+        askEl.setAttribute('aria-label', 'Ask AI to explain selected code');
+        document.body.appendChild(askEl);
+
+        let lastSelectedText = '';
+        let updateTimer = null;
+
+        function hideAsk(){
+          askEl.setAttribute('aria-hidden', 'true');
+        }
+
+        function showAskAt(pos) {
+          const domNode = editor.getDomNode();
+          if (!domNode) return hideAsk();
+          const editorRect = domNode.getBoundingClientRect();
+          const visible = editor.getScrolledVisiblePosition(pos);
+          if (!visible) return hideAsk();
+
+          // Place in viewport coordinates; bubble is position:fixed
+          const left = editorRect.left + visible.left;
+          const top = editorRect.top + visible.top + visible.height + 8;
+          const maxLeft = Math.max(8, (window.innerWidth || 0) - 100);
+          const maxTop = Math.max(8, (window.innerHeight || 0) - 44);
+          askEl.style.left = Math.max(8, Math.min(left, maxLeft)) + 'px';
+          askEl.style.top = Math.max(8, Math.min(top, maxTop)) + 'px';
+          askEl.setAttribute('aria-hidden', 'false');
+        }
+
+        function computeSelectedText(){
+          const model = editor.getModel();
+          if (!model) return '';
+          const sel = editor.getSelection();
+          if (!sel || sel.isEmpty()) return '';
+          return model.getValueInRange(sel);
+        }
+
+        function updateAskUi(){
+          const model = editor.getModel();
+          if (!model) return hideAsk();
+          const sel = editor.getSelection();
+          if (!sel || sel.isEmpty()) {
+            lastSelectedText = '';
+            return hideAsk();
+          }
+
+          const selected = computeSelectedText();
+          // Avoid showing for tiny selections (like a single char)
+          if (!selected || selected.trim().length < 3) {
+            lastSelectedText = '';
+            return hideAsk();
+          }
+
+          // keep a safe cap so we don't send megabytes accidentally
+          lastSelectedText = selected.length > 6000 ? selected.slice(0, 6000) : selected;
+          showAskAt(sel.getEndPosition());
+        }
+
+        editor.onDidChangeCursorSelection(() => {
+          if (updateTimer) clearTimeout(updateTimer);
+          updateTimer = setTimeout(updateAskUi, 50);
+        });
+
+        editor.onDidScrollChange(() => {
+          // Hide while scrolling; do NOT clear lastSelectedText (click can happen during focus transitions).
+          hideAsk();
+        });
+
+        editor.onDidBlurEditorWidget(() => {
+          // Clicking the bubble blurs the editor; don't clear lastSelectedText here.
+          hideAsk();
+        });
+
+        // Hide if the editor node is removed/replaced
+        window.addEventListener('resize', hideAsk);
+
+        async function handleAskAi(e) {
+          if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+
+          // Re-read current selection first (more reliable than cached text)
+          const current = computeSelectedText();
+          const code = (current && current.trim().length >= 3 ? current : lastSelectedText || '').trim();
+          if (!code) return;
+
+          hideAsk();
+
+          const langId = (editor.getModel && editor.getModel()) ? editor.getModel().getLanguageId() : '';
+          const fencedLang = langId ? langId : '';
+          const prompt =
+            'Explain this selected code snippet clearly (what it does, important parts, and any potential issues).\n' +
+            'If you suggest changes, provide the updated code too.\n\n' +
+            '```' + fencedLang + '\n' + code + '\n```';
+
+          // Open AI panel and prefill input so user can edit before sending
+          try {
+            if (window.aiChat && typeof window.aiChat.open === 'function') {
+              window.aiChat.open();
+            } else {
+              const openBtn = document.getElementById('aiOpenBtn');
+              if (openBtn) openBtn.click();
+            }
+          } catch (_err) {
+            const openBtn = document.getElementById('aiOpenBtn');
+            if (openBtn) openBtn.click();
+          }
+
+          const input = document.getElementById('aiChatInput');
+          if (input) {
+            input.value = prompt;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.focus();
+          }
+        }
+
+        // Use pointerdown so we capture before editor blur clears anything
+        askEl.addEventListener('pointerdown', (e) => {
+          handleAskAi(e).catch(() => {});
+        });
+
+        // Keep click for keyboard activation (Enter/Space)
+        askEl.addEventListener('click', (e) => {
+          handleAskAi(e).catch(() => {});
+        });
+      })();
+
   // Theme toggle icon logic
       const themeToggleBtn = document.getElementById('themeToggleBtn');
       const themeToggleIcon = document.getElementById('themeToggleIcon');

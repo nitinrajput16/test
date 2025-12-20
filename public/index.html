@@ -15,12 +15,12 @@
 
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style2.css">
+    <link rel="stylesheet" href="style2.css?v=20251220">
 </head>
 <body data-room="">
   <nav class="navbar">
     <ul class="navbar-links">
-      <li><a href="/">Home</a></li>
+      <li><a href="/landing">Home</a></li>
       <li><a href="/profile">Profile</a></li>
       <li><a href="/dashboard">Dashboard</a></li>
       <li><a href="/auth/logout">Logout</a></li>
@@ -44,7 +44,7 @@
       <div id="fileToolbar" class="file-toolbar" style="display:flex;flex-direction:column;gap:8px;padding:8px; margin-bottom:6px;">
         <div style="display:flex;align-items:center;gap:8px;">
           <div style="flex:1;position:relative;display:flex;align-items:center;">
-            <span style="position:absolute;left:8px;opacity:0.7;font-size:14px;pointer-events:none;">🔍</span>
+            <span style="position:absolute;left:8px;font-size:14px;pointer-events:none;color:#fff;opacity:0.9;"><i class="fa-solid fa-magnifying-glass"></i></span>
             <input id="fileSearchInput" type="text" placeholder="Search files..." style="width:100%;padding:8px 10px 8px 34px;background:#ffffff11;border:1px solid #ffffff15;color:#fff;border-radius:6px;font-size:13px;outline:none;">
           </div>
             <button id="newFileBtnToolbar" title="New File" aria-label="New file" style="background:#0a5;color:#fff;border:none;padding:8px 12px;font-weight:bold;border-radius:6px;font-size:16px;cursor:pointer;"><i class="fa-solid fa-plus"></i></button>
@@ -56,10 +56,10 @@
       </div>
       <div class="collapsed-icons" data-panel="left" aria-hidden="true">
         <button type="button" class="collapsed-icon" title="Open files" data-action="open-files">
-          <span aria-hidden="true">📁</span>
+          <span aria-hidden="true"><i class="fa-regular fa-folder"></i></span>
         </button>
         <button type="button" class="collapsed-icon" title="Search files" data-action="search-files">
-          <span aria-hidden="true">🔍</span>
+          <span aria-hidden="true"><i class="fa-solid fa-magnifying-glass"></i></span>
         </button>
         <button type="button" class="collapsed-icon" title="New file" data-action="new-file">
           <span aria-hidden="true"><i class="fa-solid fa-upload"></i></span>
@@ -233,15 +233,37 @@
       </div>
       <div class="collapsed-icons" data-panel="right" aria-hidden="true">
         <button type="button" class="collapsed-icon" title="Live Audio">
-          <span aria-hidden="true">🎙️</span>
+          <span aria-hidden="true"><i class="fa-solid fa-microphone"></i></span>
         </button>
         <button type="button" class="collapsed-icon" title="Input / Output">
-          <span aria-hidden="true">⌨️</span>
+          <span aria-hidden="true"><i class="fa-solid fa-share"></i></span>
         </button>
         <button type="button" class="collapsed-icon" title="Users">
-          <span aria-hidden="true">👥</span>
+          <span aria-hidden="true"><i class="fa-solid fa-users"></i></span>
         </button>
       </div>
+
+      <!-- AI launcher card (compact): only shows Ask AI button -->
+      <div class="collab-card ai-chat-launch-card" id="aiChatLaunchCard">
+        <div class="card-title">Chat with AI</div>
+        <button id="aiOpenBtn" type="button" class="ai-chat-launch-btn" title="Ask AI" aria-label="Ask AI">Ask AI</button>
+      </div>
+
+      <!-- Full AI chat panel (covers right panel when open) -->
+      <div class="collab-card ai-chat-panel" id="aiChatPanel" aria-hidden="true">
+        <div class="ai-chat-panel-head">
+          <button id="aiChatBackBtn" type="button" class="ai-chat-back" title="Back" aria-label="Back">←</button>
+          <div class="card-title">Chat with AI</div>
+          <button id="aiChatNewBtn" type="button" class="ai-chat-send" title="New Chat" aria-label="New Chat">New Chat</button>
+        </div>
+        <div id="aiChatMessages" class="ai-chat-messages" aria-live="polite" aria-label="AI chat messages"></div>
+        <div class="ai-chat-input-row">
+          <textarea id="aiChatInput" placeholder="Ask something..." rows="2" aria-label="Chat input"></textarea>
+          <button id="aiChatSendBtn" type="button" class="ai-chat-send" aria-label="Send message">Send</button>
+        </div>
+        <div id="aiChatStatus" class="ai-chat-status" aria-live="polite"></div>
+      </div>
+
       <div class="collab-card voice-card">
         <div class="card-title">Live Audio</div>
         <div class="voice-box" style="margin-top:8px;border:1px dashed #0a5;padding:10px;border-radius:10px;display:flex;flex-direction:column;gap:8px;">
@@ -253,6 +275,7 @@
           <div id="voiceAudios" class="voice-audios" aria-live="polite" style="position:relative;width:100%;height:0;overflow:visible;"></div>
         </div>
       </div>
+
       <div class="collab-card share-card">
         <div class="share-card-head">
           <div>
@@ -288,6 +311,7 @@
   <script src="whiteboard.js"></script>
   <script src="audioChat.js"></script>
   <script src="ui.js"></script>
+  <script src="puter-chat.js"></script>
   <script src="panel-resize.js"></script>
   <script>
     // Mobile bottom nav markup appended dynamically for better ordering
