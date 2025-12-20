@@ -765,6 +765,9 @@ window.addEventListener('DOMContentLoaded', function() {
     // Classic OT client: 1 outstanding op + a buffer of subsequent local ops.
     let outstandingOp = null;
     const bufferOps = [];
+    let outstandingSent = false;
+    let sendTimer = null;
+    const SEND_DEBOUNCE_MS = 45;
 
     const cloneOp = (op) => {
       if (!op) return null;
@@ -855,6 +858,8 @@ window.addEventListener('DOMContentLoaded', function() {
       if (outstandingOp.type === OP_INSERT && !outstandingOp.text) return;
       if (outstandingOp.type === OP_DELETE && !outstandingOp.length) return;
 
+      outstandingSent = true;
+
       // Base the op on the last known server version.
       const enriched = {
         ...cloneOp(outstandingOp),
@@ -864,6 +869,72 @@ window.addEventListener('DOMContentLoaded', function() {
       socketRef.emit('ot-operation', { roomId: currentRoom, operation: enriched });
     };
 
+    const clearSendTimer = () => {
+      if (sendTimer) {
+        clearTimeout(sendTimer);
+        sendTimer = null;
+      }
+    };
+
+    const scheduleSendOutstanding = () => {
+      if (!socketRef || !currentRoom || !outstandingOp) return;
+      clearSendTimer();
+      // Small debounce so rapid backspaces become a single delete op (reduces remote lag).
+      sendTimer = setTimeout(() => {
+        sendTimer = null;
+        sendOutstanding();
+      }, SEND_DEBOUNCE_MS);
+    };
+
+    const mapPosToOutstandingBase = (pos) => {
+      if (!outstandingOp) return pos;
+      if (outstandingOp.type === OP_INSERT) {
+        const n = (outstandingOp.text || '').length;
+        // Current doc includes the insert; map back to base doc.
+        return pos >= outstandingOp.pos + n ? pos - n : pos;
+      }
+      // delete
+      const n = outstandingOp.length || 0;
+      return pos >= outstandingOp.pos ? pos + n : pos;
+    };
+
+    const tryMergeIntoOutstanding = (op) => {
+      if (!outstandingOp || outstandingSent) return false;
+      if (!op) return false;
+      if (outstandingOp.type !== op.type) return false;
+
+      if (op.type === OP_INSERT) {
+        const outText = outstandingOp.text || '';
+        const addText = op.text || '';
+        if (!addText) return true;
+
+        const basePos = mapPosToOutstandingBase(op.pos);
+        // Merge simple "typing" inserts: append at end of outstanding insert.
+        if (basePos === outstandingOp.pos + outText.length) {
+          outstandingOp.text = outText + addText;
+          return true;
+        }
+        return false;
+      }
+
+      // Merge adjacent/overlapping deletes into a single larger delete.
+      const baseStart = mapPosToOutstandingBase(op.pos);
+      const baseEnd = baseStart + (op.length || 0);
+      const outStart = outstandingOp.pos;
+      const outEnd = outstandingOp.pos + (outstandingOp.length || 0);
+
+      const newStart = Math.min(outStart, baseStart);
+      const newEnd = Math.max(outEnd, baseEnd);
+
+      // Only merge if the ranges touch/overlap.
+      if (baseStart <= outEnd && baseEnd >= outStart) {
+        outstandingOp.pos = newStart;
+        outstandingOp.length = Math.max(0, newEnd - newStart);
+        return true;
+      }
+      return false;
+    };
+
     const queueLocalOp = (op) => {
       if (!op) return;
       // Apply optimistically to local doc first.
@@ -871,9 +942,16 @@ window.addEventListener('DOMContentLoaded', function() {
 
       if (!outstandingOp) {
         outstandingOp = cloneOp(op);
-        sendOutstanding();
+        outstandingSent = false;
+        scheduleSendOutstanding();
         return;
       }
+
+      if (tryMergeIntoOutstanding(op)) {
+        scheduleSendOutstanding();
+        return;
+      }
+
       bufferOps.push(cloneOp(op));
     };
 
@@ -1009,10 +1087,13 @@ window.addEventListener('DOMContentLoaded', function() {
         // Server echo for our outstanding op.
         if (nextVersion !== null) state.serverVersion = nextVersion;
         outstandingOp = null;
+        outstandingSent = false;
+        clearSendTimer();
 
         if (bufferOps.length) {
           outstandingOp = bufferOps.shift();
-          sendOutstanding();
+          outstandingSent = false;
+          scheduleSendOutstanding();
         }
         return;
       }
@@ -1039,6 +1120,8 @@ window.addEventListener('DOMContentLoaded', function() {
       state.localDoc = nextDoc;
       state.serverVersion = typeof version === 'number' ? version : 0;
       outstandingOp = null;
+      outstandingSent = false;
+      clearSendTimer();
       bufferOps.length = 0;
       pendingSyncDoc = nextDoc;
       if (!editorRef) return;
@@ -1097,6 +1180,8 @@ window.addEventListener('DOMContentLoaded', function() {
       state.localDoc = typeof doc === 'string' ? doc : '';
       state.serverVersion = 0;
       outstandingOp = null;
+      outstandingSent = false;
+      clearSendTimer();
       bufferOps.length = 0;
       if (!pushToServer) {
         lastSyncId = 0;
