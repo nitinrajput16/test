@@ -114,6 +114,21 @@
 
     const history = [];
     let greeted = false;
+    let currentAbortController = null;
+    let isGenerating = false;
+
+    function updateSendButton() {
+      if (!sendBtn) return;
+      if (isGenerating) {
+        sendBtn.innerHTML = '<i class="fa-solid fa-stop"></i>';
+        sendBtn.disabled = false;
+        sendBtn.setAttribute('aria-label', 'Stop generation');
+      } else {
+        sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
+        sendBtn.disabled = false;
+        sendBtn.setAttribute('aria-label', 'Send message');
+      }
+    }
 
     function autoResizeInput() {
       if (!inputEl) return;
@@ -148,15 +163,35 @@
     }
 
     function clearChat() {
+      // Cancel any ongoing AI request first
+      if (currentAbortController) {
+        currentAbortController.abort();
+        currentAbortController = null;
+      }
+      
       if (!messagesEl) return;
       messagesEl.innerHTML = '';
       history.length = 0;
       setStatus('');
+      
+      // Re-enable inputs if they were disabled during a request
+      isGenerating = false;
+      updateSendButton();
+      if (inputEl) inputEl.disabled = false;
     }
 
     async function send(overrideText) {
       const text = (overrideText != null ? String(overrideText) : inputEl.value).trim();
       if (!text) return;
+
+      // Cancel any previous ongoing request
+      if (currentAbortController) {
+        currentAbortController.abort();
+      }
+
+      // Create new abort controller for this request
+      currentAbortController = new AbortController();
+      const thisAbortController = currentAbortController;
 
       inputEl.value = '';
       autoResizeInput();
@@ -165,14 +200,30 @@
       // keep history bounded
       if (history.length > 20) history.splice(0, history.length - 20);
 
-      sendBtn.disabled = true;
+      isGenerating = true;
+      updateSendButton();
       inputEl.disabled = true;
       setStatus('Thinking…');
       const pendingNode = appendMessage(messagesEl, 'assistant', 'Thinking', { pending: true });
+      
+      // Store reference for stopGeneration to access
+      send.currentPendingNode = pendingNode;
 
       try {
         const puter = await ensurePuter(statusEl);
+        
+        // Check if aborted before making the request
+        if (thisAbortController.signal.aborted) {
+          throw new Error('Request cancelled');
+        }
+        
         const res = await callPuterChat(puter, history);
+        
+        // Check if aborted after request completes
+        if (thisAbortController.signal.aborted) {
+          throw new Error('Request cancelled');
+        }
+        
         const answer = extractAssistantText(res).trim();
         pendingNode.classList.remove('ai-chat-msg--pending');
         pendingNode.textContent = answer || 'No response.';
@@ -180,19 +231,61 @@
         if (history.length > 20) history.splice(0, history.length - 20);
         setStatus('');
       } catch (e) {
-        pendingNode.classList.remove('ai-chat-msg--pending');
-        pendingNode.textContent = 'AI error: ' + (e && e.message ? e.message : String(e));
-        setStatus('');
+        // Don't show error if request was intentionally cancelled
+        if (thisAbortController.signal.aborted || e.message === 'Request cancelled') {
+          if (pendingNode) {
+            pendingNode.classList.remove('ai-chat-msg--pending');
+            pendingNode.textContent = 'Response cancelled.';
+            pendingNode.style.opacity = '0.7';
+            pendingNode.style.fontStyle = 'italic';
+          }
+          setStatus('');
+        } else {
+          pendingNode.classList.remove('ai-chat-msg--pending');
+          pendingNode.textContent = 'AI error: ' + (e && e.message ? e.message : String(e));
+          setStatus('');
+        }
       } finally {
-        sendBtn.disabled = false;
+        // Only clear the controller if it's still the current one
+        if (currentAbortController === thisAbortController) {
+          currentAbortController = null;
+        }
+        isGenerating = false;
+        updateSendButton();
         inputEl.disabled = false;
         inputEl.focus();
         autoResizeInput();
+        send.currentPendingNode = null;
       }
     }
 
+    function stopGeneration() {
+      if (currentAbortController) {
+        currentAbortController.abort();
+        currentAbortController = null;
+      }
+      
+      // Replace "Thinking" message with "Cancelled"
+      if (send.currentPendingNode) {
+        send.currentPendingNode.classList.remove('ai-chat-msg--pending');
+        send.currentPendingNode.textContent = 'Response cancelled by user.';
+        send.currentPendingNode.style.opacity = '0.7';
+        send.currentPendingNode.style.fontStyle = 'italic';
+        send.currentPendingNode = null;
+      }
+      
+      isGenerating = false;
+      updateSendButton();
+      inputEl.disabled = false;
+      setStatus('');
+    }
+
     sendBtn.addEventListener('click', () => {
-      send().catch(() => {});
+      if (isGenerating) {
+        stopGeneration();
+      } else {
+        send().catch(() => {});
+      }
     });
 
     inputEl.addEventListener('keydown', (e) => {

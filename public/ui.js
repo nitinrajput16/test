@@ -174,6 +174,12 @@ const UIUserPresence = (function() {
       // visual active state and icon
       if (micToggleBtn) micToggleBtn.classList.toggle('active', enabled && muted === false);
       setMicIcon(muted === true);
+      
+      // Show/hide audio volume control
+      const volumeControl = document.getElementById('audioVolumeControl');
+      if (volumeControl) {
+        volumeControl.style.display = enabled ? 'block' : 'none';
+      }
     }
 
     if (joinBtn) joinBtn.addEventListener('click', () => { if (window.voiceChat && window.voiceChat.enableVoice) window.voiceChat.enableVoice(); });

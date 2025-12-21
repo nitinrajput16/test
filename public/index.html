@@ -20,10 +20,10 @@
 <body data-room="">
   <nav class="navbar">
     <ul class="navbar-links">
-      <li><a href="/landing">Home</a></li>
-      <li><a href="/profile">Profile</a></li>
-      <li><a href="/dashboard">Dashboard</a></li>
-      <li><a href="/auth/logout">Logout</a></li>
+      <li><a href="/landing"><i class="fa-solid fa-house"></i></a></li>
+      <li><a href="/profile"><i class="fa-solid fa-user"></i></a></li>
+      <li><a href="/dashboard"><i class="fa-solid fa-border-all"></i></a></li>
+      <li><a href="/auth/logout"><i class="fa-solid fa-right-from-bracket"></i></a></li>
     </ul>
     <div class="navbar-brand">Code Collabe</div>
   </nav>
@@ -89,8 +89,8 @@
         </select>
         <div class="room-controls menu-item">
           <input type="text" id="roomInput" placeholder="Enter Room ID">
-          <button id="JoinRoomButton" type="button">Join</button>
-          <button id="RoomButton" type="button">New Room</button>
+          <button id="JoinRoomButton" type="button"><i class="fa-solid fa-user-group"></i> Join</button>
+          <button id="RoomButton" type="button"><i class="fa-solid fa-user-plus"></i> New Room</button>
         </div>
         <div class="empty-div"></div>
         <div class="menu-item">
@@ -232,6 +232,9 @@
         <div id="toolbarRoomDisplay" style="margin-left:6px;color:#cfefe0;font-size:10px;white-space:nowrap;"> ROOM ID: <span id="toolbarRoomId">loading...</span></div>
       </div>
       <div class="collapsed-icons" data-panel="right" aria-hidden="true">
+        <button type="button" class="collapsed-icon" title="Ask AI">
+          <span aria-hidden="true"><i class="fa-solid fa-brain"></i></span>
+        </button>
         <button type="button" class="collapsed-icon" title="Live Audio">
           <span aria-hidden="true"><i class="fa-solid fa-microphone"></i></span>
         </button>
@@ -246,7 +249,7 @@
       <!-- AI launcher card (compact): only shows Ask AI button -->
       <div class="collab-card ai-chat-launch-card" id="aiChatLaunchCard">
         <div class="card-title">Chat with AI</div>
-        <button id="aiOpenBtn" type="button" class="ai-chat-launch-btn" title="Ask AI" aria-label="Ask AI">Ask AI</button>
+        <button id="aiOpenBtn" type="button" class="ai-chat-launch-btn" title="Ask AI" aria-label="Ask AI">Ask AI <i class="fa-solid fa-brain"></i></button>
       </div>
 
       <!-- Full AI chat panel (covers right panel when open) -->
@@ -254,12 +257,12 @@
         <div class="ai-chat-panel-head">
           <button id="aiChatBackBtn" type="button" class="ai-chat-back" title="Back" aria-label="Back">←</button>
           <div class="card-title">Chat with AI</div>
-          <button id="aiChatNewBtn" type="button" class="ai-chat-send" title="New Chat" aria-label="New Chat">New Chat</button>
+          <button id="aiChatNewBtn" type="button" class="ai-chat-send" title="New Chat" aria-label="New Chat"><i class="fa-solid fa-comment-medical"></i></button>
         </div>
         <div id="aiChatMessages" class="ai-chat-messages" aria-live="polite" aria-label="AI chat messages"></div>
         <div class="ai-chat-input-row">
           <textarea id="aiChatInput" placeholder="Ask something..." rows="2" aria-label="Chat input"></textarea>
-          <button id="aiChatSendBtn" type="button" class="ai-chat-send" aria-label="Send message">Send</button>
+          <button id="aiChatSendBtn" type="button" class="ai-chat-send" aria-label="Send message"><i class="fa-solid fa-paper-plane"></i></button>
         </div>
         <div id="aiChatStatus" class="ai-chat-status" aria-live="polite"></div>
       </div>
@@ -271,6 +274,13 @@
             <button id="voiceJoinBtn" type="button" title="Join Voice" aria-label="Join voice" style="background:#0a5;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;"><i class="fa-solid fa-user-plus"></i></button>
             <button id="voiceMicToggleBtn" type="button" title="Toggle Mic" aria-label="Toggle microphone" style="background:transparent;color:#fff;border:1px solid #ffffff22;padding:6px 10px;border-radius:6px;cursor:pointer;"><i class="fa-solid fa-microphone"></i></button>
             <button id="voiceLeaveBtn" type="button" title="Leave Voice" aria-label="Leave voice" style="background:transparent;color:#fff;border:1px solid #ffffff22;padding:6px 10px;border-radius:6px;cursor:pointer;"><i class="fa-solid fa-right-from-bracket"></i></button>
+          </div>
+          <div id="audioVolumeControl" class="audio-volume-control" style="display:none;margin-top:4px;">
+            <div class="volume-control" title="Audio volume">
+              <i class="fa-solid fa-volume-high" id="volumeIcon"></i>
+              <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="100" step="1" aria-label="Volume control">
+              <span id="volumeValue" class="volume-value">100%</span>
+            </div>
           </div>
           <div id="voiceAudios" class="voice-audios" aria-live="polite" style="position:relative;width:100%;height:0;overflow:visible;"></div>
         </div>

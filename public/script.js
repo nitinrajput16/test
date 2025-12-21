@@ -2544,6 +2544,81 @@ if (outputPanel) {
     });
   }
 
+  // -------------- AUDIO VOLUME CONTROL ----------------
+  const volumeSlider = document.getElementById('volumeSlider');
+  const volumeIcon = document.getElementById('volumeIcon');
+  const volumeValue = document.getElementById('volumeValue');
+  let currentVolume = 1.0; // Store current volume (0-1)
+
+  // Initialize volume from localStorage
+  const savedVolume = localStorage.getItem('outputVolume');
+  if (savedVolume !== null) {
+    const volume = parseFloat(savedVolume);
+    if (!isNaN(volume) && volume >= 0 && volume <= 100) {
+      volumeSlider.value = volume;
+      currentVolume = volume / 100;
+      updateVolumeDisplay(volume);
+    }
+  }
+
+  function updateVolumeDisplay(value) {
+    volumeValue.textContent = Math.round(value) + '%';
+    
+    // Update icon based on volume level
+    if (value === 0) {
+      volumeIcon.className = 'fa-solid fa-volume-xmark';
+    } else if (value < 33) {
+      volumeIcon.className = 'fa-solid fa-volume-off';
+    } else if (value < 66) {
+      volumeIcon.className = 'fa-solid fa-volume-low';
+    } else {
+      volumeIcon.className = 'fa-solid fa-volume-high';
+    }
+  }
+
+  function applyVolumeToAllAudio() {
+    // Apply to all audio elements in the page
+    const audioElements = document.querySelectorAll('audio');
+    audioElements.forEach(audio => {
+      audio.volume = currentVolume;
+    });
+
+    // Apply to Web Audio API context if available
+    if (window.audioContext && window.audioContext.destination) {
+      // Check if a gain node is already set up
+      if (!window.masterGainNode) {
+        window.masterGainNode = window.audioContext.createGain();
+        window.masterGainNode.connect(window.audioContext.destination);
+      }
+      window.masterGainNode.gain.value = currentVolume;
+    }
+  }
+
+  function updateSliderFill() {
+    if (!volumeSlider) return;
+    const value = volumeSlider.value;
+    const percentage = (value / 100) * 100;
+    // Update the slider background to show filled portion (using actual hex color)
+    volumeSlider.style.background = `linear-gradient(to right, #00aa55 0%, #00aa55 ${percentage}%, rgba(255, 255, 255, 0.15) ${percentage}%, rgba(255, 255, 255, 0.15) 100%)`;
+  }
+
+  if (volumeSlider) {
+    volumeSlider.addEventListener('input', (e) => {
+      const value = parseFloat(e.target.value);
+      currentVolume = value / 100;
+      updateVolumeDisplay(value);
+      updateSliderFill();
+      applyVolumeToAllAudio();
+      
+      // Save to localStorage
+      localStorage.setItem('outputVolume', value);
+    });
+
+    // Apply initial volume and fill
+    updateSliderFill();
+    applyVolumeToAllAudio();
+  }
+
   // -------------- INIT SEQUENCE ----------------
   // Initialize mobile room display with initial room ID
   const mobileRoomDisplay = document.getElementById('mobileRoomDisplay');
