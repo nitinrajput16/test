@@ -24,7 +24,7 @@ function getMonacoLanguage(template) {
   return map[template] || 'plaintext';
 }
 
-window.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('DOMContentLoaded', function () {
   // --- Editor Activity Tracking ---
   let activityStarted = false;
   let heartbeatInterval = null;
@@ -86,24 +86,24 @@ window.addEventListener('DOMContentLoaded', function() {
     return new Promise((resolve) => {
       const overlay = document.createElement('div');
       overlay.className = 'modal-overlay';
-      
+
       const box = document.createElement('div');
       box.className = 'modal-box';
-      
+
       if (title) {
         const titleEl = document.createElement('div');
         titleEl.className = 'modal-title';
         titleEl.textContent = title;
         box.appendChild(titleEl);
       }
-      
+
       if (message) {
         const msgEl = document.createElement('div');
         msgEl.className = 'modal-message';
         msgEl.textContent = message;
         box.appendChild(msgEl);
       }
-      
+
       let inputEl;
       if (input) {
         inputEl = document.createElement('input');
@@ -114,10 +114,10 @@ window.addEventListener('DOMContentLoaded', function() {
         box.appendChild(inputEl);
         setTimeout(() => inputEl.focus(), 100);
       }
-      
+
       const buttonsDiv = document.createElement('div');
       buttonsDiv.className = 'modal-buttons';
-      
+
       buttons.forEach(btn => {
         const button = document.createElement('button');
         button.className = `modal-btn modal-btn-${btn.type || 'secondary'}`;
@@ -131,11 +131,11 @@ window.addEventListener('DOMContentLoaded', function() {
         });
         buttonsDiv.appendChild(button);
       });
-      
+
       box.appendChild(buttonsDiv);
       overlay.appendChild(box);
       document.body.appendChild(overlay);
-      
+
       // Handle Enter key for input
       if (inputEl) {
         inputEl.addEventListener('keydown', (e) => {
@@ -145,7 +145,7 @@ window.addEventListener('DOMContentLoaded', function() {
           }
         });
       }
-      
+
       // Close on overlay click
       overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
@@ -155,7 +155,7 @@ window.addEventListener('DOMContentLoaded', function() {
       });
     });
   }
-  
+
   function customPrompt(message, defaultValue = '') {
     return showModal({
       title: 'Input Required',
@@ -167,7 +167,7 @@ window.addEventListener('DOMContentLoaded', function() {
       ]
     });
   }
-  
+
   function customConfirm(message) {
     return showModal({
       title: 'Confirm Action',
@@ -178,7 +178,7 @@ window.addEventListener('DOMContentLoaded', function() {
       ]
     });
   }
-  
+
   function customAlert(message) {
     return showModal({
       title: 'Alert',
@@ -191,7 +191,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
   // ---------------- DOM ELEMENTS ----------------
   const fileListDiv = document.getElementById('fileList');
-  
+
   // If a static toolbar exists in HTML, bind to its elements; otherwise create dynamically
   let searchInput = document.getElementById('fileSearchInput');
   let newFileBtn = document.getElementById('newFileBtnToolbar');
@@ -232,12 +232,12 @@ window.addEventListener('DOMContentLoaded', function() {
     searchInput.style.borderRadius = '4px';
     searchInput.style.fontSize = '12px';
     searchInput.style.outline = 'none';
-    
+
     searchInput.addEventListener('focus', () => {
       searchInput.style.borderColor = '#0a5';
       searchInput.style.background = '#ffffff18';
     });
-    
+
     searchInput.addEventListener('blur', () => {
       searchInput.style.borderColor = '#ffffff15';
       searchInput.style.background = '#ffffff11';
@@ -324,7 +324,7 @@ window.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  window.setInlineWhiteboardWidth = function(width, options) {
+  window.setInlineWhiteboardWidth = function (width, options) {
     setInlinePanelWidth(width, options);
   };
 
@@ -541,7 +541,7 @@ window.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  (function bindInlineWhiteboardButtons(){
+  (function bindInlineWhiteboardButtons() {
     if (whiteboardToggleBtn && !whiteboardToggleBtn.hasAttribute('aria-pressed')) {
       whiteboardToggleBtn.setAttribute('aria-pressed', 'false');
     }
@@ -578,37 +578,72 @@ window.addEventListener('DOMContentLoaded', function() {
   })();
 
   // expose helper functions so other modules can trigger search/new actions
-  window.createNewFile = function(){
-    try{ newFileBtn && newFileBtn.click(); }catch(e){}
+  window.createNewFile = function () {
+    try { newFileBtn && newFileBtn.click(); } catch (e) { }
   };
 
-  window.focusFileSearch = function(){
-    try{ searchInput && searchInput.focus(); }catch(e){}
+  window.focusFileSearch = function () {
+    try { searchInput && searchInput.focus(); } catch (e) { }
   };
 
   // Filter file list function
   function filterFileList(searchTerm) {
-    const fileItems = fileListDiv.querySelectorAll('.file-item');
+    searchTerm = (searchTerm || '').trim();
+    // If we have the cached file list, filter at data-level so collapsed folders are searched too
+    if (lastFetchedFiles && lastFetchedFiles.length) {
+      if (!searchTerm) {
+        // show all
+        renderCachedFiles(lastFetchedFiles);
+        return;
+      }
+      const term = searchTerm.toLowerCase();
+      const filtered = lastFetchedFiles.filter(f => {
+        const name = (f.filename || '').toLowerCase();
+        const p = (f.parentPath || '').toLowerCase();
+        if (name.includes(term) || p.includes(term)) return true;
+        // match full path
+        const full = ((f.parentPath === '/' ? '' : f.parentPath) + '/' + f.filename).toLowerCase();
+        if (full.includes(term)) return true;
+        return false;
+      });
+      // Expand folders that contain matches so results are visible
+      filtered.forEach(f => {
+        const p = f.parentPath || '/';
+        if (p && p !== '/') {
+          const parts = p.split('/').filter(Boolean);
+          let acc = '';
+          parts.forEach(part => {
+            acc = acc + '/' + part;
+            expandedFolders.add(acc);
+          });
+        }
+      });
+      renderCachedFiles(filtered);
+      return;
+    }
+
+    // Fallback: simple DOM-based filter (limited to currently rendered nodes)
+    const fileItems = fileListDiv.querySelectorAll('.file-item, .file-tree-item');
     fileItems.forEach(item => {
-      const fileName = item.textContent.toLowerCase();
-      if (fileName.includes(searchTerm)) {
+      const fileName = (item.textContent || '').toLowerCase();
+      if (!searchTerm || fileName.includes(searchTerm.toLowerCase())) {
         item.style.display = 'flex';
       } else {
         item.style.display = 'none';
       }
     });
   }
-  const runBtn      = document.getElementById('runButton');
-  const saveBtn     = document.getElementById('saveButton');
-  const langSelect  = document.getElementById('language');
-  const stdinInput  = document.getElementById('stdinInput');
-  const outputEl    = document.getElementById('output');
+  const runBtn = document.getElementById('runButton');
+  const saveBtn = document.getElementById('saveButton');
+  const langSelect = document.getElementById('language');
+  const stdinInput = document.getElementById('stdinInput');
+  const outputEl = document.getElementById('output');
   const stderrOutput = document.getElementById('stderrOutput');
-  const outputTabs  = document.querySelectorAll('.output-tab');
+  const outputTabs = document.querySelectorAll('.output-tab');
   const outputSections = document.querySelectorAll('.output-section');
   const clearOutputBtn = document.getElementById('clearOutputBtn');
-  const roomInput   = document.getElementById('roomInput');
-  const roomButton  = document.getElementById('RoomButton');
+  const roomInput = document.getElementById('roomInput');
+  const roomButton = document.getElementById('RoomButton');
   const joinRoomButton = document.getElementById('JoinRoomButton');
   let shareRoomLinkInput = document.getElementById('shareRoomLink');
   let shareRoomButton = document.getElementById('shareRoomButton');
@@ -684,27 +719,27 @@ window.addEventListener('DOMContentLoaded', function() {
     'txt': 'plaintext'
   };
 
-  function setActiveOutputTab(targetId){
-    if(!outputTabs || !outputTabs.length) return;
+  function setActiveOutputTab(targetId) {
+    if (!outputTabs || !outputTabs.length) return;
     outputTabs.forEach(btn => {
       const isActive = btn.dataset.target === targetId;
       btn.classList.toggle('active', isActive);
       btn.setAttribute('aria-selected', String(isActive));
     });
-    if(outputSections && outputSections.length){
+    if (outputSections && outputSections.length) {
       outputSections.forEach(section => {
         const isActive = section.id === targetId;
         section.classList.toggle('active', isActive);
         section.setAttribute('aria-hidden', String(!isActive));
       });
     }
-    if(targetId === 'stdinSection' && stdinInput){
+    if (targetId === 'stdinSection' && stdinInput) {
       stdinInput.focus();
       stdinInput.setSelectionRange(stdinInput.value.length, stdinInput.value.length);
     }
   }
 
-  if(outputTabs && outputTabs.length){
+  if (outputTabs && outputTabs.length) {
     outputTabs.forEach(btn => {
       btn.addEventListener('click', () => {
         const target = btn.dataset.target || 'outputSection';
@@ -714,7 +749,7 @@ window.addEventListener('DOMContentLoaded', function() {
   }
 
   const defaultOutputTab = document.querySelector('.output-tab.active');
-  if(defaultOutputTab){
+  if (defaultOutputTab) {
     setActiveOutputTab(defaultOutputTab.dataset.target || 'outputSection');
   }
 
@@ -1002,13 +1037,26 @@ window.addEventListener('DOMContentLoaded', function() {
       try {
         const curPos = editorRef.getPosition && editorRef.getPosition();
         if (curPos) state.cursorOffset = model.getOffsetAt(curPos);
-      } catch (_e) {}
+      } catch (_e) { }
 
       suppressLocal = true;
+
+      // Helper to apply edits even if read-only
+      const applyEditsForce = (edits) => {
+        const wasReadOnly = editorRef.getOption(monaco.editor.EditorOption.readOnly);
+        if (wasReadOnly) {
+          editorRef.updateOptions({ readOnly: false });
+        }
+        editorRef.executeEdits('ot-remote', edits);
+        if (wasReadOnly) {
+          editorRef.updateOptions({ readOnly: true });
+        }
+      };
+
       if (op.type === OP_INSERT) {
         const insertionOffset = clamp(op.pos, 0, model.getValueLength());
         const pos = model.getPositionAt(insertionOffset);
-        editorRef.executeEdits('ot-remote-insert', [
+        applyEditsForce([
           {
             range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
             text: op.text,
@@ -1027,7 +1075,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
         const startPos = model.getPositionAt(startOffset);
         const endPos = model.getPositionAt(endOffset);
-        editorRef.executeEdits('ot-remote-delete', [
+        applyEditsForce([
           {
             range: new monaco.Range(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column),
             text: '',
@@ -1042,7 +1090,7 @@ window.addEventListener('DOMContentLoaded', function() {
       try {
         const newPos = editorRef.getPosition && editorRef.getPosition();
         if (newPos) state.cursorOffset = model.getOffsetAt(newPos);
-      } catch (_e) {}
+      } catch (_e) { }
     };
 
     const handleLocalChange = (event) => {
@@ -1224,20 +1272,20 @@ window.addEventListener('DOMContentLoaded', function() {
   otApi = createOtEngine();
 
   // ---------------- FILE UPLOAD (bind to static toolbar) ----------------
-  (function(){
+  (function () {
     const fileInput = document.getElementById('fileUploadInput');
     const uploadBtn = document.getElementById('uploadFileBtn');
 
-    async function handleUploadFile(file){
+    async function handleUploadFile(file) {
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = async function(ev){
+      reader.onload = async function (ev) {
         const content = ev.target.result;
         const filename = file.name;
         const ext = (filename.split('.').pop() || '').toLowerCase();
         const monacoLang = extToMonaco[ext] || 'plaintext';
-        try{
-          const res = await api('POST','/api/code/save',{
+        try {
+          const res = await api('POST', '/api/code/save', {
             filename,
             code: content,
             language: monacoLang,
@@ -1250,21 +1298,21 @@ window.addEventListener('DOMContentLoaded', function() {
           refreshFileList();
           logOutput('Uploaded: ' + currentFilename);
           if (otApi) otApi.resetWithDocument(content, true);
-        }catch(err){
+        } catch (err) {
           logOutput('Upload failed: ' + (err.message || err));
         }
       };
-      reader.onerror = function(){ logOutput('File read error'); };
+      reader.onerror = function () { logOutput('File read error'); };
       reader.readAsText(file, 'utf-8');
     }
 
     if (uploadBtn && fileInput) {
-      uploadBtn.addEventListener('click', function(){
+      uploadBtn.addEventListener('click', function () {
         const f = fileInput.files && fileInput.files[0];
-        if (!f){ fileInput.click(); return; }
+        if (!f) { fileInput.click(); return; }
         handleUploadFile(f);
       });
-      fileInput.addEventListener('change', function(){
+      fileInput.addEventListener('change', function () {
         const f = fileInput.files && fileInput.files[0];
         if (f) handleUploadFile(f);
       });
@@ -1272,32 +1320,32 @@ window.addEventListener('DOMContentLoaded', function() {
   })();
 
   // -------------- UTILS ----------------
-  function logOutput(msg){
+  function logOutput(msg) {
     if (!outputEl) return;
     outputEl.textContent += (outputEl.textContent ? '\n' : '') + msg;
     outputEl.scrollTop = outputEl.scrollHeight;
   }
 
-  function api(method, url, body){
+  function api(method, url, body) {
     const opts = {
       method,
       headers: {
-        'Content-Type':'application/json',
-        'Cache-Control':'no-cache'
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
       },
       cache: 'no-store',
       credentials: 'same-origin'
     };
     if (body) opts.body = JSON.stringify(body);
     return fetch(url, opts)
-      .then(r => r.json().catch(()=>({}))
+      .then(r => r.json().catch(() => ({}))
         .then(data => {
-          if(!r.ok) throw new Error(data.error || ('HTTP '+r.status));
+          if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
           return data;
         }));
   }
 
-  function markSavedSnapshot(content){
+  function markSavedSnapshot(content) {
     const snapshot = typeof content === 'string' ? content : getEditorValue();
     lastSavedHash = simpleHash(snapshot || '');
   }
@@ -1306,6 +1354,7 @@ window.addEventListener('DOMContentLoaded', function() {
     if (!currentFilename) return;
     const payload = {
       filename: currentFilename,
+      parentPath: currentParentPath || '/',
       code: content,
       language: getCurrentMonacoLanguage(),
       roomId: currentRoom
@@ -1336,7 +1385,7 @@ window.addEventListener('DOMContentLoaded', function() {
     }
     const opts = {
       method: 'POST',
-      headers: { 'Content-Type':'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     };
     if (keepalive) opts.keepalive = true;
@@ -1379,116 +1428,564 @@ window.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  function startAutosaveLoop(){
+  function startAutosaveLoop() {
     if (autosaveTimerId) clearInterval(autosaveTimerId);
     autosaveTimerId = setInterval(() => queueAutosave('interval'), AUTOSAVE_INTERVAL_MS);
   }
 
-  function autosaveOnExit(){
+  function autosaveOnExit() {
     if (!editor || !currentFilename) return;
     const content = getEditorValue();
     const hash = simpleHash(content);
-    persistDocumentContent(content, hash, { keepalive: true }).catch(()=>{});
+    persistDocumentContent(content, hash, { keepalive: true }).catch(() => { });
   }
 
-  // -------------- FILE OPERATIONS ----------------
-  function refreshFileList() {
-  api('GET','/api/code/list')
-    .then(data => {
-      fileListDiv.innerHTML = '';
-      (data.files || []).forEach(f => {
-        const name = f.filename || f;
-        const div = document.createElement('div');
-        div.className = 'file-item';
-        div.dataset.filename = name;
-        div.tabIndex = 0;
-        div.addEventListener('click', () => loadFile(name));
-        div.addEventListener('keydown', (evt) => {
-          if (evt.key === 'Enter' || evt.key === ' ') {
-            evt.preventDefault();
-            loadFile(name);
+  // -------------- FILE OPERATIONS (TREE VIEW) ----------------
+  let currentParentPath = '/';
+  const expandedFolders = new Set(['/']); // Keep root expanded by default
+  let lastFetchedFiles = null; // Cache for file list
+  // Pending inline create action: { type: 'file'|'folder', parentPath, defaultName }
+  let pendingCreate = null;
+
+  function refreshFileList(useCache = false) {
+    if (useCache && lastFetchedFiles) {
+      renderCachedFiles(lastFetchedFiles);
+      return;
+    }
+
+    api('GET', '/api/code/list')
+      .then(data => {
+        lastFetchedFiles = data.files || [];
+        renderCachedFiles(lastFetchedFiles);
+      })
+      .catch(e => logOutput('List error: ' + e.message));
+  }
+
+  function renderCachedFiles(files) {
+    fileListDiv.innerHTML = '';
+    // Build Tree Structure
+    const tree = buildFileTree(files);
+    // Render Tree
+    renderTree(tree, fileListDiv);
+  }
+
+  function buildFileTree(files) {
+    const root = { name: '', path: '/', type: 'directory', children: {} };
+
+    files.forEach(f => {
+      // Normalize paths
+      const pPath = f.parentPath || '/';
+      const fullPath = (pPath === '/' ? '' : pPath) + '/' + f.filename;
+
+      // Determine if it's a file or directory
+      const isDir = f.type === 'directory';
+
+      // Find parent node in tree
+      let current = root;
+      if (pPath !== '/') {
+        const parts = pPath.split('/').filter(Boolean);
+        parts.forEach(part => {
+          if (!current.children[part]) {
+            // Implicit folder if not found
+            current.children[part] = {
+              name: part,
+              path: (current.path === '/' ? '' : current.path) + '/' + part,
+              type: 'directory',
+              children: {}
+            };
           }
+          current = current.children[part];
         });
+      }
 
-        // File name span
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = name;
-        nameSpan.style.flex = '1';
-        nameSpan.style.cursor = 'pointer';
-        div.appendChild(nameSpan);
-
-        // Rename icon
-        const renameBtn = document.createElement('button');
-        renameBtn.innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
-        renameBtn.title = 'Rename file';
-        renameBtn.style.marginLeft = '8px';
-        renameBtn.style.background = 'none';
-        renameBtn.style.border = 'none';
-        renameBtn.style.cursor = 'pointer';
-        renameBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const newName = await customPrompt('Enter new filename:', name);
-          if (!newName || newName === name) return;
-          api('POST', '/api/code/rename', { oldName: name, newName })
-            .then(() => {
-              if (currentFilename === name) currentFilename = newName;
-              if (window.socket) window.socket.emit('filelist-changed');
-              refreshFileList();
-              logOutput('Renamed to: ' + newName);
-            })
-            .catch(e => logOutput('Rename error: ' + e.message));
-        });
-        div.appendChild(renameBtn);
-
-        // Delete icon styled for file list
-        const deleteBtn = document.createElement('button');
-        deleteBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>'; // trash can icon
-        deleteBtn.title = 'Delete file';
-        deleteBtn.className = 'file-delete-btn';
-        deleteBtn.style.marginLeft = '4px';
-        deleteBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const confirmed = await customConfirm('Delete file: ' + name + '?');
-          if (!confirmed) return;
-          api('DELETE', '/api/code/delete', { filename: name })
-            .then(() => {
-              if (currentFilename === name) {
-                currentFilename = null;
-                setEditorValue('', true, 'delete-file');
-                if (otApi) otApi.resetWithDocument('', true);
-                markSavedSnapshot('');
-                needFileListRefresh = false;
-              }
-              if (window.socket) window.socket.emit('filelist-changed');
-              refreshFileList();
-              logOutput('Deleted: ' + name);
-            })
-            .catch(e => logOutput('Delete error: ' + e.message));
-        });
-        div.appendChild(deleteBtn);
-
-        div.style.display = 'flex';
-        div.style.alignItems = 'center';
-
-        if (f.updatedAt || f.language || f.size != null) {
-          div.title = [
-            f.language,
-            f.updatedAt && new Date(f.updatedAt).toLocaleString(),
-            (f.size != null) && (f.size + ' chars')
-          ].filter(Boolean).join(' \u2022 ');
+      // Add text/folder node
+      if (isDir) {
+        if (!current.children[f.filename]) {
+          current.children[f.filename] = {
+            name: f.filename,
+            path: fullPath,
+            type: 'directory',
+            children: {},
+            ...f
+          };
+        } else {
+          // Merge if implicit node existed
+          Object.assign(current.children[f.filename], f, { type: 'directory' });
         }
-        if (name === currentFilename) div.classList.add('active');
-        fileListDiv.appendChild(div);
-      });
-    })
-    .catch(e => logOutput('List error: '+e.message));
-}
-
-  function highlightActiveFile(){
-    [...fileListDiv.children].forEach(ch => {
-      const fname = ch.dataset && ch.dataset.filename;
-      ch.classList.toggle('active', fname === currentFilename);
+      } else {
+        current.children[f.filename] = {
+          name: f.filename,
+          path: fullPath,
+          type: 'file',
+          ...f
+        };
+      }
     });
+
+    return root;
+  }
+
+
+  function highlightActiveFile() {
+    // Re-render from cache to update active class in tree
+    refreshFileList(true);
+  }
+
+  function renderTree(node, container, depth = 0) {
+    // Sort children: folders first, then files
+    const children = Object.values(node.children).sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    const ul = document.createElement('div');
+    ul.className = 'file-tree-list';
+
+    // If creating directly under this node, show the inline input at top
+    if (pendingCreate && node.path === pendingCreate.parentPath) {
+      const inlineRowTop = createInlineCreateRow(pendingCreate);
+      ul.appendChild(inlineRowTop);
+    }
+
+    children.forEach(child => {
+      // If there's a pending create and it targets this node's path and we're rendering the parent container,
+      // we'll insert the inline input row before rendering actual children. We handle insertion when child is the first.
+      const item = document.createElement('div');
+      item.className = 'file-tree-item';
+
+      const row = document.createElement('div');
+      row.className = 'file-tree-row';
+      row.dataset.path = child.path;
+      row.style.paddingLeft = (depth * 12 + 8) + 'px'; // Indentation
+
+      // 1. Chevron (for folders only)
+      if (child.type === 'directory') {
+        const chevron = document.createElement('i');
+        chevron.className = 'fa-solid fa-chevron-right tree-chevron';
+        if (expandedFolders.has(child.path)) {
+          chevron.classList.add('expanded');
+        }
+        row.appendChild(chevron);
+      } else {
+        // Spacer for files to align with folders
+        const spacer = document.createElement('span');
+        spacer.className = 'tree-chevron spacer'; // Use same width
+        row.appendChild(spacer);
+      }
+
+      // 2. Icon (Folder / File Type)
+      const icon = document.createElement('i');
+      icon.className = 'fa-solid tree-icon';
+      if (child.type === 'directory') {
+        icon.classList.add(expandedFolders.has(child.path) ? 'fa-folder-open' : 'fa-folder', 'folder');
+      } else {
+        icon.className = 'fa-solid tree-icon ' + getFileIconClass(child.name);
+      }
+      row.appendChild(icon);
+
+      // 3. Label
+      const label = document.createElement('span');
+      label.textContent = child.name;
+      label.className = 'file-tree-label';
+      row.appendChild(label);
+
+      // 3-Dot Menu Button
+      const menuBtn = document.createElement('button');
+      menuBtn.className = 'three-dot-btn';
+      menuBtn.innerHTML = '<i class="fa-solid fa-ellipsis-vertical"></i>';
+      menuBtn.title = 'More actions';
+      menuBtn.onclick = (e) => {
+        e.stopPropagation();
+        showDropdownMenu(e, child, menuBtn);
+      };
+      row.appendChild(menuBtn);
+
+      // Event Listeners
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (child.type === 'directory') {
+          toggleFolder(child.path);
+        } else {
+          loadFile(child.name, child.parentPath);
+        }
+      });
+
+      // (No contextmenu listener anymore)
+
+      item.appendChild(row);
+
+      // Render Children if expanded
+      if (child.type === 'directory' && expandedFolders.has(child.path)) {
+        const childrenContainer = document.createElement('div');
+        childrenContainer.className = 'file-tree-children';
+        renderTree(child, childrenContainer, depth + 1);
+        item.appendChild(childrenContainer);
+      }
+
+      ul.appendChild(item);
+    });
+
+    container.appendChild(ul);
+  }
+
+  function getFileIconClass(filename) {
+    if (filename.endsWith('.js')) return 'fa-brands fa-js js';
+    if (filename.endsWith('.html')) return 'fa-brands fa-html5 html';
+    if (filename.endsWith('.css')) return 'fa-brands fa-css3-alt css';
+    if (filename.endsWith('.py')) return 'fa-brands fa-python py';
+    if (filename.endsWith('.json')) return 'fa-solid fa-file-code default';
+    return 'fa-solid fa-file default';
+  }
+
+  function createInlineCreateRow(pending) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'file-tree-item inline-create';
+
+    const row = document.createElement('div');
+    row.className = 'file-tree-row';
+    row.style.paddingLeft = '24px';
+
+    const spacer = document.createElement('span');
+    spacer.className = 'tree-chevron spacer';
+    row.appendChild(spacer);
+
+    const input = document.createElement('input');
+    input.className = 'inline-create-input';
+    input.placeholder = pending.type === 'file' ? 'New file name (e.g. main.js)' : 'New folder name';
+    input.value = pending.defaultName || '';
+    input.style.flex = '1';
+    input.style.marginRight = '6px';
+    row.appendChild(input);
+
+    const okBtn = document.createElement('button');
+    okBtn.className = 'inline-create-icon-btn';
+    okBtn.setAttribute('title', 'Create');
+    okBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const doCreate = async () => {
+      const name = input.value && input.value.trim();
+      if (!name) return;
+      try {
+        if (pending.type === 'file') {
+          await api('POST', '/api/code/save', { filename: name, parentPath: pending.parentPath, code: '', language: getLanguageFromFilename(name) });
+          expandedFolders.add(pending.parentPath);
+          loadFile(name, pending.parentPath);
+        } else {
+          await api('POST', '/api/code/create-folder', { filename: name, parentPath: pending.parentPath });
+          expandedFolders.add(pending.parentPath);
+        }
+        if (window.socket) window.socket.emit('filelist-changed');
+      } catch (err) {
+        logOutput('Error: ' + (err.message || err));
+      }
+      cleanup();
+    };
+    okBtn.addEventListener('click', doCreate);
+    row.appendChild(okBtn);
+
+    wrapper.appendChild(row);
+    // focus input after insertion
+    setTimeout(() => input.focus(), 60);
+
+    // Cleanup helper
+    const cleanup = () => {
+      pendingCreate = null;
+      removeOutsideListener();
+      refreshFileList();
+    };
+
+    // Click-outside handler to cancel
+    const outsideHandler = (ev) => {
+      if (!wrapper.contains(ev.target)) {
+        cleanup();
+      }
+    };
+
+    const removeOutsideListener = () => {
+      document.removeEventListener('click', outsideHandler);
+    };
+
+    // Attach outside click listener (delay to avoid immediate trigger)
+    setTimeout(() => document.addEventListener('click', outsideHandler), 50);
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doCreate();
+      if (e.key === 'Escape') cleanup();
+    });
+    return wrapper;
+  }
+
+  function toggleFolder(path) {
+    if (expandedFolders.has(path)) {
+      expandedFolders.delete(path);
+    } else {
+      expandedFolders.add(path);
+    }
+    refreshFileList(true);
+  }
+
+  // --- 3-Dot Dropdown Logic ---
+  let dropdownEl = null;
+  let activeMenuBtn = null;
+
+  function showDropdownMenu(e, node, btn) {
+    if (!dropdownEl) createDropdown();
+
+    // Close if clicking same button
+    if (activeMenuBtn === btn && dropdownEl.style.display === 'block') {
+      hideDropdown();
+      return;
+    }
+
+    activeMenuBtn = btn;
+    btn.classList.add('active');
+
+    const menu = dropdownEl;
+    menu.innerHTML = '';
+
+    const actions = [];
+    if (node.type === 'directory') {
+      actions.push({ label: 'New File', icon: 'fa-file-circle-plus', action: () => createNewFileIn(node.path) });
+      actions.push({ label: 'New Folder', icon: 'fa-folder-plus', action: () => createNewFolderIn(node.path) });
+      actions.push({ separator: true });
+    }
+    // Rename/Delete for BOTH files and folders now
+    actions.push({ label: 'Rename', icon: 'fa-pen', action: () => handleRename(node) });
+    actions.push({ label: 'Delete', icon: 'fa-trash', action: () => handleDelete(node) });
+
+    actions.forEach(item => {
+      if (item.separator) {
+        const sep = document.createElement('div');
+        sep.className = 'tree-dropdown-separator';
+        menu.appendChild(sep);
+      } else {
+        const div = document.createElement('div');
+        div.className = 'tree-dropdown-item';
+        div.innerHTML = `<i class="fa-solid ${item.icon}" style="width:16px"></i> ${item.label}`;
+        div.onclick = () => {
+          hideDropdown();
+          item.action();
+        };
+        menu.appendChild(div);
+      }
+    });
+
+    menu.style.display = 'block';
+
+    // Position near button
+    const btnRect = btn.getBoundingClientRect();
+    let top = btnRect.bottom + 2;
+    let left = btnRect.right - 140; // Align right edge roughly
+
+    // Adjust if offscreen
+    if (left < 10) left = 10;
+    if (top + menu.offsetHeight > window.innerHeight) {
+      top = btnRect.top - menu.offsetHeight - 2; // Show above
+    }
+
+    menu.style.left = left + 'px';
+    menu.style.top = top + 'px';
+
+    // Click outside to close
+    setTimeout(() => {
+      const closeMenu = (ev) => {
+        if (dropdownEl.contains(ev.target)) return;
+        hideDropdown();
+        document.removeEventListener('click', closeMenu);
+      };
+      document.addEventListener('click', closeMenu);
+    }, 10);
+  }
+
+  function hideDropdown() {
+    if (dropdownEl) dropdownEl.style.display = 'none';
+    if (activeMenuBtn) {
+      activeMenuBtn.classList.remove('active');
+      activeMenuBtn = null;
+    }
+  }
+
+  function createDropdown() {
+    dropdownEl = document.createElement('div');
+    dropdownEl.className = 'tree-dropdown';
+    document.body.appendChild(dropdownEl);
+  }
+
+  async function createNewFileIn(parentPath) {
+    // show inline input in the file tree instead of modal
+    pendingCreate = { type: 'file', parentPath, defaultName: '' };
+    expandedFolders.add(parentPath);
+    refreshFileList();
+  }
+
+  async function createNewFolderIn(parentPath) {
+    // show inline input in the file tree instead of modal
+    pendingCreate = { type: 'folder', parentPath, defaultName: '' };
+    expandedFolders.add(parentPath);
+    refreshFileList();
+  }
+
+  async function handleRename(node) {
+    // Inline rename: replace the label with an input in-place
+    const selector = `.file-tree-row[data-path="${node.path}"]`;
+    let row = document.querySelector(selector);
+    if (!row) {
+      // If the row isn't present (collapsed or not rendered), expand parent and refresh then try again
+      if (node.parentPath) expandedFolders.add(node.parentPath);
+      refreshFileList();
+      // try to find after a short delay
+      await new Promise(r => setTimeout(r, 80));
+      row = document.querySelector(selector);
+      if (!row) return; // give up
+    }
+
+    // Prevent multiple rename inputs
+    if (document.querySelector('.file-tree-item.inline-rename')) return;
+
+    const label = row.querySelector('.file-tree-label');
+    if (!label) return;
+
+    const originalText = label.textContent;
+    const container = row.parentElement || row;
+
+    // Create inline input
+    const renameWrapper = document.createElement('div');
+    renameWrapper.className = 'file-tree-item inline-rename';
+    const renameRow = document.createElement('div');
+    renameRow.className = 'file-tree-row';
+    renameRow.style.paddingLeft = row.style.paddingLeft || '24px';
+
+    const spacer = document.createElement('span');
+    spacer.className = 'tree-chevron spacer';
+    renameRow.appendChild(spacer);
+
+    const input = document.createElement('input');
+    input.className = 'inline-rename-input';
+    input.value = node.name || '';
+    input.style.flex = '1';
+    input.style.marginRight = '6px';
+    renameRow.appendChild(input);
+
+    const okBtn = document.createElement('button');
+    okBtn.className = 'inline-create-icon-btn';
+    okBtn.setAttribute('title', 'Rename');
+    okBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 20h4l10-10a2.828 2.828 0 000-4l-2-2a2.828 2.828 0 00-4 0L6 14v4z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    renameRow.appendChild(okBtn);
+
+    renameWrapper.appendChild(renameRow);
+
+    // Insert rename row right after the target row's parent container's node
+    const item = row.closest('.file-tree-item') || row;
+    item.parentNode.insertBefore(renameWrapper, item.nextSibling);
+
+    // focus
+    setTimeout(() => input.focus(), 40);
+
+    const cleanup = () => {
+      if (renameWrapper && renameWrapper.parentNode) renameWrapper.parentNode.removeChild(renameWrapper);
+      document.removeEventListener('click', outsideHandler);
+      // ensure pendingCreate unaffected
+    };
+
+    const doRename = async () => {
+      const newName = input.value && input.value.trim();
+      if (!newName || newName === node.name) { cleanup(); return; }
+      try {
+        await api('POST', '/api/code/rename', {
+          oldName: node.name,
+          newName,
+          oldParentPath: node.parentPath,
+          newParentPath: node.parentPath,
+          type: node.type
+        });
+        if (currentFilename === node.name && currentParentPath === node.parentPath) {
+          currentFilename = newName;
+        }
+        if (window.socket) window.socket.emit('filelist-changed');
+      } catch (err) {
+        logOutput('Rename error: ' + (err.message || err));
+      }
+      cleanup();
+      refreshFileList();
+    };
+
+    okBtn.addEventListener('click', doRename);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') doRename();
+      if (e.key === 'Escape') cleanup();
+    });
+
+    const outsideHandler = (ev) => {
+      if (!renameWrapper.contains(ev.target)) cleanup();
+    };
+
+    setTimeout(() => document.addEventListener('click', outsideHandler), 30);
+  }
+
+  async function handleDelete(node) {
+    const msg = node.type === 'directory'
+      ? 'Delete folder "' + node.name + '" and ALL its contents?'
+      : 'Delete file "' + node.name + '"?';
+
+    if (!await customConfirm(msg)) return;
+
+    api('DELETE', '/api/code/delete', {
+      filename: node.name,
+      parentPath: node.parentPath,
+      type: node.type
+    })
+      .then(() => {
+        if (currentFilename === node.name && currentParentPath === node.parentPath) {
+          currentFilename = null;
+          currentParentPath = '/';
+          setEditorValue('', true, 'delete-file');
+        }
+        if (window.socket) window.socket.emit('filelist-changed');
+        refreshFileList();
+      })
+      .catch(e => logOutput('Delete error: ' + e.message));
+  }
+
+  // Inject Toolbar
+  function injectToolbar() {
+    const container = fileListDiv.parentElement;
+    if (container && !container.querySelector('#treeActions')) {
+      const toolbar = document.createElement('div');
+      toolbar.id = 'treeActions';
+      toolbar.className = 'tree-toolbar';
+      toolbar.innerHTML = `
+            <button id="newFileBtn" title="New File"><i class="fa-solid fa-file-circle-plus"></i></button>
+            <button id="newFolderBtn" title="New Folder"><i class="fa-solid fa-folder-plus"></i></button>
+        `;
+      container.insertBefore(toolbar, fileListDiv);
+
+      document.getElementById('newFileBtn').onclick = createNewFile;
+      document.getElementById('newFolderBtn').onclick = createNewFolder;
+    }
+  }
+  // Call it immediately if strict placement isn't an issue, or call in refresh
+  setTimeout(injectToolbar, 500);
+
+  async function createNewFile() {
+    // Toolbar button - create inline at root
+    pendingCreate = { type: 'file', parentPath: '/', defaultName: '' };
+    expandedFolders.add('/');
+    refreshFileList();
+  }
+
+  async function createNewFolder() {
+    // Toolbar button - create inline at root
+    pendingCreate = { type: 'folder', parentPath: '/', defaultName: '' };
+    expandedFolders.add('/');
+    refreshFileList();
+  }
+
+  function getLanguageFromFilename(name) {
+    const ext = name.split('.').pop();
+    return extToMonaco[ext] || 'plaintext';
+  }
+
+  function highlightActiveFile() {
+    refreshFileList();
   }
 
   function setLanguageSelectByMonaco(monacoLang) {
@@ -1514,64 +2011,53 @@ window.addEventListener('DOMContentLoaded', function() {
     pendingLanguageMonaco = null;
   }
 
-  function loadFile(name){
-    api('GET','/api/code/load?filename='+encodeURIComponent(name))
+  function loadFile(name, parentPath = '/') {
+    const pPath = parentPath || '/';
+
+    api('GET', `/api/code/load?filename=${encodeURIComponent(name)}&parentPath=${encodeURIComponent(pPath)}`)
       .then(data => {
         currentFilename = data.filename;
-        setEditorValue(data.code, true, 'load-file');
+        currentParentPath = data.parentPath || '/';
+
+        setEditorValue(data.code || '', true, 'load-file');
         setEditorLanguageByFilename(data.filename);
-        highlightActiveFile();
-        logOutput('Loaded: '+data.filename);
+
+        if (otApi) otApi.resetWithDocument(data.code || '', false);
+        lastSavedHash = simpleHash(data.code || '');
+
+        logOutput(`Loaded: ${currentFilename}`);
+        refreshFileList(); // Re-highlight active
+
         markSavedSnapshot(data.code);
         needFileListRefresh = false;
-        if (socket) {
-          socket.emit('active-file', { roomId: currentRoom, filename: data.filename, language: data.language });
+
+        if (window.socket) {
+          window.socket.emit('active-file', { roomId: currentRoom, filename: currentFilename, parentPath: currentParentPath, language: data.language });
         }
-        if (otApi) otApi.resetWithDocument(data.code, true);
       })
-      .catch(e => logOutput('Load error: '+e.message));
+      .catch(e => {
+        logOutput('Load error: ' + e.message);
+      });
   }
 
-  async function saveFile(){
-    if (!currentFilename){
-      const proposed = 'file'+Date.now()+'.js';
+  async function saveFile() {
+    if (!currentFilename) {
+      const proposed = 'file' + Date.now() + '.js';
       const name = await customPrompt('Enter filename (with extension):', proposed);
       if (!name) return;
       currentFilename = name.trim();
+      currentParentPath = '/'; // Default for quick save? Or ask?
     }
     const content = getEditorValue();
     const hash = simpleHash(content);
-    const isEmptyPayload = hash === EMPTY_DOC_HASH;
-    const previouslySavedNonEmpty = lastSavedHash !== null && lastSavedHash !== EMPTY_DOC_HASH;
-    if (isEmptyPayload && previouslySavedNonEmpty) {
-      const confirmed = await customConfirm('This will erase the previously saved content for '+currentFilename+'. Save empty file?');
-      if (!confirmed) return;
-    }
-    const languageOption = langSelect && langSelect.options[langSelect.selectedIndex];
-    const language = (languageOption && languageOption.dataset && languageOption.dataset.monaco) || 'plaintext';
-    api('POST','/api/code/save',{
-      filename: currentFilename,
-      code: content,
-      language,
-      roomId: currentRoom
-    })
-      .then(d => {
-        currentFilename = d.filename;
-        highlightActiveFile();
-        logOutput('Saved: '+d.filename);
-        refreshFileList();
-        markSavedSnapshot(content);
-        emptySaveWarningShown = false;
-        needFileListRefresh = false;
-        if (socket) {
-          socket.emit('active-file', { roomId: currentRoom, filename: d.filename, language: getCurrentMonacoLanguage() });
-        }
-      })
-      .catch(e => logOutput('Save error: '+e.message));
+    persistDocumentContent(content, hash).then(() => {
+      logOutput('Saved ' + currentFilename);
+    });
   }
 
+
   // -------------- RUN CODE ----------------
-  function runCode(){
+  function runCode() {
     if (!langSelect) {
       logOutput('Language select missing');
       return;
@@ -1579,9 +2065,9 @@ window.addEventListener('DOMContentLoaded', function() {
     runBtn.disabled = true;
     logOutput('Running...');
     if (stderrOutput) stderrOutput.textContent = 'Waiting for stderr...';
-    api('POST','/api/code/run',{
+    api('POST', '/api/code/run', {
       source_code: getEditorValue(),
-      language_id: parseInt(langSelect.value,10),
+      language_id: parseInt(langSelect.value, 10),
       stdin: stdinInput.value
     })
       .then(d => {
@@ -1610,33 +2096,33 @@ window.addEventListener('DOMContentLoaded', function() {
         setActiveOutputTab('errorsSection');
         logOutput('Run failed. See Errors tab for details.');
       })
-      .finally(()=> runBtn.disabled = false);
+      .finally(() => runBtn.disabled = false);
   }
 
-  function formatRunResult(d){
-    const lines=[];
+  function formatRunResult(d) {
+    const lines = [];
     // if(d.status) lines.push('Status: '+(d.status.description || d.status.id));
-    if(d.stdout) lines.push('STDOUT:\n'+d.stdout);
-    if(d.stderr) lines.push('STDERR:\n'+d.stderr);
-    if(d.compile_output) lines.push('COMPILER:\n'+d.compile_output);
-    if(!d.stdout && !d.stderr && !d.compile_output) lines.push('(no output)');
+    if (d.stdout) lines.push('STDOUT:\n' + d.stdout);
+    if (d.stderr) lines.push('STDERR:\n' + d.stderr);
+    if (d.compile_output) lines.push('COMPILER:\n' + d.compile_output);
+    if (!d.stdout && !d.stderr && !d.compile_output) lines.push('(no output)');
     return lines.join('\n\n');
   }
 
-  function updateErrorPanel(result){
-    if(!stderrOutput) return;
+  function updateErrorPanel(result) {
+    if (!stderrOutput) return;
     const segments = [];
-    if(result && typeof result.stderr === 'string' && result.stderr.trim()){
+    if (result && typeof result.stderr === 'string' && result.stderr.trim()) {
       segments.push('STDERR\n' + result.stderr.trim());
     }
-    if(result && typeof result.compile_output === 'string' && result.compile_output.trim()){
+    if (result && typeof result.compile_output === 'string' && result.compile_output.trim()) {
       segments.push('COMPILER\n' + result.compile_output.trim());
     }
     stderrOutput.textContent = segments.length ? segments.join('\n\n') : 'No stderr output.';
   }
 
   // -------------- SOCKET / COLLAB ----------------
-  function initSocket(){
+  function initSocket() {
     if (typeof io === 'undefined') {
       console.error('[Socket] io not loaded.');
       return;
@@ -1694,42 +2180,8 @@ window.addEventListener('DOMContentLoaded', function() {
         if (user.color) nameSpan.style.color = user.color;
         userItem.appendChild(nameSpan);
 
-        const muteBtn = document.createElement('button');
-        muteBtn.className = 'user-mute-btn';
-        // If this entry corresponds to our socket id, make it control local mic
-        const myId = (window.socket && window.socket.id) || (window.user && (window.user._id || window.user.googleId)) || 'me';
-        const isMe = isCurrentSocket || (normalizedUserId && normalizedUserId === myId) || (user.isMe === true);
-        if (isMe) { muteBtn.textContent = 'Mute (you)'; muteBtn.dataset.isMe = '1'; }
-        else { muteBtn.textContent = 'Mute'; }
-
-        // local override flag
-        muteBtn.dataset.muted = '0';
-
-        muteBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          // If it's me, toggle local mic
-          if (isMe) {
-            if (window.voiceChat && window.voiceChat.toggleMute) {
-              window.voiceChat.toggleMute();
-            }
-            return;
-          }
-          // For others: toggle local mute preference via audio module (persists and applies when audio arrives)
-          const peerId = uid;
-          const currentlyMuted = muteBtn.dataset.muted === '1';
-          const newMuted = !currentlyMuted;
-          muteBtn.dataset.muted = newMuted ? '1' : '0';
-          muteBtn.textContent = newMuted ? 'Unmute' : 'Mute';
-          userItem.classList.toggle('muted', newMuted);
-          if (window.voiceChat && typeof window.voiceChat.setRemoteMuted === 'function') {
-            window.voiceChat.setRemoteMuted(peerId, newMuted);
-          } else {
-            // fallback: try to find audio element and mute it
-            const audio = document.querySelector(`audio[data-peer-id="${peerId}"]`);
-            if (audio) audio.muted = newMuted;
-          }
-        });
-        userItem.appendChild(muteBtn);
+        // Mute controls are provided by owner-controls module to avoid duplication.
+        // owner-controls.js will augment existing user items with mute/menu buttons when needed.
 
         usersListDiv.appendChild(userItem);
       };
@@ -1749,12 +2201,18 @@ window.addEventListener('DOMContentLoaded', function() {
       if (!usersListDiv) return;
       const item = usersListDiv.querySelector(`.user-item[data-peer-id="${peerId}"]`);
       if (item) {
-        const btn = item.querySelector('.user-mute-btn');
+        const btn = item.querySelector('.user-action-btn.mute, .user-mute-btn');
         if (btn) {
-          if (btn.dataset && btn.dataset.isMe) {
-            btn.textContent = muted ? 'Unmute' : 'Mute (you)';
+          const isMe = btn.dataset && btn.dataset.isMe;
+          // Use icon-only buttons (no text) for mute state
+          if (isMe) {
+            btn.innerHTML = muted ? '<i class="fa-solid fa-volume-xmark"></i>' : '<i class="fa-solid fa-volume-high"></i>';
+            btn.title = muted ? 'Muted (you)' : 'Unmuted (you)';
           } else {
-            if (btn.dataset.muted !== '1') btn.textContent = muted ? 'Unmute' : 'Mute';
+            if (btn.dataset.muted !== '1') {
+              btn.innerHTML = muted ? '<i class="fa-solid fa-volume-xmark"></i>' : '<i class="fa-solid fa-volume-high"></i>';
+              btn.title = muted ? 'Muted' : 'Unmuted';
+            }
           }
         }
         item.classList.toggle('muted', !!muted);
@@ -1769,8 +2227,11 @@ window.addEventListener('DOMContentLoaded', function() {
       const myId = (window.socket && window.socket.id) || (window.user && (window.user._id || window.user.googleId)) || 'me';
       const item = usersListDiv.querySelector(`.user-item[data-peer-id="${myId}"]`);
       if (item) {
-        const btn = item.querySelector('.user-mute-btn');
-        if (btn) btn.textContent = muted ? 'Unmute' : 'Mute (you)';
+        const btn = item.querySelector('.user-action-btn.mute, .user-mute-btn');
+        if (btn) {
+          btn.innerHTML = muted ? '<i class="fa-solid fa-volume-xmark"></i>' : '<i class="fa-solid fa-volume-high"></i>';
+          btn.title = muted ? 'Muted (you)' : 'Unmuted (you)';
+        }
         item.classList.toggle('muted', !!muted);
       }
     });
@@ -1862,55 +2323,55 @@ window.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
-const outputPanel = document.getElementById('panelOutput');
-if (outputPanel) {
-  let isResizing = false;
-  let startY = 0;
-  let startHeight = 0;
-  const edgeThreshold = 6; // pixels from top edge
+  const outputPanel = document.getElementById('panelOutput');
+  if (outputPanel) {
+    let isResizing = false;
+    let startY = 0;
+    let startHeight = 0;
+    const edgeThreshold = 6; // pixels from top edge
 
-  // Change cursor when near the top edge
-  outputPanel.addEventListener('mousemove', (e) => {
-    const rect = outputPanel.getBoundingClientRect();
-    if (e.clientY <= rect.top + edgeThreshold) {
-      outputPanel.style.cursor = 'ns-resize';
-    } else {
-      outputPanel.style.cursor = 'default';
-    }
-  });
+    // Change cursor when near the top edge
+    outputPanel.addEventListener('mousemove', (e) => {
+      const rect = outputPanel.getBoundingClientRect();
+      if (e.clientY <= rect.top + edgeThreshold) {
+        outputPanel.style.cursor = 'ns-resize';
+      } else {
+        outputPanel.style.cursor = 'default';
+      }
+    });
 
-  // Start resizing when mousedown on top edge
-  outputPanel.addEventListener('mousedown', (e) => {
-    const rect = outputPanel.getBoundingClientRect();
-    if (e.clientY <= rect.top + edgeThreshold) {
-      isResizing = true;
-      startY = e.clientY;
-      startHeight = rect.height;
-      document.body.style.userSelect = 'none'; // prevent text selection
-    }
-  });
+    // Start resizing when mousedown on top edge
+    outputPanel.addEventListener('mousedown', (e) => {
+      const rect = outputPanel.getBoundingClientRect();
+      if (e.clientY <= rect.top + edgeThreshold) {
+        isResizing = true;
+        startY = e.clientY;
+        startHeight = rect.height;
+        document.body.style.userSelect = 'none'; // prevent text selection
+      }
+    });
 
-  // Handle dragging
-  document.addEventListener('mousemove', (e) => {
-    if (!isResizing) return;
-    const deltaY = startY - e.clientY; // note the minus for top dragging
-    const newHeight = startHeight + deltaY;
-    outputPanel.style.height = Math.max(150, Math.min(800, newHeight)) + 'px';
-  });
+    // Handle dragging
+    document.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+      const deltaY = startY - e.clientY; // note the minus for top dragging
+      const newHeight = startHeight + deltaY;
+      outputPanel.style.height = Math.max(150, Math.min(800, newHeight)) + 'px';
+    });
 
-  // Stop resizing on mouseup
-  document.addEventListener('mouseup', () => {
-    if (isResizing) {
-      isResizing = false;
-      document.body.style.userSelect = 'auto';
-      outputPanel.style.cursor = 'default';
-      if (typeof applyWorkspaceResizeEffects === 'function') applyWorkspaceResizeEffects();
-    }
-  });
-}
+    // Stop resizing on mouseup
+    document.addEventListener('mouseup', () => {
+      if (isResizing) {
+        isResizing = false;
+        document.body.style.userSelect = 'auto';
+        outputPanel.style.cursor = 'default';
+        if (typeof applyWorkspaceResizeEffects === 'function') applyWorkspaceResizeEffects();
+      }
+    });
+  }
 
 
-  function joinRoom(roomId){
+  function joinRoom(roomId) {
     currentRoom = roomId;
     window.currentRoom = currentRoom;
     window.WHITEBOARD_ROOM = roomId;
@@ -1929,11 +2390,11 @@ if (outputPanel) {
     if (otApi) otApi.resetWithDocument(getEditorValue(), false);
     socket.emit('join-room', roomId);
     if (otApi) otApi.requestState(roomId);
-    logOutput('Joined room: '+roomId);
-    
+    logOutput('Joined room: ' + roomId);
+
     // Update mobile top bar with room ID
     const mobileRoomDisplay = document.getElementById('mobileRoomDisplay');
-    if(mobileRoomDisplay){
+    if (mobileRoomDisplay) {
       mobileRoomDisplay.textContent = 'Room ID: ' + roomId;
     }
     // Update toolbar room display in left panel
@@ -1973,7 +2434,7 @@ if (outputPanel) {
   setupPresenceCursor();
 
   // --- COLLABORATIVE CARET SHARING ---
-  (function() {
+  (function () {
     let remoteCaretDecorations = {};
     let remoteCaretOffsets = {};
     let remoteSelectionDecorations = {};
@@ -2091,7 +2552,7 @@ if (outputPanel) {
       emitSelectionUpdate();
       socket.on('remote-caret', (payload) => {
         if (!editor) return;
-  const myId = getMyUserId();
+        const myId = getMyUserId();
         // If payload contains allCarets, update all remote carets
         if (Array.isArray(payload.allCarets)) {
           // Remove all previous remote caret decorations for users not in the new list
@@ -2203,7 +2664,7 @@ if (outputPanel) {
   })();
 
   // -------------- MONACO INIT ----------------
-  function initMonaco(){
+  function initMonaco() {
     if (typeof require === 'undefined') {
       console.error('[Monaco] AMD loader not found. Ensure loader script is included.');
       return;
@@ -2223,16 +2684,16 @@ if (outputPanel) {
         inherit: true,
         rules: [
           { token: 'comment', foreground: '4b6f59' },
-          { token: 'string',  foreground: 'c38b72' },
+          { token: 'string', foreground: 'c38b72' },
           { token: 'keyword', foreground: '3fae76' },
-          { token: 'number',  foreground: '6fbf96' }
+          { token: 'number', foreground: '6fbf96' }
         ],
         colors: {
           'editor.background': '#04100c',
-          'editorLineNumber.foreground':'#1e4c39',
-          'editorCursor.foreground':'#4fd89b',
-          'editorBracketMatch.border':'#0a5',
-          'editor.lineHighlightBackground':'#ffffff10'
+          'editorLineNumber.foreground': '#1e4c39',
+          'editorCursor.foreground': '#4fd89b',
+          'editorBracketMatch.border': '#0a5',
+          'editor.lineHighlightBackground': '#ffffff10'
         }
       });
 
@@ -2260,7 +2721,7 @@ if (outputPanel) {
         };
         return map[template] || null;
       }
-      let initialLang = (langSelect && judge0ToMonaco[parseInt(langSelect.value,10)]) || 'javascript';
+      let initialLang = (langSelect && judge0ToMonaco[parseInt(langSelect.value, 10)]) || 'javascript';
       const template = getTemplateFromURL();
       if (template) {
         const langFromTemplate = getMonacoLanguage(template);
@@ -2281,17 +2742,17 @@ if (outputPanel) {
       editor = monaco.editor.create(document.getElementById('editor'), {
         value: '',
         language: initialLang,
-        minimap: { enabled:false },
+        minimap: { enabled: false },
         automaticLayout: true,
-        fontSize:16,
-        theme:'collabDark',
-        fontFamily:'JetBrains Mono, Menlo, Consolas, "Courier New", monospace',
-        scrollBeyondLastLine:false,
-        renderWhitespace:'selection'
+        fontSize: 16,
+        theme: 'collabDark',
+        fontFamily: 'JetBrains Mono, Menlo, Consolas, "Courier New", monospace',
+        scrollBeyondLastLine: false,
+        renderWhitespace: 'selection'
       });
 
       // ----- Ask AI on selection (small bubble near selected code) -----
-      (function setupAskAiSelection(){
+      (function setupAskAiSelection() {
         if (!editor) return;
 
         const askEl = document.createElement('button');
@@ -2305,7 +2766,7 @@ if (outputPanel) {
         let lastSelectedText = '';
         let updateTimer = null;
 
-        function hideAsk(){
+        function hideAsk() {
           askEl.setAttribute('aria-hidden', 'true');
         }
 
@@ -2326,7 +2787,7 @@ if (outputPanel) {
           askEl.setAttribute('aria-hidden', 'false');
         }
 
-        function computeSelectedText(){
+        function computeSelectedText() {
           const model = editor.getModel();
           if (!model) return '';
           const sel = editor.getSelection();
@@ -2334,7 +2795,7 @@ if (outputPanel) {
           return model.getValueInRange(sel);
         }
 
-        function updateAskUi(){
+        function updateAskUi() {
           const model = editor.getModel();
           if (!model) return hideAsk();
           const sel = editor.getSelection();
@@ -2416,21 +2877,21 @@ if (outputPanel) {
 
         // Use pointerdown so we capture before editor blur clears anything
         askEl.addEventListener('pointerdown', (e) => {
-          handleAskAi(e).catch(() => {});
+          handleAskAi(e).catch(() => { });
         });
 
         // Keep click for keyboard activation (Enter/Space)
         askEl.addEventListener('click', (e) => {
-          handleAskAi(e).catch(() => {});
+          handleAskAi(e).catch(() => { });
         });
       })();
 
-  // Theme toggle icon logic
+      // Theme toggle icon logic
       const themeToggleBtn = document.getElementById('themeToggleBtn');
       const themeToggleIcon = document.getElementById('themeToggleIcon');
       let currentTheme = 'collabDark';
       if (themeToggleBtn && themeToggleIcon) {
-        themeToggleBtn.addEventListener('click', function() {
+        themeToggleBtn.addEventListener('click', function () {
           if (currentTheme === 'collabDark') {
             monaco.editor.setTheme('vs');
             currentTheme = 'vs';
@@ -2472,16 +2933,16 @@ if (outputPanel) {
       }
 
     }, err => {
-      logOutput('Monaco load error: '+err.message);
+      logOutput('Monaco load error: ' + err.message);
       console.error(err);
-    }); 
+    });
   }
 
-  function getEditorValue(){
+  function getEditorValue() {
     return editor ? editor.getValue() : '';
   }
 
-  function setEditorValue(val, suppressOt = true, source = 'unknown'){
+  function setEditorValue(val, suppressOt = true, source = 'unknown') {
     const safeVal = typeof val === 'string' ? val : '';
     if (!editor) {
       pendingEditorValue = safeVal;
@@ -2494,10 +2955,10 @@ if (outputPanel) {
   }
 
   // -------------- LANGUAGE CHANGE ----------------
-  if (langSelect){
+  if (langSelect) {
     langSelect.addEventListener('change', () => {
       if (!editor || !window.monaco) return;
-      const langId = parseInt(langSelect.value,10);
+      const langId = parseInt(langSelect.value, 10);
       const newLang = judge0ToMonaco[langId] || 'javascript';
       const model = editor.getModel();
       if (model) {
@@ -2511,7 +2972,7 @@ if (outputPanel) {
 
   // -------------- ROOM HANDLING ----------------
   // Create Room button: generate unique string, show in output, and join
-  if (roomButton){
+  if (roomButton) {
     roomButton.addEventListener('click', () => {
       // Generate a unique room string (8 chars, alphanumeric)
       const roomId = 'room-' + Math.random().toString(36).slice(2, 10);
@@ -2535,7 +2996,7 @@ if (outputPanel) {
   }
 
   // -------------- BUTTON EVENTS ----------------
-  if (runBtn)  runBtn.addEventListener('click', runCode);
+  if (runBtn) runBtn.addEventListener('click', runCode);
   if (saveBtn) saveBtn.addEventListener('click', saveFile);
 
   if (clearOutputBtn && outputEl) {
@@ -2563,7 +3024,7 @@ if (outputPanel) {
 
   function updateVolumeDisplay(value) {
     volumeValue.textContent = Math.round(value) + '%';
-    
+
     // Update icon based on volume level
     if (value === 0) {
       volumeIcon.className = 'fa-solid fa-volume-xmark';
@@ -2609,7 +3070,7 @@ if (outputPanel) {
       updateVolumeDisplay(value);
       updateSliderFill();
       applyVolumeToAllAudio();
-      
+
       // Save to localStorage
       localStorage.setItem('outputVolume', value);
     });
@@ -2622,7 +3083,7 @@ if (outputPanel) {
   // -------------- INIT SEQUENCE ----------------
   // Initialize mobile room display with initial room ID
   const mobileRoomDisplay = document.getElementById('mobileRoomDisplay');
-  if(mobileRoomDisplay){
+  if (mobileRoomDisplay) {
     mobileRoomDisplay.textContent = 'Room ID: #' + currentRoom;
   }
   // Initialize toolbar room display (left panel) with initial room ID
@@ -2632,7 +3093,7 @@ if (outputPanel) {
   updateShareRoomLink(currentRoom);
   updateRoomQueryParam(currentRoom);
   setShareRoomButtonState('default');
-  
+
   initSocket();
   initMonaco();
   refreshFileList();

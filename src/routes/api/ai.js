@@ -3,7 +3,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { ensureAuth } = require('../../middleware/auth');
 
 const router = express.Router();
-const DEFAULT_MODEL = 'gemini-2.5-pro';
+const DEFAULT_MODEL = 'gemma-3-27b';
 const configuredModel = process.env.GEMINI_INLINE_MODEL || DEFAULT_MODEL;
 const envFallbacks = (process.env.GEMINI_FALLBACK_MODELS || '')
   .split(',')
@@ -13,10 +13,9 @@ const FALLBACK_MODELS = Array.from(new Set([
   configuredModel,
   ...envFallbacks,
   // prefer flash (lower-latency) models where available
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
+  'gemini-2.5-flash-lite',
   DEFAULT_MODEL,
-  'gemini-2.5-pro'
+  'gemma-3-27b'
 ].filter(Boolean)));
 const modelCache = new Map();
 

@@ -63,9 +63,9 @@ router.post('/run', ensureAuth, async (req, res) => {
 router.get('/list', ensureAuth, async (req, res) => {
   try {
     const docs = await CodeFile.find(
-    { googleId: req.user.googleId },
-      'filename language updatedAt size'
-    ).sort({ updatedAt: -1 }).lean();
+      { googleId: req.user.googleId },
+      'filename parentPath type language updatedAt size'
+    ).sort({ type: 1, filename: 1 }).lean(); // Sort folders first if we want, or handle in client
     res.json({ files: docs });
   } catch (e) {
     res.status(500).json({ error: 'Failed to list files' });
@@ -75,10 +75,15 @@ router.get('/list', ensureAuth, async (req, res) => {
 // Load file
 router.get('/load', ensureAuth, async (req, res) => {
   try {
-    const { filename } = req.query;
+    const { filename, parentPath } = req.query;
     if (!filename) return res.status(400).json({ error: 'filename required' });
-    const doc = await CodeFile.findOne({ googleId: req.user.googleId, filename });
+
+    // Default to root if not provided (backward compatibility)
+    const pPath = parentPath || '/';
+
+    const doc = await CodeFile.findOne({ googleId: req.user.googleId, filename, parentPath: pPath });
     if (!doc) return res.status(404).json({ error: 'File not found' });
+
     const codeValue = typeof doc.code === 'string'
       ? doc.code
       : (Buffer.isBuffer(doc.code)
@@ -91,6 +96,7 @@ router.get('/load', ensureAuth, async (req, res) => {
     res.set('Expires', '0');
     res.json({
       filename: doc.filename,
+      parentPath: doc.parentPath,
       code: codeValue,
       language: doc.language,
       updatedAt: doc.updatedAt
@@ -103,69 +109,151 @@ router.get('/load', ensureAuth, async (req, res) => {
 // Save (create/update)
 router.post('/save', ensureAuth, async (req, res) => {
   try {
-    let { filename, code, language, roomId } = req.body || {};
+    let { filename, parentPath, code, language, roomId } = req.body || {};
     if (!filename) return res.status(400).json({ error: 'filename required' });
     if (!FILENAME_REGEX.test(filename)) {
       return res.status(400).json({ error: 'Invalid filename' });
     }
+
+    const pPath = parentPath || '/';
     code = code || '';
     language = language || 'plaintext';
     const now = new Date();
-      const doc = await CodeFile.findOneAndUpdate(
-        { googleId: req.user.googleId, filename },
+
+    const doc = await CodeFile.findOneAndUpdate(
+      { googleId: req.user.googleId, filename, parentPath: pPath },
       {
         $set: {
           code,
           language,
           size: code.length,
-          updatedAt: now
+          updatedAt: now,
+          type: 'file'
         },
         $setOnInsert: {
-            googleId: req.user.googleId,
+          googleId: req.user.googleId,
           filename,
+          parentPath: pPath,
           createdAt: now
         }
       },
       { new: true, upsert: true }
     );
-    res.json({ filename: doc.filename, updatedAt: doc.updatedAt });
+    res.json({ filename: doc.filename, parentPath: doc.parentPath, updatedAt: doc.updatedAt });
   } catch (e) {
     if (e.code === 11000) {
-      return res.status(409).json({ error: 'Duplicate filename' });
+      return res.status(409).json({ error: 'Duplicate filename in this folder' });
     }
     res.status(500).json({ error: 'Failed to save file' });
+  }
+});
+
+// Create Folder
+router.post('/create-folder', ensureAuth, async (req, res) => {
+  try {
+    let { filename, parentPath } = req.body || {};
+    if (!filename) return res.status(400).json({ error: 'Folder name required' });
+    if (!FILENAME_REGEX.test(filename)) return res.status(400).json({ error: 'Invalid folder name' });
+
+    const pPath = parentPath || '/';
+    const now = new Date();
+
+    const doc = await CodeFile.create({
+      googleId: req.user.googleId,
+      filename,
+      parentPath: pPath,
+      type: 'directory',
+      code: '',
+      language: '',
+      createdAt: now,
+      updatedAt: now
+    });
+
+    res.json({ filename: doc.filename, parentPath: doc.parentPath, type: 'directory' });
+  } catch (e) {
+    if (e.code === 11000) {
+      return res.status(409).json({ error: 'Folder already exists' });
+    }
+    res.status(500).json({ error: 'Failed to create folder' });
   }
 });
 
 // Delete
 router.delete('/delete', ensureAuth, async (req, res) => {
   try {
-    const { filename } = req.body || {};
+    const { filename, parentPath, type } = req.body || {};
     if (!filename) return res.status(400).json({ error: 'filename required' });
-    await CodeFile.deleteOne({ googleId: req.user.googleId, filename });
+
+    const pPath = parentPath || '/';
+
+    if (type === 'directory') {
+      // Recursive delete: find all files that start with proper path prefix
+      // Folder path is: parentPath + filename + '/'
+      // e.g. parentPath='/', filename='src' -> prefix='/src/'
+      // e.g. parentPath='/src', filename='comp' -> prefix='/src/comp/'
+
+      const folderFullPath = (pPath === '/' ? '' : pPath) + '/' + filename;
+      const regex = new RegExp('^' + folderFullPath + '(/|$)');
+
+      // Delete the folder itself
+      await CodeFile.deleteOne({ googleId: req.user.googleId, filename, parentPath: pPath, type: 'directory' });
+
+      // Delete children
+      await CodeFile.deleteMany({ googleId: req.user.googleId, parentPath: regex });
+
+    } else {
+      await CodeFile.deleteOne({ googleId: req.user.googleId, filename, parentPath: pPath });
+    }
+
     res.json({ deleted: true });
   } catch (e) {
-    res.status(500).json({ error: 'Failed to delete file' });
+    res.status(500).json({ error: 'Failed to delete' });
   }
 });
 
-// Rename
+// Rename (and Move)
 router.post('/rename', ensureAuth, async (req, res) => {
   try {
-    const { oldName, newName } = req.body || {};
+    const { oldName, newName, oldParentPath, newParentPath, type } = req.body || {};
     if (!oldName || !newName) return res.status(400).json({ error: 'oldName & newName required' });
     if (!FILENAME_REGEX.test(newName)) {
       return res.status(400).json({ error: 'Invalid new filename' });
     }
-    const file = await CodeFile.findOne({ googleId: req.user.googleId, filename: oldName });
+
+    const oPath = oldParentPath || '/';
+    const nPath = newParentPath || oPath; // Default to same path if not moving
+
+    // Check target existence
+    const existing = await CodeFile.findOne({ googleId: req.user.googleId, filename: newName, parentPath: nPath });
+    if (existing) return res.status(409).json({ error: 'Target already exists' });
+
+    const file = await CodeFile.findOne({ googleId: req.user.googleId, filename: oldName, parentPath: oPath });
     if (!file) return res.status(404).json({ error: 'Original file not found' });
-    const dupe = await CodeFile.findOne({ googleId: req.user.googleId, filename: newName });
-    if (dupe) return res.status(409).json({ error: 'New filename already exists' });
+
     file.filename = newName;
+    file.parentPath = nPath;
     await file.save();
-    res.json({ renamed: true, filename: newName });
+
+    // If directory, move/rename children
+    if (type === 'directory') {
+      const oldFullPath = (oPath === '/' ? '' : oPath) + '/' + oldName;
+      const newFullPath = (nPath === '/' ? '' : nPath) + '/' + newName;
+
+      // Find all children
+      const regex = new RegExp('^' + oldFullPath + '(/|$)');
+      const children = await CodeFile.find({ googleId: req.user.googleId, parentPath: regex });
+
+      for (const child of children) {
+        // Replace prefix in parentPath
+        // e.g. /old/path/child -> /new/path/child
+        child.parentPath = child.parentPath.replace(oldFullPath, newFullPath);
+        await child.save();
+      }
+    }
+
+    res.json({ renamed: true, filename: newName, parentPath: nPath });
   } catch (e) {
-    res.status(500).json({ error: 'Failed to rename file' });
+    res.status(500).json({ error: 'Failed to rename/move' });
   }
 });
 

@@ -38,6 +38,41 @@ router.get('/google/callback',
   }
 );
 
+  // GitHub OAuth
+  router.get('/github', (req, res, next) => {
+    const nextPath = sanitizeReturnPath(req.query.next || (req.session && req.session.returnTo));
+    if (nextPath && req.session) {
+      req.session.returnTo = nextPath;
+    }
+    const authOptions = { scope: ['user:email'] };
+    if (nextPath) {
+      authOptions.state = encodeURIComponent(nextPath);
+    }
+    return passport.authenticate('github', authOptions)(req, res, next);
+  });
+
+  // GitHub callback
+  router.get('/github/callback',
+    passport.authenticate('github', { failureRedirect: '/login?error=oauth_failed' }),
+    (req, res) => {
+      let stored = req.session && req.session.returnTo;
+      if (req.session) delete req.session.returnTo;
+      let safePath = sanitizeReturnPath(stored);
+      if (!safePath) {
+        let fromState = null;
+        if (typeof req.query.state === 'string') {
+          try {
+            fromState = sanitizeReturnPath(decodeURIComponent(req.query.state));
+          } catch (_err) {
+            fromState = null;
+          }
+        }
+        safePath = fromState || '/editor';
+      }
+      return res.redirect(safePath);
+    }
+  );
+
 // Status JSON (debug)
 router.get('/status', (req, res) => {
   res.json({

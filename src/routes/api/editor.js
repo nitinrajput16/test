@@ -54,13 +54,18 @@ router.get('/today', ensureAuth, async (req, res) => {
 });
 
 // Cleanup old sessions at 00:00 IST
-schedule.scheduleJob('0 0 * * *', async () => {
-  // Runs at 00:00 IST (server time must be UTC or IST)
-  const now = new Date();
-  const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-  const dateStr = istNow.toISOString().slice(0,10);
-  await EditorSession.deleteMany({ date: { $ne: dateStr } });
-  console.log('EditorSession cleanup done for', dateStr);
+// Scheduled cleanup: delete finished sessions older than retention, but keep open sessions (no 'end')
+const RETENTION_DAYS = parseInt(process.env.EDITOR_SESSION_RETENTION_DAYS || '30', 10);
+schedule.scheduleJob('5 3 * * *', async () => {
+  try {
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - RETENTION_DAYS * 24 * 60 * 60 * 1000);
+    // Only delete sessions that have an 'end' timestamp older than cutoff.
+    const res = await EditorSession.deleteMany({ end: { $exists: true, $lt: cutoff } });
+    console.log('[EditorSession] cleanup: removed', res.deletedCount, 'sessions older than', RETENTION_DAYS, 'days');
+  } catch (err) {
+    console.warn('[EditorSession] scheduled cleanup failed:', err && err.message);
+  }
 });
 
 module.exports = router;

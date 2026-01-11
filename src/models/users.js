@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
   googleId: { type: String, trim: true, index: true },
+  githubId: { type: String, trim: true, index: true },
+  passwordHash: { type: String, trim: true },
   displayName: { type: String, trim: true },
   provider: { type: String, trim: true }, // 'google'
   avatar: { type: String, trim: true }

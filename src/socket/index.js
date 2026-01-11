@@ -43,6 +43,13 @@ function initSocket(server, { sessionMiddleware }) {
   const roomPresence = new Map(); // roomId -> Set<userId>
   const roomDocs = new Map(); // roomId -> { serverDoc, serverVersion, history }
   const roomBoards = new Map(); // roomId -> Array of whiteboard items
+  const roomChats = new Map(); // roomId -> Array of chat messages { userId, name, text, time, color }
+
+  // Room Owner System
+  const roomOwners = new Map();    // roomId -> ownerId (first user to join)
+  const roomSettings = new Map();  // roomId -> { readOnly: boolean }
+  const roomBlockList = new Map(); // roomId -> Set<userId>
+
 
   function cloneBoardSnapshot(input) {
     try {
@@ -150,19 +157,54 @@ function initSocket(server, { sessionMiddleware }) {
       if (!roomId) return;
       // Use _id or googleId as unique id
       const uniqueId = getSocketUserId();
+
+      // Check if user is blocked from this room
+      if (roomBlockList.has(roomId) && roomBlockList.get(roomId).has(uniqueId)) {
+        socket.emit('room-blocked', { roomId, message: 'You have been blocked from this room.' });
+        return;
+      }
+
       socket.join(roomId);
       addPresence(roomId, uniqueId);
+
+      // Assign owner if this is the first user in the room
+      if (!roomOwners.has(roomId)) {
+        roomOwners.set(roomId, uniqueId);
+        console.log('[Room] Owner assigned:', uniqueId, 'for room', roomId);
+      }
+
+      // Initialize room settings if not present
+      if (!roomSettings.has(roomId)) {
+        roomSettings.set(roomId, { readOnly: false });
+      }
+
       // Add to presence map
-  if (!roomUserPresence.has(roomId)) roomUserPresence.set(roomId, {});
-  // Patch user object for downstream use and store socket id for mapping
-  const userInfo = Object.assign({}, user, { id: uniqueId });
-  roomUserPresence.get(roomId)[uniqueId] = getUserInfo(userInfo, undefined, socket.id);
-  assignColors(roomId);
-  io.to(roomId).emit('presence-update', roomUserPresence.get(roomId));
-  // Emit current users array to the room (clients expect an array of user info)
-  io.to(roomId).emit('user-name', Object.values(roomUserPresence.get(roomId)));
+      if (!roomUserPresence.has(roomId)) roomUserPresence.set(roomId, {});
+      // Patch user object for downstream use and store socket id for mapping
+      const userInfo = Object.assign({}, user, { id: uniqueId });
+      const isOwner = roomOwners.get(roomId) === uniqueId;
+      roomUserPresence.get(roomId)[uniqueId] = { ...getUserInfo(userInfo, undefined, socket.id), isOwner };
+      assignColors(roomId);
+
+      // Emit room owner info to the joining user
+      socket.emit('room-owner', {
+        roomId,
+        ownerId: roomOwners.get(roomId),
+        isOwner,
+        settings: roomSettings.get(roomId)
+      });
+
+      io.to(roomId).emit('presence-update', roomUserPresence.get(roomId));
+      // Emit current users array to the room (clients expect an array of user info)
+      io.to(roomId).emit('user-name', Object.values(roomUserPresence.get(roomId)));
 
       emitRoomSync(roomId, socket);
+
+      // Send chat history to the joining user
+      if (roomChats.has(roomId)) {
+        socket.emit('chat-history', { messages: roomChats.get(roomId) });
+      }
+
 
       // --- Emit all carets to all users in the room ---
       const allCaretsMap = roomUserPresence.get(roomId);
@@ -217,6 +259,16 @@ function initSocket(server, { sessionMiddleware }) {
 
     socket.on('ot-operation', ({ roomId, operation }) => {
       if (!roomId || !operation) return;
+
+      // Block editing if room is read-only (unless user is owner)
+      const settings = roomSettings.get(roomId);
+      const senderId = getSocketUserId();
+      const isOwner = roomOwners.get(roomId) === senderId;
+      if (settings && settings.readOnly && !isOwner) {
+        socket.emit('room-readonly-error', { message: 'Room is in read-only mode. Only the owner can edit.' });
+        return;
+      }
+
       const state = getRoomState(roomId);
       const sanitized = {
         type: operation.type === 'delete' ? 'delete' : 'insert',
@@ -357,7 +409,10 @@ function initSocket(server, { sessionMiddleware }) {
     socket.on('whiteboard:clear', ({ roomId }) => {
       if (!roomId) return;
       socket.to(roomId).emit('whiteboard:clear');
+      socket.to(roomId).emit('whiteboard:clear');
       roomBoards.set(roomId, []);
+      // Optional: Clear chat too? For now, we keep chat distinct.
+      // if (roomChats.has(roomId)) roomChats.set(roomId, []); 
     });
 
     // Reconnection: send full stroke history
@@ -365,6 +420,160 @@ function initSocket(server, { sessionMiddleware }) {
       if (!roomId) return;
       const board = cloneBoardSnapshot(getBoardState(roomId));
       socket.emit('whiteboard:sync', { board });
+    });
+
+    // --- Chat persistence ---
+    socket.on('chat-history-request', ({ roomId }) => {
+      if (!roomId) return;
+      if (roomChats.has(roomId)) {
+        socket.emit('chat-history', { messages: roomChats.get(roomId) });
+      }
+    });
+
+    socket.on('chat-message', ({ roomId, text }) => {
+      if (!roomId || !text || !String(text).trim()) return;
+
+      const senderId = getSocketUserId();
+      // Ensure we have user info
+      if (!roomUserPresence.has(roomId)) roomUserPresence.set(roomId, {});
+      let uInfo = roomUserPresence.get(roomId)[senderId];
+      if (!uInfo) {
+        // Fallback if not tracked yet
+        uInfo = getUserInfo(user, undefined, socket.id);
+        roomUserPresence.get(roomId)[senderId] = uInfo;
+        assignColors(roomId);
+      } else if (!uInfo.color) {
+        assignColors(roomId);
+      }
+
+      const msg = {
+        userId: senderId,
+        name: uInfo.name,
+        text: String(text).trim(),
+        time: Date.now(),
+        color: uInfo.color
+      };
+
+      if (!roomChats.has(roomId)) roomChats.set(roomId, []);
+      const history = roomChats.get(roomId);
+      history.push(msg);
+      // Limit history to last 50 messages
+      if (history.length > 50) history.shift();
+
+      io.to(roomId).emit('chat-message', msg);
+    });
+
+    socket.on('chat-clear', ({ roomId }) => {
+      if (!roomId) return;
+      // Optional: authorize who can clear? For now, anyone in room.
+      if (roomChats.has(roomId)) {
+        roomChats.set(roomId, []); // Clear memory
+      }
+      io.to(roomId).emit('chat-clear'); // Broadcast to all
+    });
+
+    // --- ROOM OWNER CONTROLS ---
+
+    // Toggle read-only mode
+    socket.on('room-settings', ({ roomId, readOnly }) => {
+      if (!roomId) return;
+      const senderId = getSocketUserId();
+      const ownerId = roomOwners.get(roomId);
+      if (senderId !== ownerId) {
+        socket.emit('room-error', { message: 'Only the room owner can change settings.' });
+        return;
+      }
+      if (!roomSettings.has(roomId)) {
+        roomSettings.set(roomId, { readOnly: false });
+      }
+      roomSettings.get(roomId).readOnly = !!readOnly;
+      console.log('[Room] Settings updated:', roomId, roomSettings.get(roomId));
+      io.to(roomId).emit('room-settings-update', { roomId, settings: roomSettings.get(roomId) });
+    });
+
+    // Kick a member from the room
+    socket.on('room-kick', ({ roomId, targetUserId }) => {
+      if (!roomId || !targetUserId) return;
+      const senderId = getSocketUserId();
+      const ownerId = roomOwners.get(roomId);
+      if (senderId !== ownerId) {
+        socket.emit('room-error', { message: 'Only the room owner can kick members.' });
+        return;
+      }
+      if (targetUserId === ownerId) {
+        socket.emit('room-error', { message: 'You cannot kick yourself.' });
+        return;
+      }
+      // Find target socket and disconnect from room
+      const clients = io.sockets.adapter.rooms.get(roomId);
+      if (clients) {
+        for (const clientId of clients) {
+          const clientSocket = io.sockets.sockets.get(clientId);
+          if (!clientSocket) continue;
+          const clientUser = clientSocket.user;
+          const clientUserId = (clientUser && (clientUser._id ? String(clientUser._id) : (clientUser.googleId ? String(clientUser.googleId) : (clientUser.id ? String(clientUser.id) : null)))) || clientSocket.id;
+          if (clientUserId === targetUserId) {
+            clientSocket.emit('room-kicked', { roomId, message: 'You have been kicked from this room by the owner.' });
+            clientSocket.leave(roomId);
+            // Remove from presence
+            if (roomUserPresence.has(roomId)) {
+              delete roomUserPresence.get(roomId)[targetUserId];
+            }
+            removePresence(roomId, targetUserId);
+            console.log('[Room] Kicked:', targetUserId, 'from', roomId);
+            break;
+          }
+        }
+      }
+      // Broadcast updated presence
+      const presenceSnapshot = roomUserPresence.has(roomId) ? roomUserPresence.get(roomId) : {};
+      io.to(roomId).emit('presence-update', presenceSnapshot);
+      io.to(roomId).emit('user-name', Object.values(presenceSnapshot));
+    });
+
+    // Block a member from the room (permanent until server restart)
+    socket.on('room-block', ({ roomId, targetUserId }) => {
+      if (!roomId || !targetUserId) return;
+      const senderId = getSocketUserId();
+      const ownerId = roomOwners.get(roomId);
+      if (senderId !== ownerId) {
+        socket.emit('room-error', { message: 'Only the room owner can block members.' });
+        return;
+      }
+      if (targetUserId === ownerId) {
+        socket.emit('room-error', { message: 'You cannot block yourself.' });
+        return;
+      }
+      // Add to block list
+      if (!roomBlockList.has(roomId)) {
+        roomBlockList.set(roomId, new Set());
+      }
+      roomBlockList.get(roomId).add(targetUserId);
+      console.log('[Room] Blocked:', targetUserId, 'from', roomId);
+
+      // Kick the user if they are currently in the room
+      const clients = io.sockets.adapter.rooms.get(roomId);
+      if (clients) {
+        for (const clientId of clients) {
+          const clientSocket = io.sockets.sockets.get(clientId);
+          if (!clientSocket) continue;
+          const clientUser = clientSocket.user;
+          const clientUserId = (clientUser && (clientUser._id ? String(clientUser._id) : (clientUser.googleId ? String(clientUser.googleId) : (clientUser.id ? String(clientUser.id) : null)))) || clientSocket.id;
+          if (clientUserId === targetUserId) {
+            clientSocket.emit('room-blocked', { roomId, message: 'You have been blocked from this room by the owner.' });
+            clientSocket.leave(roomId);
+            if (roomUserPresence.has(roomId)) {
+              delete roomUserPresence.get(roomId)[targetUserId];
+            }
+            removePresence(roomId, targetUserId);
+            break;
+          }
+        }
+      }
+      // Broadcast updated presence
+      const presenceSnapshot = roomUserPresence.has(roomId) ? roomUserPresence.get(roomId) : {};
+      io.to(roomId).emit('presence-update', presenceSnapshot);
+      io.to(roomId).emit('user-name', Object.values(presenceSnapshot));
     });
 
     // --- BROADCAST ALL REMOTE CARET POSITIONS TO ALL USERS IN ROOM ---
