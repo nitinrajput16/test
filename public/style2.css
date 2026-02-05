@@ -2904,11 +2904,43 @@ html {
   display: flex;
   align-items: center;
   padding: 4px 8px;
-  cursor: pointer;
+  cursor: default;
   border-radius: 4px;
   transition: background 0.2s;
   color: #ccc;
   position: relative;
+}
+
+/* Drag & drop move */
+.file-tree-row.tree-draggable {
+  cursor: default;
+}
+
+body.tree-dragging {
+  cursor: grabbing;
+}
+
+body.tree-dragging .file-tree-row {
+  cursor: grabbing;
+}
+
+.file-tree-row.tree-draggable:active,
+.file-tree-row.drag-source {
+  cursor: grabbing;
+}
+
+.file-tree-row.drag-source {
+  opacity: 0.55;
+}
+
+.file-tree-row.drag-over {
+  background: rgba(0, 170, 85, 0.16);
+  outline: 1px solid rgba(0, 170, 85, 0.35);
+}
+
+.file-list.drag-over-root {
+  outline: 2px dashed rgba(0, 170, 85, 0.55);
+  outline-offset: -6px;
 }
 
 /* Inline create row (matches tree visuals and modal buttons) */

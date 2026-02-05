@@ -66,6 +66,9 @@ router.get('/list', ensureAuth, async (req, res) => {
       { googleId: req.user.googleId },
       'filename parentPath type language updatedAt size'
     ).sort({ type: 1, filename: 1 }).lean(); // Sort folders first if we want, or handle in client
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.json({ files: docs });
   } catch (e) {
     res.status(500).json({ error: 'Failed to list files' });

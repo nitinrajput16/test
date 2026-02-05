@@ -51,6 +51,88 @@ function extractFence(raw){
   return raw.replace(/```/g,'').trim();
 }
 
+function extractTextResponse(result) {
+  try {
+    if (!result) return '';
+    const resp = result.response;
+    if (!resp) return '';
+    if (typeof resp.text === 'function') return resp.text();
+    if (typeof resp.text === 'string') return resp.text;
+    if (Array.isArray(resp.candidates) && resp.candidates[0]) {
+      const cand = resp.candidates[0];
+      if (cand.content && Array.isArray(cand.content.parts)) {
+        return cand.content.parts.map(p => p.text || '').join('');
+      }
+    }
+    return '';
+  } catch (_err) {
+    return '';
+  }
+}
+
+function toGeminiRole(role) {
+  const r = String(role || '').toLowerCase();
+  if (r === 'assistant' || r === 'model') return 'model';
+  return 'user';
+}
+
+router.post('/chat', ensureAuth, async (req, res) => {
+  try {
+    const { messages } = req.body || {};
+    if (!Array.isArray(messages) || !messages.length) {
+      return res.status(400).json({ error: 'messages array required' });
+    }
+
+    const trimmed = messages
+      .filter(m => m && typeof m.content === 'string' && m.content.trim())
+      .slice(-24)
+      .map(m => ({ role: toGeminiRole(m.role), parts: [{ text: String(m.content).slice(0, 8000) }] }));
+
+    const instruction =
+      'You are a helpful assistant inside a collaborative code editor. ' +
+      'Be concise, actionable, and reference UI behavior when useful.';
+
+    async function requestChat(modelName) {
+      const model = getModel(modelName);
+      return model.generateContent({
+        contents: [
+          { role: 'user', parts: [{ text: instruction }] },
+          ...trimmed
+        ],
+        generationConfig: { maxOutputTokens: 512, temperature: 0.4 }
+      });
+    }
+
+    let lastError = null;
+    for (const modelName of FALLBACK_MODELS) {
+      try {
+        const result = await requestChat(modelName);
+        const rawMaybePromise = extractTextResponse(result);
+        const raw = typeof rawMaybePromise === 'string' ? rawMaybePromise : await rawMaybePromise;
+        const text = (String(raw || '').trim() || '').trim();
+        if (!text) {
+          console.warn('[AI] chat empty response from model', modelName);
+          return res.json({ message: 'No response.' });
+        }
+        return res.json({ message: text });
+      } catch (err) {
+        lastError = err;
+        if (!shouldRetryWithAlternate(err)) throw err;
+        console.warn('[AI] Chat model retry', modelName, err.message);
+      }
+    }
+
+    if (lastError) throw lastError;
+    return res.status(500).json({ error: 'chat failed' });
+  } catch (e) {
+    console.error('[AI] chat failed', e && e.stack ? e.stack : e);
+    if (process.env.NODE_ENV !== 'production') {
+      return res.status(500).json({ error: 'chat failed', message: e && e.message, stack: e && e.stack });
+    }
+    return res.status(500).json({ error: 'chat failed: ' + (e && e.message) });
+  }
+});
+
 router.post('/inline', ensureAuth, async (req, res) => {
   try {
     const { prefix, language = 'JavaScript' } = req.body || {};

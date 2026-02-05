@@ -1,11 +1,8 @@
 // puter-chat.js
-// Minimal right-panel AI chat powered by Puter.js (client-side).
+// Right-panel AI chat powered by the app backend (/api/ai/chat).
+// This avoids client-side 3rd party auth tokens in localStorage.
 (function () {
-  const PUTER_SCRIPT_CANDIDATES = [
-    'https://js.puter.com/v2/',
-    'https://js.puter.com/puter.js',
-    'https://js.puter.com/v1/'
-  ];
+  const CHAT_ENDPOINT = '/api/ai/chat';
 
   function $(id) {
     return document.getElementById(id);
@@ -25,34 +22,18 @@
     return msg;
   }
 
-  async function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src;
-      s.async = true;
-      s.onload = () => resolve(true);
-      s.onerror = () => reject(new Error('Failed to load ' + src));
-      document.head.appendChild(s);
+  async function callServerChat(messages, signal) {
+    const res = await fetch(CHAT_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages }),
+      signal
     });
-  }
-
-  async function ensurePuter(statusEl) {
-    if (window.puter && window.puter.ai) return window.puter;
-
-    for (const src of PUTER_SCRIPT_CANDIDATES) {
-      try {
-        if (statusEl) statusEl.textContent = 'Loading AI…';
-        // If puter is already present, don't inject again.
-        if (!(window.puter && window.puter.ai)) {
-          await loadScript(src);
-        }
-        if (window.puter && window.puter.ai) return window.puter;
-      } catch (e) {
-        // try next
-      }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((data && (data.error || data.message)) || `HTTP ${res.status}`);
     }
-
-    throw new Error('Puter.js not available');
+    return data;
   }
 
   function extractAssistantText(res) {
@@ -79,25 +60,11 @@
     }
   }
 
-  async function callPuterChat(puter, messages) {
-    const ai = puter && puter.ai;
-    if (!ai || typeof ai.chat !== 'function') {
-      throw new Error('Puter AI chat API not found');
-    }
-
-    // Try a few likely signatures.
-    try {
-      return await ai.chat({ messages });
-    } catch (e1) {
-      try {
-        return await ai.chat(messages);
-      } catch (e2) {
-        const prompt = messages
-          .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
-          .join('\n');
-        return await ai.chat(prompt);
-      }
-    }
+  function extractServerAnswer(res) {
+    if (!res) return '';
+    if (typeof res.message === 'string') return res.message;
+    if (typeof res.text === 'string') return res.text;
+    return '';
   }
 
   window.addEventListener('DOMContentLoaded', () => {
@@ -210,21 +177,19 @@
       send.currentPendingNode = pendingNode;
 
       try {
-        const puter = await ensurePuter(statusEl);
-        
         // Check if aborted before making the request
         if (thisAbortController.signal.aborted) {
           throw new Error('Request cancelled');
         }
-        
-        const res = await callPuterChat(puter, history);
+
+        const res = await callServerChat(history, thisAbortController.signal);
         
         // Check if aborted after request completes
         if (thisAbortController.signal.aborted) {
           throw new Error('Request cancelled');
         }
         
-        const answer = extractAssistantText(res).trim();
+        const answer = (extractServerAnswer(res) || extractAssistantText(res)).trim();
         pendingNode.classList.remove('ai-chat-msg--pending');
         pendingNode.textContent = answer || 'No response.';
         history.push({ role: 'assistant', content: answer || 'No response.' });

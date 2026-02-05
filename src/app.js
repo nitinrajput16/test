@@ -17,6 +17,13 @@ const PORT = process.env.PORT || 3000;
 // Bind to 0.0.0.0 by default so cloud hosts (Render, Heroku, etc.) can reach the server
 const HOST = process.env.HOST || '0.0.0.0';
 
+// If running behind a reverse proxy (Render, Railway, Nginx, etc.),
+// trust the proxy so secure cookies work correctly.
+// Set TRUST_PROXY=1 in production if needed.
+if (process.env.TRUST_PROXY === '1') {
+  app.set('trust proxy', 1);
+}
+
 // ---------- DATABASE ----------
 (async () => {
   try {
@@ -45,11 +52,17 @@ app.use(express.json({ limit: '1mb' }));
 app.use(cors());
 
 // ---------- SESSION ----------
+if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+  console.error('SESSION_SECRET must be set in production');
+  process.exit(1);
+}
+
 const sessionConfig = {
-  secret: process.env.SESSION_SECRET || 'edit-code-editor-secret-2025',
+  secret: process.env.SESSION_SECRET || 'dev-insecure-session-secret',
   resave: false,
   saveUninitialized: false,
   name: 'editSessionId',
+  proxy: process.env.TRUST_PROXY === '1',
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,

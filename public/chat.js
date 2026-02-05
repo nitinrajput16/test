@@ -51,12 +51,13 @@
     function appendMessage(msg) {
         // Check if it's mine
         let isMine = false;
-        if (window.socket && window.socket.id) {
-            // Ideally we match by userId if available, else socket.id fallback
-            // msg.userId comes from server
-            if (window.socket.userId === msg.userId) isMine = true;
-            // Fallback: match by socket.id explicitly if userId didn't match
-            else if (window.socket.id === msg.userId) isMine = true;
+        // msg.userId comes from server, match with our resolved userId
+        if (window.myServerUserId && msg.userId === window.myServerUserId) {
+            isMine = true;
+        }
+        // Fallback: match by socket.id if userId not available
+        else if (window.socket && window.socket.id === msg.userId) {
+            isMine = true;
         }
 
         const item = createMessageEl(msg, isMine);
@@ -88,10 +89,8 @@
             }
         });
 
-        // Whoami override to ensure we know our ID for styling 'mine' messages
-        window.socket.on('whoami', (data) => {
-            window.socket.userId = data.userId;
-        });
+        // Whoami is handled in script.js and sets window.myServerUserId
+        // No need to duplicate the handler here
 
         // Explicitly request history to handle race conditions
         const roomId = window.currentRoom || window.WHITEBOARD_ROOM;

@@ -1447,6 +1447,217 @@ window.addEventListener('DOMContentLoaded', function () {
   // Pending inline create action: { type: 'file'|'folder', parentPath, defaultName }
   let pendingCreate = null;
 
+  // --- Drag & Drop Move (Tree) ---
+  const TREE_DRAG_MIME = 'application/x-code-tree-node';
+  let activeDragPayload = null;
+
+  function normalizeParentPath(p) {
+    let val = (p || '').trim();
+    if (!val) return '/';
+    if (!val.startsWith('/')) val = '/' + val;
+    if (val.length > 1 && val.endsWith('/')) val = val.slice(0, -1);
+    return val;
+  }
+
+  function joinFullPath(parentPath, name) {
+    const p = normalizeParentPath(parentPath);
+    const n = String(name || '').trim();
+    if (!n) return p;
+    return p === '/' ? '/' + n : p + '/' + n;
+  }
+
+  function isDescendantPath(path, ancestor) {
+    const p = normalizeParentPath(path);
+    const a = normalizeParentPath(ancestor);
+    if (a === '/') return p !== '/';
+    return p === a || p.startsWith(a + '/');
+  }
+
+  function tryParseDragPayload(ev) {
+    try {
+      const dt = ev && ev.dataTransfer;
+      if (!dt) return null;
+      const raw = dt.getData(TREE_DRAG_MIME) || dt.getData('text/plain');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.id || !parsed.name || !parsed.parentPath || !parsed.type) return null;
+      return {
+        id: String(parsed.id),
+        name: String(parsed.name),
+        parentPath: normalizeParentPath(parsed.parentPath),
+        type: String(parsed.type)
+      };
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  function canDropPayloadInto(payload, targetParentPath) {
+    if (!payload) return false;
+    const target = normalizeParentPath(targetParentPath);
+    const sourceParent = normalizeParentPath(payload.parentPath);
+    if (target === sourceParent) return false; // no-op move
+
+    if (payload.type === 'directory') {
+      const sourceFull = joinFullPath(sourceParent, payload.name);
+      // Prevent dropping folder into itself or its descendants
+      if (isDescendantPath(target, sourceFull)) return false;
+    }
+    return true;
+  }
+
+  function updateExpandedFoldersAfterMove(oldFullPath, newFullPath) {
+    if (!oldFullPath || !newFullPath) return;
+    const oldNorm = normalizeParentPath(oldFullPath);
+    const newNorm = normalizeParentPath(newFullPath);
+    const next = new Set();
+    expandedFolders.forEach(p => {
+      const path = normalizeParentPath(p);
+      if (path === oldNorm || path.startsWith(oldNorm + '/')) {
+        next.add(path.replace(oldNorm, newNorm));
+      } else {
+        next.add(path);
+      }
+    });
+    expandedFolders.clear();
+    next.forEach(p => expandedFolders.add(p));
+  }
+
+  function updateCurrentFileAfterMove(payload, oldFullPath, newFullPath, newParentPath) {
+    if (!payload) return;
+    const oldParent = normalizeParentPath(payload.parentPath);
+    const newParent = normalizeParentPath(newParentPath);
+
+    if (payload.type === 'file') {
+      if (currentFilename === payload.name && normalizeParentPath(currentParentPath) === oldParent) {
+        currentParentPath = newParent;
+      }
+      return;
+    }
+
+    if (payload.type === 'directory' && oldFullPath && newFullPath) {
+      const cur = normalizeParentPath(currentParentPath);
+      const oldNorm = normalizeParentPath(oldFullPath);
+      const newNorm = normalizeParentPath(newFullPath);
+      if (cur === oldNorm || cur.startsWith(oldNorm + '/')) {
+        currentParentPath = cur.replace(oldNorm, newNorm);
+      }
+    }
+  }
+
+  function applyMoveToCache(payload, targetParentPath) {
+    if (!lastFetchedFiles || !Array.isArray(lastFetchedFiles)) return;
+    const target = normalizeParentPath(targetParentPath);
+    const sourceParent = normalizeParentPath(payload.parentPath);
+
+    if (payload.type === 'directory') {
+      const oldFull = joinFullPath(sourceParent, payload.name);
+      const newFull = joinFullPath(target, payload.name);
+
+      lastFetchedFiles = lastFetchedFiles.map(f => {
+        const fid = f && f._id ? String(f._id) : null;
+        const p = normalizeParentPath(f && f.parentPath);
+
+        if (fid && fid === String(payload.id)) {
+          return { ...f, parentPath: target };
+        }
+
+        if (p === oldFull || p.startsWith(oldFull + '/')) {
+          return { ...f, parentPath: p.replace(oldFull, newFull) };
+        }
+
+        return f;
+      });
+
+      updateExpandedFoldersAfterMove(oldFull, newFull);
+      expandedFolders.add(target);
+      updateCurrentFileAfterMove(payload, oldFull, newFull, target);
+      return;
+    }
+
+    // file
+    lastFetchedFiles = lastFetchedFiles.map(f => {
+      const fid = f && f._id ? String(f._id) : null;
+      if (fid && fid === String(payload.id)) {
+        return { ...f, parentPath: target };
+      }
+      return f;
+    });
+    expandedFolders.add(target);
+    updateCurrentFileAfterMove(payload, null, null, target);
+  }
+
+  async function moveTreeNode(payload, targetParentPath) {
+    const target = normalizeParentPath(targetParentPath);
+    if (!canDropPayloadInto(payload, target)) return;
+
+    // optimistic UI update
+    applyMoveToCache(payload, target);
+    try {
+      if (lastFetchedFiles) {
+        renderCachedFiles(lastFetchedFiles);
+      } else {
+        refreshFileList();
+      }
+
+      await api('POST', '/api/code/rename', {
+        oldName: payload.name,
+        newName: payload.name,
+        oldParentPath: payload.parentPath,
+        newParentPath: target,
+        type: payload.type
+      });
+
+      if (window.socket) window.socket.emit('filelist-changed');
+    } catch (err) {
+      logOutput('Move error: ' + (err.message || err));
+      refreshFileList(false);
+    }
+  }
+
+  function initTreeRootDropZone() {
+    if (!fileListDiv || fileListDiv.dataset.dndInit === '1') return;
+    fileListDiv.dataset.dndInit = '1';
+
+    const clearRootHighlight = () => {
+      fileListDiv.classList.remove('drag-over-root');
+    };
+
+    fileListDiv.addEventListener('dragover', (ev) => {
+      const payload = activeDragPayload || tryParseDragPayload(ev);
+      if (!payload) return;
+
+      // If hovering over a directory row, let that handler manage the drop.
+      const row = ev.target && ev.target.closest && ev.target.closest('.file-tree-row');
+      if (row) return;
+
+      if (!canDropPayloadInto(payload, '/')) return;
+      ev.preventDefault();
+      try { ev.dataTransfer.dropEffect = 'move'; } catch (_e) { }
+      fileListDiv.classList.add('drag-over-root');
+    });
+
+    fileListDiv.addEventListener('dragleave', (ev) => {
+      // Only clear if leaving the root container
+      if (ev && ev.relatedTarget && fileListDiv.contains(ev.relatedTarget)) return;
+      clearRootHighlight();
+    });
+
+    fileListDiv.addEventListener('drop', (ev) => {
+      const payload = activeDragPayload || tryParseDragPayload(ev);
+      if (!payload) return;
+
+      // Ignore drops handled by a directory row
+      const row = ev.target && ev.target.closest && ev.target.closest('.file-tree-row');
+      if (row) return;
+
+      ev.preventDefault();
+      ev.stopPropagation();
+      clearRootHighlight();
+      moveTreeNode(payload, '/');
+    });
+  }
+
   function refreshFileList(useCache = false) {
     if (useCache && lastFetchedFiles) {
       renderCachedFiles(lastFetchedFiles);
@@ -1558,6 +1769,38 @@ window.addEventListener('DOMContentLoaded', function () {
       row.dataset.path = child.path;
       row.style.paddingLeft = (depth * 12 + 8) + 'px'; // Indentation
 
+      // Drag source (only real docs have _id)
+      const childId = child && child._id ? String(child._id) : null;
+      if (childId) {
+        row.draggable = true;
+        row.dataset.id = childId;
+        row.classList.add('tree-draggable');
+        row.addEventListener('dragstart', (ev) => {
+          try {
+            const payload = {
+              id: childId,
+              name: child.name,
+              parentPath: normalizeParentPath(child.parentPath || '/'),
+              type: child.type === 'directory' ? 'directory' : 'file'
+            };
+            activeDragPayload = payload;
+            row.classList.add('drag-source');
+            try { document.body && document.body.classList.add('tree-dragging'); } catch (_e) { }
+            if (ev && ev.dataTransfer) {
+              ev.dataTransfer.effectAllowed = 'move';
+              ev.dataTransfer.setData(TREE_DRAG_MIME, JSON.stringify(payload));
+              ev.dataTransfer.setData('text/plain', JSON.stringify(payload));
+            }
+          } catch (_err) { }
+        });
+        row.addEventListener('dragend', () => {
+          activeDragPayload = null;
+          row.classList.remove('drag-source');
+          fileListDiv.classList.remove('drag-over-root');
+          try { document.body && document.body.classList.remove('tree-dragging'); } catch (_e) { }
+        });
+      }
+
       // 1. Chevron (for folders only)
       if (child.type === 'directory') {
         const chevron = document.createElement('i');
@@ -1610,6 +1853,30 @@ window.addEventListener('DOMContentLoaded', function () {
         }
       });
 
+      // Drop target for directories
+      if (child.type === 'directory') {
+        row.addEventListener('dragover', (ev) => {
+          const payload = activeDragPayload || tryParseDragPayload(ev);
+          if (!payload) return;
+          if (!canDropPayloadInto(payload, child.path)) return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          try { ev.dataTransfer.dropEffect = 'move'; } catch (_e) { }
+          row.classList.add('drag-over');
+        });
+        row.addEventListener('dragleave', () => {
+          row.classList.remove('drag-over');
+        });
+        row.addEventListener('drop', (ev) => {
+          const payload = activeDragPayload || tryParseDragPayload(ev);
+          if (!payload) return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          row.classList.remove('drag-over');
+          moveTreeNode(payload, child.path);
+        });
+      }
+
       // (No contextmenu listener anymore)
 
       item.appendChild(row);
@@ -1627,6 +1894,9 @@ window.addEventListener('DOMContentLoaded', function () {
 
     container.appendChild(ul);
   }
+
+  // Initialize root drop-zone once
+  initTreeRootDropZone();
 
   function getFileIconClass(filename) {
     if (filename.endsWith('.js')) return 'fa-brands fa-js js';
@@ -2022,7 +2292,7 @@ window.addEventListener('DOMContentLoaded', function () {
         setEditorValue(data.code || '', true, 'load-file');
         setEditorLanguageByFilename(data.filename);
 
-        if (otApi) otApi.resetWithDocument(data.code || '', false);
+        if (otApi) otApi.resetWithDocument(data.code || '', true);
         lastSavedHash = simpleHash(data.code || '');
 
         logOutput(`Loaded: ${currentFilename}`);
@@ -2032,7 +2302,9 @@ window.addEventListener('DOMContentLoaded', function () {
         needFileListRefresh = false;
 
         if (window.socket) {
-          window.socket.emit('active-file', { roomId: currentRoom, filename: currentFilename, parentPath: currentParentPath, language: data.language });
+          // Broadcast the Monaco language derived from filename
+          const monacoLang = getLanguageFromFilename(data.filename);
+          window.socket.emit('active-file', { roomId: currentRoom, filename: currentFilename, parentPath: currentParentPath, language: monacoLang });
         }
       })
       .catch(e => {
@@ -2057,6 +2329,25 @@ window.addEventListener('DOMContentLoaded', function () {
 
 
   // -------------- RUN CODE ----------------
+  function isValidJavaIdentifier(name) {
+    return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name);
+  }
+
+  function normalizeJavaSourceForJudge0(source, filename) {
+    const src = String(source || '');
+    const desired = 'Main';
+    const match = src.match(/\bpublic\s+class\s+([A-Za-z_$][A-Za-z0-9_$]*)\b/);
+    if (!match) return src;
+    const current = match[1];
+    if (current === desired) return src;
+
+    // Replace all word-boundary occurrences of the class name
+    const re = new RegExp('\\b' + current + '\\b', 'g');
+    const updated = src.replace(re, desired);
+    logOutput(`Note: Java class renamed to "${desired}" for execution (Judge0 compiles Main.java).`);
+    return updated;
+  }
+
   function runCode() {
     if (!langSelect) {
       logOutput('Language select missing');
@@ -2065,12 +2356,31 @@ window.addEventListener('DOMContentLoaded', function () {
     runBtn.disabled = true;
     logOutput('Running...');
     if (stderrOutput) stderrOutput.textContent = 'Waiting for stderr...';
+    const langId = parseInt(langSelect.value, 10);
+    let sourceToRun = getEditorValue();
+    // Java (Judge0 id 62) requires public class name == filename
+    if (langId === 62) {
+      sourceToRun = normalizeJavaSourceForJudge0(sourceToRun, currentFilename);
+    }
     api('POST', '/api/code/run', {
-      source_code: getEditorValue(),
-      language_id: parseInt(langSelect.value, 10),
+      source_code: sourceToRun,
+      language_id: langId,
       stdin: stdinInput.value
     })
       .then(d => {
+        if (langId === 78 && d) {
+          const stripJvmWarning = (text) => {
+            if (typeof text !== 'string') return text;
+            return text
+              .replace(/^[^\n]*OpenJDK 64-Bit Server VM warning:[^\n]*\n?/i, '')
+              .replace(/^OpenJDK 64-Bit Server VM warning:[^\n]*\n?/i, '')
+              .replace(/^[^\n]*-Xverify:none[^\n]*\n?/i, '')
+              .replace(/^[^\n]*-noverify[^\n]*\n?/i, '')
+              .trim();
+          };
+          d.stderr = stripJvmWarning(d.stderr);
+          d.compile_output = stripJvmWarning(d.compile_output);
+        }
         // If there are compilation errors or stderr, show them in the Errors tab
         const hasStderr = d && typeof d.stderr === 'string' && d.stderr.trim();
         const hasCompile = d && typeof d.compile_output === 'string' && d.compile_output.trim();
@@ -2147,7 +2457,14 @@ window.addEventListener('DOMContentLoaded', function () {
     socket.on('active-file', ({ filename, language }) => {
       if (!filename || currentFilename) return;
       currentFilename = filename;
-      setLanguageSelectByMonaco(language || 'plaintext');
+      const monacoLang = language || 'plaintext';
+      // Update dropdown
+      setLanguageSelectByMonaco(monacoLang);
+      // Actually set the Monaco editor language
+      if (editor && window.monaco) {
+        const model = editor.getModel();
+        if (model) monaco.editor.setModelLanguage(model, monacoLang);
+      }
       logOutput('Active file shared: ' + filename);
       needFileListRefresh = true;
     });
