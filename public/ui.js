@@ -1,64 +1,48 @@
 // Usage: Call UIUserPresence.init(socket, editor) after both are initialized.
 
 const UIUserPresence = (function() {
-  let editor = null;
-  let socket = null;
-  let userId = null;
-  let userColor = null;
-  let presenceMap = {};
-  const COLORS = [
-    '#4fd89b', '#f39c12', '#e74c3c', '#8e44ad', '#3498db', '#e67e22', '#1abc9c', '#2ecc71', '#e84393', '#fdcb6e'
-  ];
+  let editor, socket, userId, userColor;
+  const presenceMap = {};
+  const COLORS = ['#4fd89b', '#f39c12', '#e74c3c', '#8e44ad', '#3498db', '#e67e22', '#1abc9c', '#2ecc71', '#e84393', '#fdcb6e'];
 
-  function getColorForId(id) {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  const getColorForId = (id) => {
+    const hash = [...id].reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0);
     return COLORS[Math.abs(hash) % COLORS.length];
-  }
+  };
 
   function renderCursors() {
     if (!editor || !window.monaco) return;
-    let decorations = [];
-    Object.values(presenceMap).forEach(p => {
-      if (p.id !== userId && p.position) {
-        decorations.push({
-          range: new monaco.Range(p.position.lineNumber, p.position.column, p.position.lineNumber, p.position.column),
-          options: {
-            className: 'remote-cursor',
-            afterContentClassName: 'remote-cursor-label',
-            after: {
-              content: p.name ? ` ${p.name}` : '',
-              inlineClassName: 'remote-cursor-label',
-              color: p.color || '#f39c12',
-              backgroundColor: p.color || '#f39c12',
-              border: `2px solid ${p.color || '#f39c12'}`
-            },
-            inlineClassName: 'remote-cursor',
-            beforeContentClassName: '',
-            stickiness: 1
-          }
-        });
-      }
-    });
+    const decorations = Object.values(presenceMap)
+      .filter(p => p.id !== userId && p.position)
+      .map(p => ({
+        range: new monaco.Range(p.position.lineNumber, p.position.column, p.position.lineNumber, p.position.column),
+        options: {
+          className: 'remote-cursor',
+          afterContentClassName: 'remote-cursor-label',
+          after: {
+            content: p.name ? ` ${p.name}` : '',
+            inlineClassName: 'remote-cursor-label',
+            color: p.color || '#f39c12',
+            backgroundColor: p.color || '#f39c12',
+            border: `2px solid ${p.color || '#f39c12'}`
+          },
+          inlineClassName: 'remote-cursor',
+          stickiness: 1
+        }
+      }));
     editor.deltaDecorations(editor._remoteCursorDecorations || [], decorations);
     editor._remoteCursorDecorations = decorations;
   }
 
-  function onPresenceUpdate(data) {
-    presenceMap = data;
-    renderCursors();
-  }
+  const onPresenceUpdate = (data) => { Object.assign(presenceMap, data); renderCursors(); };
 
-
-  function init(_socket, _editor, _userId, _userName) {
+  function init(_socket, _editor, _userId) {
     socket = _socket;
     editor = _editor;
     userId = _userId;
     userColor = getColorForId(userId);
     if (!editor || !socket) return;
-
     socket.on('presence-update', onPresenceUpdate);
-
   }
 
   return { init };

@@ -3,7 +3,7 @@ const { Schema } = mongoose;
 
 
 const CodeFileSchema = new Schema({
-  googleId: { type: String, required: true, index: true },
+  userId: { type: String, required: true, index: true },
   filename: { type: String, required: true, trim: true },
   parentPath: { type: String, default: '/' }, // e.g. "/" or "/src" or "/src/components"
   type: { type: String, enum: ['file', 'directory'], default: 'file' },
@@ -15,7 +15,7 @@ const CodeFileSchema = new Schema({
 }, { timestamps: true });
 
 // Ensure unique filenames within a directory for a user
-CodeFileSchema.index({ googleId: 1, parentPath: 1, filename: 1 }, { unique: true });
+CodeFileSchema.index({ userId: 1, parentPath: 1, filename: 1 }, { unique: true });
 
 CodeFileSchema.statics.simpleHash = function (s) {
   let h = 0, i = 0;

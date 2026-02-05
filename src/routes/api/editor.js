@@ -8,17 +8,17 @@ const schedule = require('node-schedule');
 router.post('/activity', ensureAuth, async (req, res) => {
   try {
     const { action } = req.body; // 'start' or 'end'
-    const googleId = req.user.googleId;
+    const userId = req.user.username;
     const now = new Date();
     // Get IST date string
     const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
     const dateStr = istNow.toISOString().slice(0,10);
     if (action === 'start') {
-      await EditorSession.create({ googleId, start: now, date: dateStr });
+      await EditorSession.create({ userId, start: now, date: dateStr });
       return res.json({ status: 'started' });
     } else if (action === 'end') {
       // Find latest open session for today
-      const session = await EditorSession.findOne({ googleId, date: dateStr, end: { $exists: false } }).sort({ start: -1 });
+      const session = await EditorSession.findOne({ userId, date: dateStr, end: { $exists: false } }).sort({ start: -1 });
       if (session) {
         session.end = now;
         await session.save();
@@ -34,11 +34,11 @@ router.post('/activity', ensureAuth, async (req, res) => {
 // Get total time spent today (in seconds)
 router.get('/today', ensureAuth, async (req, res) => {
   try {
-    const googleId = req.user.googleId;
+    const userId = req.user.username;
     const now = new Date();
     const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
     const dateStr = istNow.toISOString().slice(0,10);
-    const sessions = await EditorSession.find({ googleId, date: dateStr });
+    const sessions = await EditorSession.find({ userId, date: dateStr });
     let total = 0;
     sessions.forEach(s => {
       if (s.end && s.start) {
@@ -55,7 +55,7 @@ router.get('/today', ensureAuth, async (req, res) => {
 
 // Cleanup old sessions at 00:00 IST
 // Scheduled cleanup: delete finished sessions older than retention, but keep open sessions (no 'end')
-const RETENTION_DAYS = parseInt(process.env.EDITOR_SESSION_RETENTION_DAYS || '30', 10);
+const RETENTION_DAYS = parseInt(process.env.EDITOR_SESSION_RETENTION_DAYS || '7', 10);
 schedule.scheduleJob('5 3 * * *', async () => {
   try {
     const now = new Date();

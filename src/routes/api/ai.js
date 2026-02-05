@@ -5,18 +5,13 @@ const { ensureAuth } = require('../../middleware/auth');
 const router = express.Router();
 const DEFAULT_MODEL = 'gemma-3-27b';
 const configuredModel = process.env.GEMINI_INLINE_MODEL || DEFAULT_MODEL;
-const envFallbacks = (process.env.GEMINI_FALLBACK_MODELS || '')
-  .split(',')
-  .map(str => str.trim())
-  .filter(Boolean);
-const FALLBACK_MODELS = Array.from(new Set([
+const FALLBACK_MODELS = [...new Set([
   configuredModel,
-  ...envFallbacks,
-  // prefer flash (lower-latency) models where available
+  ...(process.env.GEMINI_FALLBACK_MODELS || '').split(',').map(s => s.trim()).filter(Boolean),
   'gemini-2.5-flash-lite',
   DEFAULT_MODEL,
   'gemma-3-27b'
-].filter(Boolean)));
+].filter(Boolean))];
 const modelCache = new Map();
 
 function getModel(targetModel) {
@@ -30,51 +25,38 @@ function getModel(targetModel) {
   return modelCache.get(name);
 }
 
-function isModelUnavailableError(err = {}) {
+const isModelUnavailableError = (err = {}) => {
   const msg = (err.message || '').toLowerCase();
   return msg.includes('model') && (msg.includes('not found') || msg.includes('permission') || msg.includes('unavailable'));
-}
+};
 
-function shouldRetryWithAlternate(err = {}) {
+const shouldRetryWithAlternate = (err = {}) => {
   if (!err) return false;
-  if (isModelUnavailableError(err)) return true;
-  if (typeof err.status === 'number' && err.status === 429) return true;
+  if (isModelUnavailableError(err) || err.status === 429) return true;
   const msg = (err.message || '').toLowerCase();
   return msg.includes('quota') || msg.includes('rate limit');
-}
+};
 
-function extractFence(raw){
-  if(!raw) return '';
-  const fenceBlocks = [...raw.matchAll(/```[a-zA-Z0-9_-]*\n?([\s\S]*?)```/g)].map(m=>m[1].trim());
-  if (fenceBlocks.length === 1) return fenceBlocks[0];
-  if (fenceBlocks.length > 1) return fenceBlocks.join('\n').trim();
-  return raw.replace(/```/g,'').trim();
-}
+const extractFence = (raw) => {
+  if (!raw) return '';
+  const fenceBlocks = [...raw.matchAll(/```[a-zA-Z0-9_-]*\n?([\s\S]*?)```/g)].map(m => m[1].trim());
+  return fenceBlocks.length === 1 ? fenceBlocks[0] : fenceBlocks.length > 1 ? fenceBlocks.join('\n').trim() : raw.replace(/```/g, '').trim();
+};
 
 function extractTextResponse(result) {
   try {
-    if (!result) return '';
-    const resp = result.response;
+    const resp = result?.response;
     if (!resp) return '';
     if (typeof resp.text === 'function') return resp.text();
     if (typeof resp.text === 'string') return resp.text;
-    if (Array.isArray(resp.candidates) && resp.candidates[0]) {
-      const cand = resp.candidates[0];
-      if (cand.content && Array.isArray(cand.content.parts)) {
-        return cand.content.parts.map(p => p.text || '').join('');
-      }
+    if (resp.candidates?.[0]?.content?.parts) {
+      return resp.candidates[0].content.parts.map(p => p.text || '').join('');
     }
     return '';
-  } catch (_err) {
-    return '';
-  }
+  } catch { return ''; }
 }
 
-function toGeminiRole(role) {
-  const r = String(role || '').toLowerCase();
-  if (r === 'assistant' || r === 'model') return 'model';
-  return 'user';
-}
+const toGeminiRole = (role) => ['assistant', 'model'].includes(String(role || '').toLowerCase()) ? 'model' : 'user';
 
 router.post('/chat', ensureAuth, async (req, res) => {
   try {

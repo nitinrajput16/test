@@ -1,15 +1,7 @@
-/* panel-resize.js
-   Simple resizer + collapse logic for left/right panels.
-   - Drag the vertical resizers to resize panels
-   - Double-click or click collapse handle to toggle small-icon sidebar
-   - Calls Monaco layout when available
-*/
-
+// panel-resize.js: Resizer + collapse for left/right panels
 function applyWorkspaceResizeEffects() {
   window.dispatchEvent(new Event('resize'));
-  if (window.editor && typeof window.editor.layout === 'function') {
-    try { window.editor.layout(); } catch (e) { }
-  }
+  window.editor?.layout?.();
 }
 
 (function () {
@@ -29,31 +21,24 @@ function applyWorkspaceResizeEffects() {
   let lastLeft = left.getBoundingClientRect().width || DEFAULT_LEFT;
   let lastRight = right.getBoundingClientRect().width || DEFAULT_RIGHT;
 
-  const MIN_PANEL = 48; // min px when dragging
+  const MIN_PANEL = 48;
   const MAX_PANEL = 600;
 
-  // dragging helpers
   function startDrag(resizer, side) {
     let dragging = true;
     const workspaceRect = document.querySelector('.workspace').getBoundingClientRect();
 
-    function onMove(e) {
+    const onMove = (e) => {
       if (!dragging) return;
       const x = e.clientX;
-      if (side === 'left') {
-        let newW = Math.max(MIN_PANEL, Math.min(MAX_PANEL, x - workspaceRect.left));
-        left.style.flex = '0 0 ' + newW + 'px';
-        left.style.width = newW + 'px';
-        lastLeft = newW;
-      } else {
-        // right: compute width from right edge
-        let newW = Math.max(MIN_PANEL, Math.min(MAX_PANEL, workspaceRect.right - x));
-        right.style.flex = '0 0 ' + newW + 'px';
-        right.style.width = newW + 'px';
-        lastRight = newW;
-      }
+      const panel = side === 'left' ? left : right;
+      const newW = Math.max(MIN_PANEL, Math.min(MAX_PANEL, 
+        side === 'left' ? x - workspaceRect.left : workspaceRect.right - x));
+      panel.style.flex = `0 0 ${newW}px`;
+      panel.style.width = `${newW}px`;
+      if (side === 'left') lastLeft = newW; else lastRight = newW;
       applyWorkspaceResizeEffects();
-    }
+    };
 
     function onUp() {
       dragging = false;
@@ -65,17 +50,12 @@ function applyWorkspaceResizeEffects() {
     document.addEventListener('mouseup', onUp);
   }
 
-  // left resizer
-  resizerLeft.addEventListener('mousedown', function (e) { e.preventDefault(); startDrag(resizerLeft, 'left'); });
-  resizerLeft.addEventListener('dblclick', function () { resetWidth('left'); });
-
-  // right resizer
-  resizerRight.addEventListener('mousedown', function (e) { e.preventDefault(); startDrag(resizerRight, 'right'); });
-  resizerRight.addEventListener('dblclick', function () { resetWidth('right'); });
-
-  // collapse toggles
-  collapseLeft.addEventListener('click', function () { toggleCollapse(left, 'left'); });
-  collapseRight.addEventListener('click', function () { toggleCollapse(right, 'right'); });
+  resizerLeft.addEventListener('mousedown', (e) => { e.preventDefault(); startDrag(resizerLeft, 'left'); });
+  resizerLeft.addEventListener('dblclick', () => resetWidth('left'));
+  resizerRight.addEventListener('mousedown', (e) => { e.preventDefault(); startDrag(resizerRight, 'right'); });
+  resizerRight.addEventListener('dblclick', () => resetWidth('right'));
+  collapseLeft.addEventListener('click', () => toggleCollapse(left, 'left'));
+  collapseRight.addEventListener('click', () => toggleCollapse(right, 'right'));
 
   function toggleCollapse(panel, side) {
     const isLeft = (side === 'left');

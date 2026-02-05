@@ -63,7 +63,7 @@ router.post('/run', ensureAuth, async (req, res) => {
 router.get('/list', ensureAuth, async (req, res) => {
   try {
     const docs = await CodeFile.find(
-      { googleId: req.user.googleId },
+      { userId: req.user.username },
       'filename parentPath type language updatedAt size'
     ).sort({ type: 1, filename: 1 }).lean(); // Sort folders first if we want, or handle in client
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -84,7 +84,7 @@ router.get('/load', ensureAuth, async (req, res) => {
     // Default to root if not provided (backward compatibility)
     const pPath = parentPath || '/';
 
-    const doc = await CodeFile.findOne({ googleId: req.user.googleId, filename, parentPath: pPath });
+    const doc = await CodeFile.findOne({ userId: req.user.username, filename, parentPath: pPath });
     if (!doc) return res.status(404).json({ error: 'File not found' });
 
     const codeValue = typeof doc.code === 'string'
@@ -124,7 +124,7 @@ router.post('/save', ensureAuth, async (req, res) => {
     const now = new Date();
 
     const doc = await CodeFile.findOneAndUpdate(
-      { googleId: req.user.googleId, filename, parentPath: pPath },
+      { userId: req.user.username, filename, parentPath: pPath },
       {
         $set: {
           code,
@@ -134,7 +134,7 @@ router.post('/save', ensureAuth, async (req, res) => {
           type: 'file'
         },
         $setOnInsert: {
-          googleId: req.user.googleId,
+          userId: req.user.username,
           filename,
           parentPath: pPath,
           createdAt: now
@@ -162,7 +162,7 @@ router.post('/create-folder', ensureAuth, async (req, res) => {
     const now = new Date();
 
     const doc = await CodeFile.create({
-      googleId: req.user.googleId,
+      userId: req.user.username,
       filename,
       parentPath: pPath,
       type: 'directory',
@@ -199,13 +199,13 @@ router.delete('/delete', ensureAuth, async (req, res) => {
       const regex = new RegExp('^' + folderFullPath + '(/|$)');
 
       // Delete the folder itself
-      await CodeFile.deleteOne({ googleId: req.user.googleId, filename, parentPath: pPath, type: 'directory' });
+      await CodeFile.deleteOne({ userId: req.user.username, filename, parentPath: pPath, type: 'directory' });
 
       // Delete children
-      await CodeFile.deleteMany({ googleId: req.user.googleId, parentPath: regex });
+      await CodeFile.deleteMany({ userId: req.user.username, parentPath: regex });
 
     } else {
-      await CodeFile.deleteOne({ googleId: req.user.googleId, filename, parentPath: pPath });
+      await CodeFile.deleteOne({ userId: req.user.username, filename, parentPath: pPath });
     }
 
     res.json({ deleted: true });
@@ -227,10 +227,10 @@ router.post('/rename', ensureAuth, async (req, res) => {
     const nPath = newParentPath || oPath; // Default to same path if not moving
 
     // Check target existence
-    const existing = await CodeFile.findOne({ googleId: req.user.googleId, filename: newName, parentPath: nPath });
+    const existing = await CodeFile.findOne({ userId: req.user.username, filename: newName, parentPath: nPath });
     if (existing) return res.status(409).json({ error: 'Target already exists' });
 
-    const file = await CodeFile.findOne({ googleId: req.user.googleId, filename: oldName, parentPath: oPath });
+    const file = await CodeFile.findOne({ userId: req.user.username, filename: oldName, parentPath: oPath });
     if (!file) return res.status(404).json({ error: 'Original file not found' });
 
     file.filename = newName;
@@ -244,7 +244,7 @@ router.post('/rename', ensureAuth, async (req, res) => {
 
       // Find all children
       const regex = new RegExp('^' + oldFullPath + '(/|$)');
-      const children = await CodeFile.find({ googleId: req.user.googleId, parentPath: regex });
+      const children = await CodeFile.find({ userId: req.user.username, parentPath: regex });
 
       for (const child of children) {
         // Replace prefix in parentPath

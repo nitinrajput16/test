@@ -3,11 +3,11 @@
  * fix-codefile-index.js
  * One-time migration to fix the CodeFile unique index.
  *
- * Problem: An old index on { parentPath, filename } (without googleId) causes
+ * Problem: An old index on { parentPath, filename } (without userId) causes
  * different users to conflict when creating files/folders with the same name.
  *
- * Solution: Drop any indexes that enforce uniqueness without googleId, and
- * ensure the correct compound index { googleId, parentPath, filename } exists.
+ * Solution: Drop any indexes that enforce uniqueness without userId, and
+ * ensure the correct compound index { userId, parentPath, filename } exists.
  *
  * Usage:
  *   node scripts/fix-codefile-index.js
@@ -40,15 +40,15 @@ async function main() {
     console.log(`  ${i + 1}. ${idx.name}`, JSON.stringify(idx.key), idx.unique ? '(unique)' : '');
   });
 
-  // Find problematic indexes: unique indexes that include filename/parentPath but NOT googleId
+  // Find problematic indexes: unique indexes that include filename/parentPath but NOT userId
   const badIndexes = indexes.filter(idx => {
     if (!idx.unique) return false;
     const keys = Object.keys(idx.key);
     const hasFilename = keys.includes('filename');
     const hasParentPath = keys.includes('parentPath');
-    const hasGoogleId = keys.includes('googleId');
-    // If it's unique on filename/parentPath without googleId, it's bad
-    return (hasFilename || hasParentPath) && !hasGoogleId;
+    const hasUserId = keys.includes('userId');
+    // If it's unique on filename/parentPath without userId, it's bad
+    return (hasFilename || hasParentPath) && !hasUserId;
   });
 
   if (badIndexes.length === 0) {
@@ -67,16 +67,16 @@ async function main() {
   }
 
   // Ensure the correct index exists
-  const correctIndexName = 'googleId_1_parentPath_1_filename_1';
+  const correctIndexName = 'userId_1_parentPath_1_filename_1';
   const hasCorrectIndex = indexes.some(idx => idx.name === correctIndexName);
 
   if (hasCorrectIndex) {
     console.log(`\n✅ Correct index "${correctIndexName}" already exists.`);
   } else {
-    console.log(`\nCreating correct index: { googleId: 1, parentPath: 1, filename: 1 } (unique)...`);
+    console.log(`\nCreating correct index: { userId: 1, parentPath: 1, filename: 1 } (unique)...`);
     try {
       await collection.createIndex(
-        { googleId: 1, parentPath: 1, filename: 1 },
+        { userId: 1, parentPath: 1, filename: 1 },
         { unique: true, name: correctIndexName }
       );
       console.log('  ✅ Index created.');
@@ -88,7 +88,7 @@ async function main() {
         const pipeline = [
           {
             $group: {
-              _id: { googleId: '$googleId', parentPath: '$parentPath', filename: '$filename' },
+              _id: { userId: '$userId', parentPath: '$parentPath', filename: '$filename' },
               count: { $sum: 1 },
               ids: { $push: '$_id' }
             }
@@ -100,7 +100,7 @@ async function main() {
         if (dupes.length) {
           console.log('  Duplicates (first 20):');
           dupes.forEach(d => {
-            console.log(`    googleId=${d._id.googleId}, parentPath=${d._id.parentPath}, filename=${d._id.filename}, count=${d.count}`);
+            console.log(`    userId=${d._id.userId}, parentPath=${d._id.parentPath}, filename=${d._id.filename}, count=${d.count}`);
           });
           console.log('\n  Please resolve duplicates manually, then re-run this script.');
         }

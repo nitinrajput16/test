@@ -29,7 +29,6 @@
         // Make Monaco editor read-only
         if (window.editor && typeof window.editor.updateOptions === 'function') {
             window.editor.updateOptions({ readOnly: readOnly });
-            // console.log('[Owner] Editor read-only set to:', readOnly);
         }
     }
 
@@ -43,7 +42,6 @@
 
         // Listen for owner info on join
         socket.on('room-owner', (data) => {
-            // console.log('[Owner] Room owner info:', data);
             window.isRoomOwner = data.isOwner;
             window.roomOwnerId = data.ownerId;
             window.roomReadOnly = data.settings?.readOnly || false;
@@ -77,8 +75,7 @@
         // Listen for settings updates
         socket.on('room-settings-update', (data) => {
             // console.log('[Owner] Settings update:', data);
-            window.roomReadOnly = data.settings?.readOnly || false;
-
+            
             if (readonlyToggle) {
                 readonlyToggle.checked = window.roomReadOnly;
             }
@@ -146,8 +143,8 @@
     // Augment existing '.user-item' entries in shared users list with owner controls
     function augmentUserItem(user) {
         if (!usersList) return;
-        // Determine matching selector: prefer socketId, fall back to id or computed uid
-        const uid = user.socketId || user.id || user._id || user.googleId || null;
+        // Determine matching selector: prefer socketId, fall back to username or id
+        const uid = user.socketId || user.username || user.id || user._id || null;
         let item = null;
         if (uid) item = usersList.querySelector(`.user-item[data-socket-id="${uid}"]`) || usersList.querySelector(`.user-item[data-peer-id="${uid}"]`);
         // fallback: try to match by name/email

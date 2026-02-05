@@ -774,8 +774,8 @@ window.addEventListener('DOMContentLoaded', function () {
 
   function getSelfUserId() {
     if (window.myServerUserId) return window.myServerUserId;
-    if (window.user && (window.user._id || window.user.googleId || window.user.id)) {
-      return window.user._id || window.user.googleId || window.user.id;
+    if (window.user && (window.user.username || window.user._id || window.user.id)) {
+      return window.user.username || window.user._id || window.user.id;
     }
     if (socket && socket.id) return socket.id;
     return 'me';
@@ -2411,7 +2411,6 @@ window.addEventListener('DOMContentLoaded', function () {
 
   function formatRunResult(d) {
     const lines = [];
-    // if(d.status) lines.push('Status: '+(d.status.description || d.status.id));
     if (d.stdout) lines.push('STDOUT:\n' + d.stdout);
     if (d.stderr) lines.push('STDERR:\n' + d.stderr);
     if (d.compile_output) lines.push('COMPILER:\n' + d.compile_output);
@@ -2474,8 +2473,8 @@ window.addEventListener('DOMContentLoaded', function () {
       if (!usersListDiv) return;
       usersListDiv.innerHTML = '';
       const renderUser = (user) => {
-        const uid = user.socketId || user.id || user._id || user.googleId || user.socket || (user.name && ('user-' + user.name));
-        const normalizedUserId = user.id || user._id || user.googleId || uid;
+        const uid = user.socketId || user.username || user.id || user._id || user.socket || (user.name && ('user-' + user.name));
+        const normalizedUserId = user.username || user.id || user._id || uid;
         const isCurrentSocket = !!(user.socketId && window.socket && user.socketId === window.socket.id);
         if (isCurrentSocket && normalizedUserId) {
           window.myServerUserId = normalizedUserId;
@@ -2491,7 +2490,7 @@ window.addEventListener('DOMContentLoaded', function () {
         userItem.appendChild(dot);
 
         const nameSpan = document.createElement('span');
-        nameSpan.textContent = user.name || user.displayName || user.googleId || uid || 'Unknown';
+        nameSpan.textContent = user.name || user.displayName || user.username || uid || 'Unknown';
         nameSpan.style.flex = '1';
         if (user.email) nameSpan.title = user.email;
         if (user.color) nameSpan.style.color = user.color;
@@ -2541,7 +2540,7 @@ window.addEventListener('DOMContentLoaded', function () {
       const muted = e.detail && e.detail.muted;
       const usersListDiv = document.getElementById('usersList');
       if (!usersListDiv) return;
-      const myId = (window.socket && window.socket.id) || (window.user && (window.user._id || window.user.googleId)) || 'me';
+      const myId = (window.socket && window.socket.id) || (window.user && (window.user.username || window.user._id)) || 'me';
       const item = usersListDiv.querySelector(`.user-item[data-peer-id="${myId}"]`);
       if (item) {
         const btn = item.querySelector('.user-action-btn.mute, .user-mute-btn');
@@ -2758,7 +2757,7 @@ window.addEventListener('DOMContentLoaded', function () {
     let remoteSelectionRanges = {};
     function getMyUserId() {
       if (window.myServerUserId) return window.myServerUserId;
-      return (window.user && (window.user._id || window.user.googleId || window.user.id))
+      return (window.user && (window.user.username || window.user._id || window.user.id))
         || (window.__CC_DEBUG__ && window.__CC_DEBUG__.userId)
         || (socket && socket.id)
         || 'me';

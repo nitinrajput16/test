@@ -35,7 +35,7 @@
                     <% if (typeof viewingOther !== 'undefined' && viewingOther) { %>
                       You are viewing the public profile of another user.
                     <% } else { %>
-                      Your account and activity details are shown below. Data is secured with Google OAuth 2.0.
+                      Your account and activity details are shown below.
                     <% } %>
                 </p>
         </section>
@@ -53,6 +53,7 @@
             <div class="card" style="margin-bottom:2rem;">
                 <h3 class="section-title" style="margin-bottom:1rem;">👤 Personal Information</h3>
                 <div class="info-grid">
+                    <div class="info-item"><span class="info-label">Username -> </span><span class="info-value">@<%= user.username %></span></div>
                     <div class="info-item"><span class="info-label">Name -> </span><span class="info-value"><%= user.displayName %></span></div>
                     <div class="info-item"><span class="info-label">Email Address -> </span><span class="info-value"><%= user.email %></span></div>
                     <div class="info-item"><span class="info-label">Total Codes -> </span><span class="info-value"><%= typeof codeCount !== 'undefined' ? codeCount : 0 %></span></div>
@@ -63,7 +64,6 @@
                 <div class="info-grid">
                     <div class="info-item"><span class="info-label">User Since -> </span><span class="info-value"><%= user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A' %></span></div>
                     <div class="info-item"><span class="info-label">online Status -> </span><span class="info-value"><% if (sessionActive) { %>🟢 Active<% } else { %>🔴 Inactive<% } %></span></div>
-                    <!-- <div class="info-item"><span class="info-label">Account Type -> </span><span class="info-value">Google OAuth User</span></div> -->
                 </div>
             </div>
             <div class="card" style="margin-bottom:2rem;text-align:center;">
@@ -75,7 +75,7 @@
                 </div>
             </div>
             <div class="footer-info" style="text-align:center;color:var(--text-muted);font-size:0.95rem;padding:1rem 0;">
-                <p>Profile data secured with Google OAuth 2.0 | Edit by nitinrajput16</p>
+                <p>Codeplat by nitinrajput16</p>
                 <p>Current Time: <%= new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) %> IST</p>
             </div>
         </main>

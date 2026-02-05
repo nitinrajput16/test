@@ -11,18 +11,12 @@
         return;
     }
 
-    // Helper: Format timestamp (e.g. 10:45 AM)
-    function formatTime(ts) {
-        const d = new Date(ts);
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
+    const formatTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Helper: Create message element
     function createMessageEl(msg, isMine) {
         const el = document.createElement('div');
-        el.className = 'chat-msg ' + (isMine ? 'mine' : 'others');
+        el.className = `chat-msg ${isMine ? 'mine' : 'others'}`;
 
-        // Header: Name + Time
         const header = document.createElement('div');
         header.className = 'chat-msg-header';
 
@@ -35,33 +29,20 @@
         timeSpan.className = 'chat-msg-time';
         timeSpan.textContent = formatTime(msg.time || Date.now());
 
-        header.appendChild(nameSpan);
-        header.appendChild(timeSpan);
-        el.appendChild(header);
+        header.append(nameSpan, timeSpan);
 
-        // Body: Text
         const textDiv = document.createElement('div');
         textDiv.className = 'chat-msg-text';
         textDiv.textContent = msg.text || '';
-        el.appendChild(textDiv);
-
+        
+        el.append(header, textDiv);
         return el;
     }
 
     function appendMessage(msg) {
-        // Check if it's mine
-        let isMine = false;
-        // msg.userId comes from server, match with our resolved userId
-        if (window.myServerUserId && msg.userId === window.myServerUserId) {
-            isMine = true;
-        }
-        // Fallback: match by socket.id if userId not available
-        else if (window.socket && window.socket.id === msg.userId) {
-            isMine = true;
-        }
-
-        const item = createMessageEl(msg, isMine);
-        historyEl.appendChild(item);
+        const isMine = window.myServerUserId && msg.userId === window.myServerUserId || 
+                      window.socket?.id === msg.userId;
+        historyEl.appendChild(createMessageEl(msg, isMine));
         historyEl.scrollTop = historyEl.scrollHeight;
     }
 
@@ -69,30 +50,14 @@
     // Wait for socket to be available (script.js initializes it)
 
     function initChatSocket() {
-        if (!window.socket) {
-            setTimeout(initChatSocket, 500);
-            return;
-        }
+        if (!window.socket) return setTimeout(initChatSocket, 500);
 
-        // Listen for incoming messages
-        window.socket.on('chat-message', (msg) => {
-            console.log('[Chat] Received:', msg);
-            appendMessage(msg);
-        });
-
-        // Listen for history sync
+        window.socket.on('chat-message', (msg) => { console.log('[Chat] Received:', msg); appendMessage(msg); });
         window.socket.on('chat-history', (data) => {
             console.log('[Chat] History sync:', data);
-            if (data && Array.isArray(data.messages)) {
-                historyEl.innerHTML = '';
-                data.messages.forEach(m => appendMessage(m));
-            }
+            if (data?.messages) { historyEl.innerHTML = ''; data.messages.forEach(appendMessage); }
         });
 
-        // Whoami is handled in script.js and sets window.myServerUserId
-        // No need to duplicate the handler here
-
-        // Explicitly request history to handle race conditions
         const roomId = window.currentRoom || window.WHITEBOARD_ROOM;
         if (roomId) {
             console.log('[Chat] Requesting history for', roomId);
@@ -104,8 +69,7 @@
             historyEl.innerHTML = '';
             const note = document.createElement('div');
             note.className = 'chat-msg-time';
-            note.style.textAlign = 'center';
-            note.style.margin = '10px 0';
+            Object.assign(note.style, { textAlign: 'center', margin: '10px 0' });
             note.textContent = 'Chat history cleared';
             historyEl.appendChild(note);
         });
@@ -113,43 +77,29 @@
 
     initChatSocket();
 
-    // --- UI Actions ---
     function sendMessage() {
         const text = inputEl.value.trim();
         if (!text) return;
-
-        // Emit to server
         const roomId = window.currentRoom || window.WHITEBOARD_ROOM;
         if (window.socket && roomId) {
             console.log('[Chat] Sending to', roomId, text);
-            window.socket.emit('chat-message', {
-                roomId: roomId,
-                text: text
-            });
+            window.socket.emit('chat-message', { roomId, text });
         } else {
             console.error('[Chat] Cannot send: socket or roomId missing', { socket: !!window.socket, roomId });
         }
-
         inputEl.value = '';
         inputEl.focus();
     }
 
     sendBtn.addEventListener('click', sendMessage);
-    inputEl.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
+    inputEl.addEventListener('keydown', (e) => e.key === 'Enter' && sendMessage());
 
-    // --- Clear Chat ---
     const clearBtn = document.getElementById('usersChatClearBtn');
     if (clearBtn) {
         clearBtn.addEventListener('click', async () => {
-            const confirmed = confirm('Are you sure you want to clear the chat for everyone?');
-            if (!confirmed) return;
-
+            if (!confirm('Are you sure you want to clear the chat for everyone?')) return;
             const roomId = window.currentRoom || window.WHITEBOARD_ROOM;
-            if (window.socket && roomId) {
-                window.socket.emit('chat-clear', { roomId });
-            }
+            if (window.socket && roomId) window.socket.emit('chat-clear', { roomId });
         });
     }
 

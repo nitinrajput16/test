@@ -4,18 +4,12 @@
 (function () {
   const CHAT_ENDPOINT = '/api/ai/chat';
 
-  function $(id) {
-    return document.getElementById(id);
-  }
-
-  function safeText(v) {
-    return (v == null ? '' : String(v));
-  }
+  const $ = (id) => document.getElementById(id);
+  const safeText = (v) => v == null ? '' : String(v);
 
   function appendMessage(container, role, text, opts) {
     const msg = document.createElement('div');
-    msg.className = 'ai-chat-msg ' + (role === 'user' ? 'ai-chat-msg--user' : 'ai-chat-msg--assistant');
-    if (opts && opts.pending) msg.classList.add('ai-chat-msg--pending');
+    msg.className = `ai-chat-msg ai-chat-msg--${role === 'user' ? 'user' : 'assistant'}${opts?.pending ? ' ai-chat-msg--pending' : ''}`;
     msg.textContent = safeText(text);
     container.appendChild(msg);
     container.scrollTop = container.scrollHeight;
@@ -39,33 +33,19 @@
   function extractAssistantText(res) {
     if (typeof res === 'string') return res;
     if (!res) return '';
-
-    // Common shapes
     if (typeof res.text === 'string') return res.text;
     if (typeof res.message === 'string') return res.message;
-    if (res.message && typeof res.message.content === 'string') return res.message.content;
-    if (res.output && typeof res.output === 'string') return res.output;
-
-    // OpenAI-like
-    if (Array.isArray(res.choices) && res.choices[0]) {
+    if (res.message?.content) return res.message.content;
+    if (res.output) return res.output;
+    if (res.choices?.[0]) {
       const c0 = res.choices[0];
-      if (c0.message && typeof c0.message.content === 'string') return c0.message.content;
-      if (typeof c0.text === 'string') return c0.text;
+      if (c0.message?.content) return c0.message.content;
+      if (c0.text) return c0.text;
     }
-
-    try {
-      return JSON.stringify(res);
-    } catch {
-      return String(res);
-    }
+    try { return JSON.stringify(res); } catch { return String(res); }
   }
 
-  function extractServerAnswer(res) {
-    if (!res) return '';
-    if (typeof res.message === 'string') return res.message;
-    if (typeof res.text === 'string') return res.text;
-    return '';
-  }
+  const extractServerAnswer = (res) => res?.message || res?.text || '';
 
   window.addEventListener('DOMContentLoaded', () => {
     const messagesEl = $('aiChatMessages');
@@ -84,64 +64,45 @@
     let currentAbortController = null;
     let isGenerating = false;
 
-    function updateSendButton() {
+    const updateSendButton = () => {
       if (!sendBtn) return;
-      if (isGenerating) {
-        sendBtn.innerHTML = '<i class="fa-solid fa-stop"></i>';
-        sendBtn.disabled = false;
-        sendBtn.setAttribute('aria-label', 'Stop generation');
-      } else {
-        sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
-        sendBtn.disabled = false;
-        sendBtn.setAttribute('aria-label', 'Send message');
-      }
-    }
+      sendBtn.innerHTML = isGenerating ? '<i class="fa-solid fa-stop"></i>' : '<i class="fa-solid fa-paper-plane"></i>';
+      sendBtn.disabled = false;
+      sendBtn.setAttribute('aria-label', isGenerating ? 'Stop generation' : 'Send message');
+    };
 
-    function autoResizeInput() {
+    const autoResizeInput = () => {
       if (!inputEl) return;
-      // Let CSS control the max-height; we only set an inline height that tracks content.
       inputEl.style.height = 'auto';
       inputEl.style.height = inputEl.scrollHeight + 'px';
-    }
+    };
 
-    function setStatus(t) {
-      if (statusEl) statusEl.textContent = safeText(t);
-    }
+    const setStatus = (t) => statusEl && (statusEl.textContent = safeText(t));
 
     function openChatPanel() {
-      const panelRight = document.querySelector('.panel-right');
-      if (panelRight) panelRight.classList.add('ai-expanded');
-      if (chatPanel) chatPanel.setAttribute('aria-hidden', 'false');
+      document.querySelector('.panel-right')?.classList.add('ai-expanded');
+      chatPanel?.setAttribute('aria-hidden', 'false');
       if (openBtn) openBtn.disabled = true;
-      // Add a lightweight greeting once, like most AI chat panels
       if (!greeted && messagesEl && !messagesEl.childElementCount) {
         appendMessage(messagesEl, 'assistant', 'Hi! Ask me anything about your code, room, or errors.');
         greeted = true;
       }
-      if (inputEl) inputEl.focus();
+      inputEl?.focus();
       autoResizeInput();
     }
 
     function closeChatPanel() {
-      const panelRight = document.querySelector('.panel-right');
-      if (panelRight) panelRight.classList.remove('ai-expanded');
-      if (chatPanel) chatPanel.setAttribute('aria-hidden', 'true');
+      document.querySelector('.panel-right')?.classList.remove('ai-expanded');
+      chatPanel?.setAttribute('aria-hidden', 'true');
       if (openBtn) openBtn.disabled = false;
     }
 
     function clearChat() {
-      // Cancel any ongoing AI request first
-      if (currentAbortController) {
-        currentAbortController.abort();
-        currentAbortController = null;
-      }
-      
-      if (!messagesEl) return;
-      messagesEl.innerHTML = '';
+      currentAbortController?.abort();
+      currentAbortController = null;
+      if (messagesEl) messagesEl.innerHTML = '';
       history.length = 0;
       setStatus('');
-      
-      // Re-enable inputs if they were disabled during a request
       isGenerating = false;
       updateSendButton();
       if (inputEl) inputEl.disabled = false;

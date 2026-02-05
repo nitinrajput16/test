@@ -7,6 +7,8 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const passport = require('passport');
 const mongoose = require('mongoose');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const { initSocket } = require('./socket');
 
@@ -43,6 +45,31 @@ require('./config/passport')(passport);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// ---------- SECURITY MIDDLEWARE ----------
+// Helmet adds security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable CSP for Monaco Editor CDN
+  crossOriginEmbedderPolicy: false // Allow external resources
+}));
+
+// Rate limiting for authentication routes
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Limit each IP to 10 requests per windowMs
+  message: 'Too many authentication attempts, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// General API rate limiter
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 100, // Limit each IP to 100 requests per minute
+  message: 'Too many requests, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // ---------- CORE MIDDLEWARE ----------
 app.use((req, _res, next) => {
   next();
@@ -52,9 +79,14 @@ app.use(express.json({ limit: '1mb' }));
 app.use(cors());
 
 // ---------- SESSION ----------
-if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
-  console.error('SESSION_SECRET must be set in production');
-  process.exit(1);
+if (!process.env.SESSION_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ SECURITY ERROR: SESSION_SECRET must be set in production');
+    process.exit(1);
+  } else {
+    console.warn('⚠️  WARNING: Using insecure default SESSION_SECRET in development');
+    // console.warn('⚠️  Generate a secure secret with: node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))")"');
+  }
 }
 
 const sessionConfig = {
@@ -93,11 +125,11 @@ app.use((req, res, next) => {
 
 // ---------- ROUTES (BEFORE STATIC) ----------
 app.use('/', require('./routes/index'));
-app.use('/auth', require('./routes/auth'));
-app.use('/api/code', require('./routes/api/code'));
-app.use('/api/ai', require('./routes/api/ai'));
-app.use('/profile', require('./routes/api/profile'));
-app.use('/api/editor', require('./routes/api/editor'));
+app.use('/auth', authLimiter, require('./routes/auth')); // Apply rate limiting to auth routes
+app.use('/api/code', apiLimiter, require('./routes/api/code'));
+app.use('/api/ai', apiLimiter, require('./routes/api/ai'));
+app.use('/profile', apiLimiter, require('./routes/api/profile'));
+app.use('/api/editor', apiLimiter, require('./routes/api/editor'));
 
 // ---------- STATIC (AFTER PROTECTION) ----------
 app.use(express.static(path.join(__dirname, '../public')));
@@ -130,10 +162,3 @@ server.listen(PORT, HOST, () => {
   console.log(`👤 Author: nitin...`);
   console.log('=====================================');
 });
-
-// ---------- SHUTDOWN ----------
-// ['SIGINT', 'SIGTERM'].forEach(sig => {
-//   process.on(sig, () => {
-//     process.exit(0);
-//   });
-// });

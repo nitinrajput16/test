@@ -120,8 +120,6 @@
           accept();
         }
       });
-      // Optionally: a second tap to expand if truncated:
-      // widget.getDomNode().addEventListener('dblclick', toggleExpanded);
 
     function updateWidgetText(text, placeholder=false) {
       const node = widget.getDomNode();
@@ -309,7 +307,6 @@
         log('Manual trigger via Ctrl+Shift+Space');
         force();
       }
-      // (removed) Ctrl+I quick trigger — only Ctrl+Shift+Space remains
       // Ctrl+P: Toggle preview size
       if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
         e.preventDefault();

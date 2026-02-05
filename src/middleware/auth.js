@@ -37,13 +37,14 @@ function ensureOwner(req, res, next) {
     req.isAuthenticated &&
     req.isAuthenticated() &&
     req.user &&
-    (req.user.email === 'nr750001@gmail.com' || req.user.role === 'admin')
+    (req.user.role === 'admin' || req.user.email === process.env.ADMIN_EMAIL)
   ) {
     return next();
   }
   return res.status(403).render('error', {
     title: 'Access Denied',
-    error: 'Not authorized'
+    message: 'Administrator access required',
+    error: { status: 403 }
   });
 }
 

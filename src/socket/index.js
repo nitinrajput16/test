@@ -109,12 +109,12 @@ function initSocket(server, { sessionMiddleware }) {
 
   function getUserInfo(user, color, socketId) {
     return {
-      id: user._id ? String(user._id) : (user.googleId ? String(user.googleId) : (user.id ? String(user.id) : null)),
+      id: user.username || (user._id ? String(user._id) : null),
       socketId: socketId || null,
       name: user.displayName || user.username || 'User',
       email: user.email,
       avatar: user.avatar,
-      googleId: user.googleId,
+      username: user.username,
       color: color,
       position: null
     };
@@ -124,7 +124,7 @@ function initSocket(server, { sessionMiddleware }) {
     const user = socket.user;
     // Helper to get unique user ID for this socket
     function getSocketUserId() {
-      return (user && (user._id ? String(user._id) : (user.googleId ? String(user.googleId) : (user.id ? String(user.id) : null)))) || socket.id;
+      return user?.username || (user?._id ? String(user._id) : null) || socket.id;
     }
     // Share resolved user id with client immediately so OT acks match
     try {
@@ -151,11 +151,10 @@ function initSocket(server, { sessionMiddleware }) {
         roomUserPresence.get(roomId)[uid].color = COLORS[idx % COLORS.length];
       });
     }
-    // console.log('[SOCKET] connected:', user.email);
 
     socket.on('join-room', (roomId) => {
       if (!roomId) return;
-      // Use _id or googleId as unique id
+      // Use username as unique id
       const uniqueId = getSocketUserId();
 
       // Check if user is blocked from this room
@@ -214,7 +213,7 @@ function initSocket(server, { sessionMiddleware }) {
           const clientSocket = io.sockets.sockets.get(clientId);
           if (!clientSocket) continue;
           const clientUser = clientSocket.user;
-          const clientUserId = clientUser && (clientUser._id ? String(clientUser._id) : (clientUser.googleId ? String(clientUser.googleId) : (clientUser.id ? String(clientUser.id) : 'unknown')));
+          const clientUserId = clientUser?.username || (clientUser?._id ? String(clientUser._id) : null) || clientSocket.id;
           const allCarets = Object.entries(allCaretsMap)
             .filter(([uid, u]) => typeof u.caretOffset === 'number' && uid !== clientUserId)
             .map(([uid, u]) => ({ userId: uid, offset: u.caretOffset }));
@@ -299,14 +298,14 @@ function initSocket(server, { sessionMiddleware }) {
 
     socket.on('cursor-update', ({ roomId, cursor }) => {
       if (!roomId || !cursor) return;
-      socket.to(roomId).emit('cursor-update', { userId: user._id ? String(user._id) : (user.googleId ? String(user.googleId) : (user.id ? String(user.id) : null)), cursor });
+      socket.to(roomId).emit('cursor-update', { userId: getSocketUserId(), cursor });
     });
 
     socket.on('presence-cursor', ({ position }) => {
       for (const roomId of socket.rooms) {
         if (roomId === socket.id) continue;
         if (!roomUserPresence.has(roomId)) continue;
-        const uid = user._id ? String(user._id) : (user.googleId ? String(user.googleId) : (user.id ? String(user.id) : null));
+        const uid = getSocketUserId();
         if (!roomUserPresence.get(roomId)[uid]) continue;
         roomUserPresence.get(roomId)[uid].position = position;
         io.to(roomId).emit('presence-update', roomUserPresence.get(roomId));
@@ -409,10 +408,7 @@ function initSocket(server, { sessionMiddleware }) {
     socket.on('whiteboard:clear', ({ roomId }) => {
       if (!roomId) return;
       socket.to(roomId).emit('whiteboard:clear');
-      socket.to(roomId).emit('whiteboard:clear');
       roomBoards.set(roomId, []);
-      // Optional: Clear chat too? For now, we keep chat distinct.
-      // if (roomChats.has(roomId)) roomChats.set(roomId, []); 
     });
 
     // Reconnection: send full stroke history
@@ -511,7 +507,7 @@ function initSocket(server, { sessionMiddleware }) {
           const clientSocket = io.sockets.sockets.get(clientId);
           if (!clientSocket) continue;
           const clientUser = clientSocket.user;
-          const clientUserId = (clientUser && (clientUser._id ? String(clientUser._id) : (clientUser.googleId ? String(clientUser.googleId) : (clientUser.id ? String(clientUser.id) : null)))) || clientSocket.id;
+          const clientUserId = clientUser?.username || (clientUser?._id ? String(clientUser._id) : null) || clientSocket.id;
           if (clientUserId === targetUserId) {
             clientSocket.emit('room-kicked', { roomId, message: 'You have been kicked from this room by the owner.' });
             clientSocket.leave(roomId);
@@ -558,7 +554,7 @@ function initSocket(server, { sessionMiddleware }) {
           const clientSocket = io.sockets.sockets.get(clientId);
           if (!clientSocket) continue;
           const clientUser = clientSocket.user;
-          const clientUserId = (clientUser && (clientUser._id ? String(clientUser._id) : (clientUser.googleId ? String(clientUser.googleId) : (clientUser.id ? String(clientUser.id) : null)))) || clientSocket.id;
+          const clientUserId = clientUser?.username || (clientUser?._id ? String(clientUser._id) : null) || clientSocket.id;
           if (clientUserId === targetUserId) {
             clientSocket.emit('room-blocked', { roomId, message: 'You have been blocked from this room by the owner.' });
             clientSocket.leave(roomId);
@@ -602,7 +598,7 @@ function initSocket(server, { sessionMiddleware }) {
           if (!clientSocket) continue;
           // Get the userId for this socket
           const clientUser = clientSocket.user;
-          const clientUserId = (clientUser && (clientUser._id ? String(clientUser._id) : (clientUser.googleId ? String(clientUser.googleId) : (clientUser.id ? String(clientUser.id) : null)))) || clientSocket.id;
+          const clientUserId = clientUser?.username || (clientUser?._id ? String(clientUser._id) : null) || clientSocket.id;
           // Send all carets except this user's own, and include color
           const allCarets = Object.entries(allCaretsMap)
             .filter(([uid, u]) => typeof u.caretOffset === 'number' && uid !== clientUserId)
@@ -652,7 +648,6 @@ function initSocket(server, { sessionMiddleware }) {
     });
 
     socket.on('disconnect', () => {
-      // console.log('[SOCKET] disconnected:', user.email);
     });
   });
 

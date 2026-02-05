@@ -18,19 +18,10 @@
       ]
     };
 
-    function getRoomId() {
-      return typeof roomIdProvider === 'function' ? roomIdProvider() : roomIdProvider;
-    }
-
-    function status(msg) {
-      if (ui && ui.statusEl) ui.statusEl.textContent = msg;
-    }
-    function setEnableLabel(on) {
-      if (ui && ui.enableBtn) ui.enableBtn.textContent = on ? 'Disable Voice' : 'Enable Voice';
-    }
-    function setMuteLabel(muted) {
-      if (ui && ui.muteBtn) ui.muteBtn.textContent = muted ? 'Unmute' : 'Mute';
-    }
+    const getRoomId = () => typeof roomIdProvider === 'function' ? roomIdProvider() : roomIdProvider;
+    const status = (msg) => ui?.statusEl && (ui.statusEl.textContent = msg);
+    const setEnableLabel = (on) => ui?.enableBtn && (ui.enableBtn.textContent = on ? 'Disable Voice' : 'Enable Voice');
+    const setMuteLabel = (muted) => ui?.muteBtn && (ui.muteBtn.textContent = muted ? 'Unmute' : 'Mute');
 
     async function ensureLocalStream() {
       if (localStream) return localStream;
@@ -48,40 +39,29 @@
 
     function setMicEnabled(on) {
       if (!localStream) return;
-      localStream.getAudioTracks().forEach(t => { t.enabled = on; });
+      localStream.getAudioTracks().forEach(t => t.enabled = on);
       micMuted = !on;
       setMuteLabel(micMuted);
       status(on ? 'Mic on' : 'Mic muted');
-      // notify UI about local mute state
-      try { window.dispatchEvent(new CustomEvent('voice:local-muted', { detail: { muted: !on } })); } catch (e) { /* ignore */ }
-      // inform peers (via server) about our mute status so UI can update
       try {
+        window.dispatchEvent(new CustomEvent('voice:local-muted', { detail: { muted: !on } }));
         socket.emit('voice-mute-status', { roomId: getRoomId(), muted: micMuted });
-      } catch (e) { /* ignore */ }
+      } catch (e) {}
     }
 
     function destroyPeer(peerId) {
       const pc = peers.get(peerId);
-      if (pc) {
-        pc.getSenders().forEach(s => pc.removeTrack(s));
-        pc.close();
-      }
+      if (pc) { pc.getSenders().forEach(s => pc.removeTrack(s)); pc.close(); }
       peers.delete(peerId);
       const audio = audioEls.get(peerId);
-      if (audio) {
-        audio.srcObject = null;
-        audio.remove();
-      }
+      if (audio) { audio.srcObject = null; audio.remove(); }
       audioEls.delete(peerId);
       remoteMutePref.delete(peerId);
       const a = analysers.get(peerId);
-      if (a) {
-        try { if (a.source) a.source.disconnect(); } catch (e) {}
-        try { if (a.analyser) a.analyser.disconnect(); } catch (e) {}
-      }
+      if (a) { try { a.source?.disconnect(); a.analyser?.disconnect(); } catch (e) {} }
       analysers.delete(peerId);
       vadState.delete(peerId);
-      try { window.dispatchEvent(new CustomEvent('voice:peer-left', { detail: { peerId } })); } catch (e) { /* ignore */ }
+      try { window.dispatchEvent(new CustomEvent('voice:peer-left', { detail: { peerId } })); } catch (e) {}
     }
 
     function startVADLoop(peerId, token) {
@@ -125,11 +105,10 @@
 
         if (!state.speaking && state.speakCount >= minSpeakFrames) {
           state.speaking = true;
-          try { window.dispatchEvent(new CustomEvent('voice:peer-speaking', { detail: { peerId } })); } catch (e) { }
-        }
-        if (state.speaking && state.silenceCount >= silenceFramesToStop) {
+          try { window.dispatchEvent(new CustomEvent('voice:peer-speaking', { detail: { peerId } })); } catch (e) {}
+        } else if (state.speaking && state.silenceCount >= silenceFramesToStop) {
           state.speaking = false;
-          try { window.dispatchEvent(new CustomEvent('voice:peer-stopped', { detail: { peerId } })); } catch (e) { }
+          try { window.dispatchEvent(new CustomEvent('voice:peer-stopped', { detail: { peerId } })); } catch (e) {}
         }
 
         vadState.set(peerId, state);
@@ -139,11 +118,9 @@
     }
 
     function setRemoteMuted(peerId, muted) {
-      try {
-        remoteMutePref.set(peerId, !!muted);
-        const audio = audioEls.get(peerId);
-        if (audio) audio.muted = !!muted;
-      } catch (e) { /* ignore */ }
+      remoteMutePref.set(peerId, !!muted);
+      const audio = audioEls.get(peerId);
+      if (audio) audio.muted = !!muted;
     }
 
     function attachRemoteAudio(peerId, stream) {
