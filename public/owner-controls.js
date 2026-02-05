@@ -74,7 +74,10 @@
 
         // Listen for settings updates
         socket.on('room-settings-update', (data) => {
-            // console.log('[Owner] Settings update:', data);
+            console.log('[Owner] Settings update:', data);
+            
+            // Update the global state from server
+            window.roomReadOnly = data.settings?.readOnly || false;
             
             if (readonlyToggle) {
                 readonlyToggle.checked = window.roomReadOnly;
