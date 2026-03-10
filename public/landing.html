@@ -12,14 +12,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
+    <!-- Three.js for floating 3D decorations -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
 </head>
 
 <body>
+    <!-- Background 3D canvas -->
+    <canvas id="bg-canvas"></canvas>
     <!-- Navigation -->
     <nav class="navbar">
         <div class="nav-container">
             <div class="nav-left">
-                <h1 class="logo">Edit</h1>
+                <h1 class="logo">Codeplat</h1>
             </div>
             <div class="nav-right">
                 <a href="#features" class="nav-link">Features</a>
@@ -226,6 +230,7 @@
     </footer>
 
     <!-- GSAP Animations Script -->
+    <script src="landing-3d.js"></script>
     <script src="landing-animations.js"></script>
 </body>
 

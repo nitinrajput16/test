@@ -36,7 +36,7 @@
     "passport-google-oauth20": "^2.0.0",
     "passport-local": "^1.0.0",
     "socket.io": "^4.8.1",
-    "vercel": "^44.7.3"
+    "vercel": "^50.29.0"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8",

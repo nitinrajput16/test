@@ -725,3 +725,21 @@ html {
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+/* 3D canvas overlay styles */
+#landing-3d-canvas,
+#bg-canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.95;
+}
+
+/* Ensure main content sits above the canvas */
+nav, section, footer, .container, .hero {
+    position: relative;
+    z-index: 1;
+}

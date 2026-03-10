@@ -31,13 +31,13 @@
   </nav>
   <!-- Mobile top bar (visible only on small screens) -->
   <div class="mobile-top-bar">
-    <button class="mobile-back-btn" onclick="history.back()" title="Back">‹</button>
+    <button class="mobile-back-btn" onclick="history.back()" title="Back"><i class="fa-solid fa-chevron-left"></i></button>
     <div class="mobile-room-display" id="mobileRoomDisplay">Room ID: #loading...</div>
-    <button class="mobile-options-btn" title="Options">⋮</button>
+    <button class="mobile-options-btn" title="Options"><i class="fa-solid fa-ellipsis-vertical"></i></button>
   </div>
   <div class="workspace">
     <aside class="panel panel-left" id="panelLeft">
-      <div class="collapse-handle" id="collapseLeft" title="Collapse">◀</div>
+      <div class="collapse-handle" id="collapseLeft" title="Collapse"><i class="fa-solid fa-chevron-left"></i></div>
       <div class="panel-header">
         <span>Files</span>
         <small class="panel-subtitle">shared explorer</small>
@@ -136,8 +136,11 @@
       <div class="editor-whiteboard-wrapper" id="editorWhiteboardWrapper">
         <div class="editor-shell">
           <div id="editor-container">
-            <button id="themeToggleBtn" title="Toggle Light/Dark Theme">
-              <span id="themeToggleIcon" aria-label="theme">🌙</span>
+            <button id="themeToggleBtn" type="button" title="Switch to light theme" aria-label="Switch to light theme" aria-pressed="true" data-theme-mode="dark">
+              <span class="theme-toggle-icon-wrap" aria-hidden="true">
+                <i id="themeToggleIcon" class="fa-solid fa-moon"></i>
+              </span>
+              <span id="themeToggleLabel" class="theme-toggle-label">Dark</span>
             </button>
             <div id="ai-hint" class="ai-hint-badge" title="AI Assistant - Click for shortcuts">
               <span class="ai-hint-icon">🤖</span>
@@ -175,7 +178,7 @@
               <div class="output-section active" id="outputSection" role="tabpanel" aria-labelledby="outputTab">
                 <div class="output-wrapper">
                   <pre id="output"></pre>
-                  <button id="clearOutputBtn" title="Clear output" class="clear-output-btn">&#128465;</button>
+                  <button id="clearOutputBtn" title="Clear output" class="clear-output-btn"><i class="fa-regular fa-trash-can"></i></button>
                 </div>
               </div>
               <div class="output-section" id="stdinSection" role="tabpanel" aria-labelledby="stdinTab"
@@ -274,7 +277,7 @@
 
     <div class="resizer resizer-right" id="resizerRight" title="Drag to resize"></div>
     <aside class="panel panel-right" id="panelRight">
-      <div class="collapse-handle" id="collapseRight" title="Collapse">▶</div>
+      <div class="collapse-handle" id="collapseRight" title="Collapse"><i class="fa-solid fa-chevron-right"></i></div>
       <div class="panel-header">
         <span>Collaboration</span>
         <div id="toolbarRoomDisplay" style="margin-left:6px;color:#cfefe0;font-size:10px;white-space:nowrap;"> ROOM ID:
@@ -303,7 +306,7 @@
       <!-- Full AI chat panel (covers right panel when open) -->
       <div class="collab-card ai-chat-panel" id="aiChatPanel" aria-hidden="true">
         <div class="ai-chat-panel-head">
-          <button id="aiChatBackBtn" type="button" class="ai-chat-back" title="Back" aria-label="Back">←</button>
+          <button id="aiChatBackBtn" type="button" class="ai-chat-back" title="Back" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button>
           <div class="card-title">Chat with AI</div>
           <button id="aiChatNewBtn" type="button" class="ai-chat-send" title="New Chat" aria-label="New Chat"><i
               class="fa-solid fa-comment-medical"></i></button>
@@ -368,7 +371,7 @@
       <div class="collab-card users-chat-card" id="usersChatCard">
         <div class="card-title">
           <button id="usersChatBackBtn" type="button" class="chat-back-btn" title="Back"
-            style="display:none; margin-right:8px; background:transparent; border:none; color:#fff; cursor:pointer;">←</button>
+            style="display:none; margin-right:8px; background:transparent; border:none; color:#fff; cursor:pointer;"><i class="fa-solid fa-arrow-left"></i></button>
           <span>Group Chat</span>
           <div style="margin-left:auto; display:flex; gap:6px;">
             <button id="usersChatExpandBtn" type="button" class="chat-expand-btn" title="Expand Chat"
@@ -406,23 +409,23 @@
       mobileNav.className = 'mobile-bottom-nav';
       mobileNav.innerHTML = `
         <button class="mobile-nav-btn" data-target="panelLeft" title="Files">
-          <span class="nav-icon">📂</span>
+          <span class="nav-icon"><i class="fa-regular fa-folder"></i></span>
           <span class="nav-label">Files</span>
         </button>
         <button class="mobile-nav-btn" data-target="panelCenter" title="Editor">
-          <span class="nav-icon">✏️</span>
+          <span class="nav-icon"><i class="fa-solid fa-pen"></i></span>
           <span class="nav-label">Editor</span>
         </button>
         <button class="mobile-nav-btn" data-target="output" title="Output">
-          <span class="nav-icon">🖥️</span>
+          <span class="nav-icon"><i class="fa-solid fa-terminal"></i></span>
           <span class="nav-label">Output</span>
         </button>
         <button class="mobile-nav-btn" data-target="users" title="Users">
-          <span class="nav-icon">👥</span>
+          <span class="nav-icon"><i class="fa-solid fa-users"></i></span>
           <span class="nav-label">Users</span>
         </button>
         <button class="mobile-nav-btn" data-target="voice" title="Whiteboard">
-          <span class="nav-icon">🎨</span>
+          <span class="nav-icon"><i class="fa-solid fa-chalkboard"></i></span>
           <span class="nav-label">Whiteboard</span>
         </button>
       `;

@@ -1246,13 +1246,76 @@ button:disabled {
 /* Theme toggle button positioned in editor top-right */
 #themeToggleBtn {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 12px;
+  right: 12px;
   z-index: 20;
-  background: none;
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(8, 18, 14, 0.82);
+  border: 1px solid rgba(79, 216, 155, 0.18);
+  border-radius: 999px;
+  color: #e7fff4;
   cursor: pointer;
-  font-size: 1.5em;
+  font-size: 0.88rem;
+  line-height: 1;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+#themeToggleBtn:hover,
+#themeToggleBtn:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(79, 216, 155, 0.4);
+  background: rgba(12, 30, 22, 0.92);
+  outline: none;
+}
+
+#themeToggleBtn[data-theme-mode="light"] {
+  background: rgba(255, 248, 227, 0.95);
+  border-color: rgba(246, 187, 66, 0.35);
+  color: #785a00;
+}
+
+#themeToggleBtn[data-theme-mode="light"]:hover,
+#themeToggleBtn[data-theme-mode="light"]:focus-visible {
+  background: rgba(255, 244, 205, 0.98);
+  border-color: rgba(246, 187, 66, 0.48);
+}
+
+.theme-toggle-icon-wrap {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(79, 216, 155, 0.12);
+  color: inherit;
+}
+
+#themeToggleBtn[data-theme-mode="light"] .theme-toggle-icon-wrap {
+  background: rgba(246, 187, 66, 0.16);
+}
+
+#themeToggleIcon {
+  font-size: 0.92rem;
+}
+
+.theme-toggle-label {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+@media (max-width: 700px) {
+  #themeToggleBtn {
+    padding: 8px 10px;
+  }
+
+  .theme-toggle-label {
+    display: none;
+  }
 }
 
 /* Users list container alignment and sizing */

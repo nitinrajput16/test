@@ -81,7 +81,8 @@ router.post('/chat', ensureAuth, async (req, res) => {
           { role: 'user', parts: [{ text: instruction }] },
           ...trimmed
         ],
-        generationConfig: { maxOutputTokens: 512, temperature: 0.4 }
+        // Increase maxOutputTokens to allow longer assistant responses
+        generationConfig: { maxOutputTokens: 2048, temperature: 0.4 }
       });
     }
 

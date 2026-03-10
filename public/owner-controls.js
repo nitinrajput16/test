@@ -15,7 +15,7 @@
     // Create read-only indicator
     const readonlyIndicator = document.createElement('div');
     readonlyIndicator.className = 'readonly-indicator';
-    readonlyIndicator.textContent = '🔒 Read-Only Mode - Only the owner can edit';
+    readonlyIndicator.innerHTML = '<i class="fa-solid fa-lock"></i> Read-Only Mode - Only the owner can edit';
     document.body.appendChild(readonlyIndicator);
 
     // Close any open dropdown when clicking outside

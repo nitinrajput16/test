@@ -179,7 +179,7 @@
       const fid = ++lastFetchId;
 
       clearWidget();
-      if (CFG.SHOW_PLACEHOLDER) updateWidgetText('🤖 Thinking...', true);
+      if (CFG.SHOW_PLACEHOLDER) updateWidgetText('Thinking...', true);
 
       const lang = getLang();
       log('POST', CFG.endpoint, { bytes: prefix.length, lang, fid, force });

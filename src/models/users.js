@@ -9,7 +9,8 @@ const UserSchema = new mongoose.Schema({
   displayName: { type: String, trim: true },
   provider: { type: String, trim: true }, // 'google', 'github', 'local'
   avatar: { type: String, trim: true },
-  role: { type: String, default: 'user', enum: ['user', 'admin'] }
+  role: { type: String, default: 'user', enum: ['user', 'admin'] },
+  friends: [{ type: String, trim: true, lowercase: true }]
 }, { timestamps: true });
 
 // Helper method to generate unique username from email

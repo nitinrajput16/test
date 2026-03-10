@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -179,16 +180,16 @@
         </div>
         
         <div class="suggestions">
-            <h3>💡 Try these instead:</h3>
+            <h3><i class="fa-regular fa-lightbulb"></i> Try these instead:</h3>
             <ul>
-                <li>🏠 <a href="/">Go to Home Page</a></li>
+                <li><i class="fa-solid fa-house"></i> <a href="/">Go to Home Page</a></li>
                 <% if (typeof user !== 'undefined' && user) { %>
-                    <li>⚡ <a href="/editor">Open Code Editor</a></li>
-                    <li>👤 <a href="/profile">View Profile</a></li>
+                    <li><i class="fa-solid fa-code"></i> <a href="/editor">Open Code Editor</a></li>
+                    <li><i class="fa-regular fa-user"></i> <a href="/profile">View Profile</a></li>
                 <% } else { %>
-                    <li>🔑 <a href="/auth/google">Sign in with Google</a></li>
+                    <li><i class="fa-solid fa-right-to-bracket"></i> <a href="/auth/google">Sign in with Google</a></li>
                 <% } %>
-                <li>📖 <a href="/about">Learn More About Edit</a></li>
+                <li><i class="fa-solid fa-book-open"></i> <a href="/about">Learn More About Edit</a></li>
             </ul>
         </div>
         

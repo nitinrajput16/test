@@ -153,9 +153,9 @@ function applyWorkspaceResizeEffects() {
 
   function updateHandle(side, collapsed) {
     if (side === 'left') {
-      collapseLeft.textContent = collapsed ? '▶' : '◀';
+      collapseLeft.innerHTML = collapsed ? '<i class="fa-solid fa-chevron-right"></i>' : '<i class="fa-solid fa-chevron-left"></i>';
     } else {
-      collapseRight.textContent = collapsed ? '◀' : '▶';
+      collapseRight.innerHTML = collapsed ? '<i class="fa-solid fa-chevron-left"></i>' : '<i class="fa-solid fa-chevron-right"></i>';
     }
   }
 

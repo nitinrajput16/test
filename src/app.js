@@ -9,6 +9,7 @@ const passport = require('passport');
 const mongoose = require('mongoose');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = rateLimit;
 
 const { initSocket } = require('./socket');
 
@@ -52,6 +53,50 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false // Allow external resources
 }));
 
+function getClientAddress(req) {
+  if (typeof req.ip === 'string' && req.ip.trim()) {
+    return req.ip.trim();
+  }
+
+  if (typeof req.socket?.remoteAddress === 'string' && req.socket.remoteAddress.trim()) {
+    return req.socket.remoteAddress.trim();
+  }
+
+  if (typeof req.connection?.remoteAddress === 'string' && req.connection.remoteAddress.trim()) {
+    return req.connection.remoteAddress.trim();
+  }
+
+  const forwardedFor = req.headers['x-forwarded-for'];
+  if (typeof forwardedFor === 'string' && forwardedFor.trim()) {
+    return forwardedFor.split(',')[0].trim();
+  }
+
+  const realIp = req.headers['x-real-ip'];
+  if (typeof realIp === 'string' && realIp.trim()) {
+    return realIp.trim();
+  }
+
+  const cloudflareIp = req.headers['cf-connecting-ip'];
+  if (typeof cloudflareIp === 'string' && cloudflareIp.trim()) {
+    return cloudflareIp.trim();
+  }
+
+  return '';
+}
+
+function rateLimitKeyGenerator(req) {
+  if (req.user?.id) {
+    return `user:${req.user.id}`;
+  }
+
+  const clientAddress = getClientAddress(req);
+  if (clientAddress) {
+    return `ip:${ipKeyGenerator(clientAddress)}`;
+  }
+
+  return `unknown:${req.method}:${req.originalUrl || req.url || 'request'}`;
+}
+
 // Rate limiting for authentication routes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -59,6 +104,7 @@ const authLimiter = rateLimit({
   message: 'Too many authentication attempts, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
 });
 
 // General API rate limiter
@@ -68,6 +114,7 @@ const apiLimiter = rateLimit({
   message: 'Too many requests, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
 });
 
 // ---------- CORE MIDDLEWARE ----------

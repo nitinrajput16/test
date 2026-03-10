@@ -3205,21 +3205,33 @@ window.addEventListener('DOMContentLoaded', function () {
       // Theme toggle icon logic
       const themeToggleBtn = document.getElementById('themeToggleBtn');
       const themeToggleIcon = document.getElementById('themeToggleIcon');
+      const themeToggleLabel = document.getElementById('themeToggleLabel');
       let currentTheme = 'collabDark';
+      function setThemeToggleState(theme) {
+        if (!themeToggleBtn || !themeToggleIcon) return;
+        const isDark = theme === 'collabDark';
+        themeToggleIcon.className = isDark ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+        if (themeToggleLabel) {
+          themeToggleLabel.textContent = isDark ? 'Dark' : 'Light';
+        }
+        themeToggleBtn.dataset.themeMode = isDark ? 'dark' : 'light';
+        themeToggleBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+        themeToggleBtn.setAttribute('title', isDark ? 'Switch to light theme' : 'Switch to dark theme');
+        themeToggleBtn.setAttribute('aria-label', isDark ? 'Switch to light theme' : 'Switch to dark theme');
+      }
       if (themeToggleBtn && themeToggleIcon) {
         themeToggleBtn.addEventListener('click', function () {
           if (currentTheme === 'collabDark') {
             monaco.editor.setTheme('vs');
             currentTheme = 'vs';
-            themeToggleIcon.textContent = '☀️';
           } else {
             monaco.editor.setTheme('collabDark');
             currentTheme = 'collabDark';
-            themeToggleIcon.textContent = '🌙';
           }
+          setThemeToggleState(currentTheme);
         });
         // Set initial icon
-        themeToggleIcon.textContent = currentTheme === 'collabDark' ? '🌙' : '☀️';
+        setThemeToggleState(currentTheme);
       }
 
       // Expose globally for debugging (optional)

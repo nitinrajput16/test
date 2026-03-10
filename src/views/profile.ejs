@@ -4,80 +4,1108 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %></title>
-    <link rel="stylesheet" href="/landing.css">
     <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+        --bg: #07110d;
+        --bg-soft: #0b1712;
+        --panel: rgba(14, 29, 22, 0.88);
+        --panel-strong: #10241b;
+        --panel-alt: #132c21;
+        --line: rgba(85, 190, 135, 0.18);
+        --line-strong: rgba(85, 190, 135, 0.32);
+        --text: #e5f1eb;
+        --text-muted: #9ab5a8;
+        --text-faint: #769182;
+        --accent: #49c47f;
+        --accent-strong: #71efab;
+        --danger: #ff6d6d;
+        --shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+        --sidebar-width: 258px;
+        --radius-xl: 26px;
+        --radius-lg: 18px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+        min-height: 100vh;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        color: var(--text);
+        background:
+            radial-gradient(circle at top left, rgba(73, 196, 127, 0.18), transparent 30%),
+            radial-gradient(circle at top right, rgba(113, 239, 171, 0.08), transparent 24%),
+            linear-gradient(180deg, #06100c 0%, #08130f 45%, #06100c 100%);
+        overflow-x: hidden;
+    }
+
+    body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+            linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
+        background-size: 22px 22px;
+        mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.9), transparent 85%);
+        pointer-events: none;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    button, input { font: inherit; }
+
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #08120e; }
+    ::-webkit-scrollbar-thumb { background: rgba(73, 196, 127, 0.3); border-radius: 999px; }
+
+    .pf-layout { display: flex; min-height: 100vh; }
+
+    .pf-sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: var(--sidebar-width);
+        padding: 22px 18px;
+        border-right: 1px solid var(--line);
+        background: rgba(7, 17, 13, 0.82);
+        backdrop-filter: blur(16px);
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        z-index: 20;
+    }
+
+    .pf-brand,
+    .pf-identity,
+    .pf-topbar,
+    .pf-mobile-nav,
+    .pf-hero,
+    .pf-metric-strip,
+    .pf-card {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        backdrop-filter: blur(14px);
+        box-shadow: var(--shadow);
+    }
+
+    .pf-brand {
+        padding: 14px 14px 16px;
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(73, 196, 127, 0.05));
+    }
+
+    .pf-brand-name { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.04em; }
+    .pf-brand-name span { color: var(--accent-strong); }
+    .pf-brand-sub { margin-top: 6px; color: var(--text-faint); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.18em; }
+
+    .pf-identity {
+        padding: 16px 14px;
+        border-radius: 18px;
+        display: grid;
+        grid-template-columns: 54px 1fr;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .pf-avatar,
+    .pf-top-avatar,
+    .pf-friend-avatar { object-fit: cover; background: #102118; }
+    .pf-avatar { width: 54px; height: 54px; border-radius: 16px; border: 1px solid var(--line-strong); }
+    .pf-identity-name { font-weight: 700; font-size: 0.98rem; }
+    .pf-identity-handle { margin-top: 3px; color: var(--text-muted); font-size: 0.8rem; }
+    .pf-identity-meta { margin-top: 8px; font-size: 0.74rem; color: var(--text-faint); }
+
+    .pf-nav { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
+    .pf-nav-group-label { margin: 4px 12px 8px; color: var(--text-faint); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.18em; }
+
+    .pf-nav-link {
+        width: 100%;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        cursor: pointer;
+        transition: 160ms ease;
+        text-align: left;
+    }
+
+    .pf-nav-link:hover,
+    .pf-nav-link:focus-visible { color: var(--text); background: rgba(255, 255, 255, 0.03); border-color: var(--line); outline: none; }
+    .pf-nav-link.active { color: var(--text); background: linear-gradient(180deg, rgba(73, 196, 127, 0.14), rgba(73, 196, 127, 0.06)); border-color: var(--line-strong); }
+    .pf-nav-icon { width: 18px; flex-shrink: 0; text-align: center; }
+    .pf-nav-icon i { font-size: 0.92rem; }
+
+    .pf-sidebar-footer {
+        margin-top: auto;
+        padding: 14px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--text-faint);
+        font-size: 0.76rem;
+        line-height: 1.5;
+    }
+
+    .pf-main {
+        margin-left: var(--sidebar-width);
+        width: calc(100% - var(--sidebar-width));
+        min-height: 100vh;
+        padding: 26px 28px 40px;
+    }
+
+    .pf-main-shell {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .pf-navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+      padding: 14px 18px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: rgba(8, 18, 14, 0.8);
+      backdrop-filter: blur(16px);
+      box-shadow: var(--shadow);
+    }
+
+    .pf-navbar-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .pf-navbar-brand-mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(73, 196, 127, 0.2), rgba(113, 239, 171, 0.08));
+      border: 1px solid var(--line-strong);
+      color: var(--accent-strong);
+      flex-shrink: 0;
+    }
+
+    .pf-navbar-brand-copy {
+      min-width: 0;
+    }
+
+    .pf-navbar-brand-title {
+      font-size: 0.98rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .pf-navbar-brand-sub {
+      margin-top: 3px;
+      color: var(--text-faint);
+      font-size: 0.76rem;
+      white-space: nowrap;
+    }
+
+    .pf-navbar-links {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pf-navbar-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      background: transparent;
+      transition: 160ms ease;
+      white-space: nowrap;
+    }
+
+    .pf-navbar-link:hover,
+    .pf-navbar-link:focus-visible {
+      color: var(--text);
+      border-color: var(--line);
+      background: rgba(255, 255, 255, 0.03);
+      outline: none;
+    }
+
+    .pf-navbar-link.active {
+      color: var(--text);
+      border-color: var(--line-strong);
+      background: rgba(73, 196, 127, 0.1);
+    }
+
+    .pf-topbar {
+      position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 22px;
+        padding: 16px 20px;
+        border-radius: 20px;
+    }
+
+    .pf-topbar-copy h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.03em; }
+    .pf-topbar-copy p { margin-top: 4px; color: var(--text-muted); font-size: 0.84rem; }
+    .pf-topbar-side { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .pf-status-pill { padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line); background: rgba(73, 196, 127, 0.08); color: var(--accent-strong); font-size: 0.78rem; white-space: nowrap; }
+    .pf-top-avatar { width: 42px; height: 42px; border-radius: 14px; border: 1px solid var(--line-strong); }
+
+    .pf-summary { display: grid; grid-template-columns: 1.35fr 0.9fr; gap: 18px; margin-bottom: 22px; }
+
+    .pf-hero { position: relative; overflow: hidden; border-radius: var(--radius-xl); padding: 26px; }
+    .pf-hero::before { content: ""; position: absolute; inset: auto -10% -35% auto; width: 280px; height: 280px; border-radius: 50%; background: radial-gradient(circle, rgba(113, 239, 171, 0.18), transparent 70%); pointer-events: none; }
+    .pf-kicker { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px; background: rgba(73, 196, 127, 0.11); border: 1px solid var(--line); color: var(--accent-strong); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.12em; }
+    .pf-hero-title { margin-top: 18px; font-size: clamp(1.85rem, 3vw, 2.55rem); line-height: 1.02; letter-spacing: -0.05em; }
+    .pf-hero-title strong { color: var(--accent-strong); }
+    .pf-hero-copy { margin-top: 14px; max-width: 660px; color: var(--text-muted); font-size: 0.96rem; line-height: 1.7; }
+    .pf-hero-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .pf-chip { padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); color: var(--text-muted); font-size: 0.8rem; }
+
+    .pf-metric-strip { border-radius: var(--radius-xl); padding: 18px; display: grid; gap: 12px; align-content: start; }
+    .pf-metric-item { padding: 14px 16px; border-radius: 16px; background: rgba(255, 255, 255, 0.025); border: 1px solid rgba(255, 255, 255, 0.03); }
+    .pf-metric-label { color: var(--text-faint); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.15em; }
+    .pf-metric-value { margin-top: 8px; font-size: 1.55rem; font-weight: 800; letter-spacing: -0.04em; }
+
+    .pf-mobile-nav { display: none; padding: 10px; margin-bottom: 20px; border-radius: 18px; overflow-x: auto; }
+    .pf-mobile-nav-track { display: flex; gap: 8px; min-width: max-content; }
+    .pf-mobile-nav .pf-nav-link { border-radius: 999px; padding: 10px 14px; width: auto; }
+
+    .pf-section { display: none; animation: pfFade 220ms ease; }
+    .pf-section.active { display: block; }
+    @keyframes pfFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .pf-section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+    .pf-section-kicker { color: var(--accent-strong); font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; }
+    .pf-section-title { margin-top: 6px; font-size: clamp(1.35rem, 2vw, 1.8rem); letter-spacing: -0.04em; }
+    .pf-section-copy { margin-top: 8px; color: var(--text-muted); line-height: 1.65; max-width: 760px; }
+    .pf-section-tag { padding: 9px 13px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.025); color: var(--text-muted); font-size: 0.78rem; white-space: nowrap; }
+
+    .pf-grid { display: grid; gap: 18px; }
+    .pf-grid.two { grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr); }
+    .pf-grid.equal { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pf-card { border-radius: var(--radius-lg); padding: 20px; }
+    .pf-card,
+    .pf-file-item,
+    .pf-friend-item,
+    .pf-metric-item,
+    .pf-highlight {
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+    }
+
+    .pf-card:hover,
+    .pf-card:focus-within {
+      border-color: rgba(113, 239, 171, 0.22);
+      box-shadow: 0 28px 70px rgba(0, 0, 0, 0.34);
+    }
+
+    .pf-file-item:hover,
+    .pf-friend-item:hover,
+    .pf-metric-item:hover,
+    .pf-highlight:hover {
+      transform: translateY(-1px);
+      border-color: var(--line-strong);
+      background: rgba(73, 196, 127, 0.06);
+    }
+    .pf-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+    .pf-card-head h3 { font-size: 0.98rem; letter-spacing: -0.03em; }
+    .pf-card-head p { margin-top: 6px; color: var(--text-faint); font-size: 0.8rem; }
+    .pf-badge { padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--text-muted); font-size: 0.74rem; background: rgba(255, 255, 255, 0.025); white-space: nowrap; }
+
+    .pf-info-stack { display: grid; gap: 10px; }
+    .pf-info-row { display: grid; grid-template-columns: 30px 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+    .pf-info-row:last-child { border-bottom: none; }
+    .pf-info-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 10px; background: rgba(73, 196, 127, 0.08); color: var(--accent-strong); font-size: 0.86rem; }
+    .pf-info-icon i,
+    .pf-file-mark i { font-size: 0.85rem; }
+    .pf-info-label { color: var(--text-faint); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; }
+    .pf-info-value { margin-top: 4px; color: var(--text); font-size: 0.94rem; line-height: 1.55; word-break: break-word; }
+
+    .pf-action-list, .pf-split-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    .pf-split-actions { margin-top: 18px; }
+
+    .pf-btn,
+    .pf-btn-secondary,
+    .pf-btn-danger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 42px;
+        padding: 0 16px;
+        border-radius: 12px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: 160ms ease;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .pf-btn { background: linear-gradient(135deg, var(--accent), var(--accent-strong)); color: #07110d; font-weight: 700; }
+    .pf-btn:hover, .pf-btn:focus-visible { transform: translateY(-1px); box-shadow: 0 12px 22px rgba(73, 196, 127, 0.22); outline: none; }
+    .pf-btn-secondary { background: rgba(255, 255, 255, 0.025); border-color: var(--line); color: var(--text); }
+    .pf-btn-secondary:hover, .pf-btn-secondary:focus-visible { border-color: var(--line-strong); background: rgba(73, 196, 127, 0.08); outline: none; }
+    .pf-btn-danger { background: rgba(255, 109, 109, 0.12); border-color: rgba(255, 109, 109, 0.22); color: #ffc0c0; }
+    .pf-btn-danger:hover, .pf-btn-danger:focus-visible { background: rgba(255, 109, 109, 0.18); outline: none; }
+
+    .pf-file-list, .pf-friend-list { display: grid; gap: 10px; }
+    .pf-file-item, .pf-friend-item { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.04); background: rgba(255, 255, 255, 0.025); }
+    .pf-file-meta, .pf-friend-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .pf-file-mark, .pf-friend-avatar-wrap { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; background: rgba(73, 196, 127, 0.09); color: var(--accent-strong); flex-shrink: 0; }
+    .pf-friend-avatar-wrap { overflow: hidden; border: 1px solid var(--line); }
+    .pf-friend-avatar { width: 100%; height: 100%; }
+    .pf-file-name, .pf-friend-name { font-size: 0.95rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pf-file-sub, .pf-friend-sub { margin-top: 4px; color: var(--text-faint); font-size: 0.8rem; }
+    .pf-file-side { text-align: right; flex-shrink: 0; }
+    .pf-file-language { display: inline-flex; padding: 5px 9px; border-radius: 999px; border: 1px solid var(--line); background: rgba(73, 196, 127, 0.08); color: var(--accent-strong); font-size: 0.72rem; text-transform: uppercase; }
+    .pf-file-date { margin-top: 8px; color: var(--text-faint); font-size: 0.78rem; }
+    .pf-empty { padding: 18px; border-radius: 16px; border: 1px dashed var(--line); background: rgba(255, 255, 255, 0.015); color: var(--text-muted); line-height: 1.65; }
+    .pf-highlight-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .pf-highlight { padding: 16px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.04); background: rgba(255, 255, 255, 0.025); }
+    .pf-highlight-label { color: var(--text-faint); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.12em; }
+    .pf-highlight-value { margin-top: 10px; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.04em; }
+
+    .pf-form { display: grid; gap: 14px; }
+    .pf-field { display: grid; gap: 7px; }
+    .pf-label { color: var(--text-muted); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.02em; }
+    .pf-help { color: var(--text-faint); font-size: 0.76rem; line-height: 1.55; }
+    .pf-input { width: 100%; min-width: 0; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(7, 17, 13, 0.78); color: var(--text); transition: 160ms ease; }
+    .pf-input:focus { border-color: var(--line-strong); outline: none; box-shadow: 0 0 0 3px rgba(73, 196, 127, 0.14); }
+    .pf-inline { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+    .pf-banner { display: none; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); font-size: 0.84rem; line-height: 1.55; }
+    .pf-banner.success { display: block; background: rgba(73, 196, 127, 0.1); color: #bdf7d4; border-color: rgba(73, 196, 127, 0.24); }
+    .pf-banner.error { display: block; background: rgba(255, 109, 109, 0.1); color: #ffd0d0; border-color: rgba(255, 109, 109, 0.24); }
+    .pf-status-line { min-height: 20px; color: var(--text-faint); font-size: 0.78rem; }
+    .pf-danger-zone { border: 1px solid rgba(255, 109, 109, 0.18); background: linear-gradient(180deg, rgba(255, 109, 109, 0.06), rgba(255, 109, 109, 0.03)); }
+    .pf-footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--text-faint); font-size: 0.76rem; text-align: center; }
+
+    @media (max-width: 1080px) {
+        .pf-summary, .pf-grid.two, .pf-grid.equal { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 860px) {
+        .pf-sidebar { display: none; }
+        .pf-main { margin-left: 0; width: 100%; padding: 18px 16px 28px; }
+        .pf-mobile-nav { display: block; }
+      .pf-navbar { padding: 14px; }
+        .pf-topbar { top: 12px; padding: 14px 16px; flex-direction: column; align-items: flex-start; }
+        .pf-topbar-side { width: 100%; justify-content: space-between; }
+    }
+
+    @media (max-width: 560px) {
+        .pf-hero, .pf-card, .pf-metric-strip { padding: 16px; }
+        .pf-file-item, .pf-friend-item, .pf-section-head { flex-direction: column; align-items: flex-start; }
+        .pf-file-side { text-align: left; }
+        .pf-inline { grid-template-columns: 1fr; }
+        .pf-highlight-grid { grid-template-columns: 1fr; }
+      .pf-navbar,
+      .pf-navbar-links { align-items: flex-start; }
+      .pf-navbar { flex-direction: column; }
+      .pf-navbar-links { justify-content: flex-start; }
+    }
+    </style>
 </head>
-<body>
-        <nav class="navbar">
-            <div class="nav-container">
-                <div class="nav-left">
-                    <h1 class="logo">Edit</h1>
-                </div>
-                <div class="nav-right">
-                    <a href="/dashboard" class="nav-link">Dashboard</a>
-                    <a href="/editor" class="nav-link">Editor</a>
-                    <a href="/auth/logout" class="nav-link">Logout</a>
-                </div>
+<body data-own-profile="<%= (typeof viewingOther === 'undefined' || !viewingOther) ? 'true' : 'false' %>">
+<%
+const ownProfile = typeof viewingOther === 'undefined' || !viewingOther;
+const joinedDate = user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+const joinedMonth = user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short' }) : 'N/A';
+const providerLabel = user.provider === 'google' ? 'Google account' : user.provider === 'github' ? 'GitHub account' : 'Local account';
+const recentFiles = Array.isArray(fileList) ? fileList.slice(0, 8) : [];
+const friendItems = Array.isArray(friendsData) ? friendsData : [];
+%>
+
+<div class="pf-layout">
+    <aside class="pf-sidebar">
+        <div class="pf-brand">
+            <div class="pf-brand-name">Code<span>plat</span></div>
+            <div class="pf-brand-sub">Sectioned workspace</div>
+        </div>
+
+        <div class="pf-identity">
+            <img class="pf-avatar" src="<%= user.avatar || '/images/favicon.ico' %>" alt="avatar" data-profile-avatar onerror="this.onerror=null;this.src='/images/favicon.ico'">
+            <div>
+                <div class="pf-identity-name" data-profile-name><%= user.displayName %></div>
+                <div class="pf-identity-handle" data-profile-handle>@<%= user.username %></div>
+                <div class="pf-identity-meta"><%= providerLabel %></div>
             </div>
+        </div>
+
+        <nav class="pf-nav" aria-label="Profile sections">
+            <div class="pf-nav-group-label">Sections</div>
+            <button type="button" class="pf-nav-link active" data-section-link="profile"><span class="pf-nav-icon"><i class="fa-regular fa-user"></i></span><span>Profile</span></button>
+            <button type="button" class="pf-nav-link" data-section-link="editor"><span class="pf-nav-icon"><i class="fa-solid fa-code"></i></span><span>Editor</span></button>
+            <button type="button" class="pf-nav-link" data-section-link="friends"><span class="pf-nav-icon"><i class="fa-solid fa-user-group"></i></span><span>Friends</span></button>
+            <% if (ownProfile) { %>
+            <button type="button" class="pf-nav-link" data-section-link="settings"><span class="pf-nav-icon"><i class="fa-solid fa-sliders"></i></span><span>Settings</span></button>
+            <button type="button" class="pf-nav-link" data-section-link="logout"><span class="pf-nav-icon"><i class="fa-solid fa-right-from-bracket"></i></span><span>Log Out</span></button>
+            <% } %>
         </nav>
 
-        <section class="hero" style="padding-top:7rem;">
-            <div class="hero-badge">
-                <span class="star">⭐</span> Profile Overview
-            </div>
-            <h1 class="hero-title">
-                Welcome, <span class="gradient-text"><%= user.displayName %></span>
-            </h1>
-                <p class="hero-description">
-                    <% if (typeof viewingOther !== 'undefined' && viewingOther) { %>
-                      You are viewing the public profile of another user.
-                    <% } else { %>
-                      Your account and activity details are shown below.
-                    <% } %>
-                </p>
-        </section>
+        <div class="pf-sidebar-footer">Current time: <%= new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) %> IST</div>
+    </aside>
 
-        <main class="main-content" style="max-width:900px;margin:0 auto;">
-            <div class="card" style="margin-bottom:2rem;">
-                <div style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap;justify-content:center;">
-                    <img src="<%= user.avatar %>" alt="Profile Picture" class="profile-image" style="width:120px;height:120px;border-radius:50%;border:4px solid var(--accent-cyan);background:#222;"  onerror="this.onerror=null;this.src='/images/favicon.ico';">
+    <main class="pf-main">
+        <div class="pf-mobile-nav">
+            <div class="pf-mobile-nav-track">
+                <button type="button" class="pf-nav-link active" data-section-link="profile"><span class="pf-nav-icon"><i class="fa-regular fa-user"></i></span><span>Profile</span></button>
+                <button type="button" class="pf-nav-link" data-section-link="editor"><span class="pf-nav-icon"><i class="fa-solid fa-code"></i></span><span>Editor</span></button>
+                <button type="button" class="pf-nav-link" data-section-link="friends"><span class="pf-nav-icon"><i class="fa-solid fa-user-group"></i></span><span>Friends</span></button>
+                <% if (ownProfile) { %>
+                <button type="button" class="pf-nav-link" data-section-link="settings"><span class="pf-nav-icon"><i class="fa-solid fa-sliders"></i></span><span>Settings</span></button>
+                <button type="button" class="pf-nav-link" data-section-link="logout"><span class="pf-nav-icon"><i class="fa-solid fa-right-from-bracket"></i></span><span>Log Out</span></button>
+                <% } %>
+            </div>
+        </div>
+
+            <div class="pf-main-shell">
+            <div class="pf-navbar">
+              <a class="pf-navbar-brand" href="/landing">
+                <span class="pf-navbar-brand-mark"><i class="fa-solid fa-layer-group"></i></span>
+                <span class="pf-navbar-brand-copy">
+                  <span class="pf-navbar-brand-title">Codeplat Profile Workspace</span>
+                  <span class="pf-navbar-brand-sub">Merged profile and dashboard surface</span>
+                </span>
+              </a>
+              <div class="pf-navbar-links">
+                <a class="pf-navbar-link active" href="/profile"><i class="fa-regular fa-user"></i><span>Profile</span></a>
+                <a class="pf-navbar-link" href="/editor"><i class="fa-solid fa-code"></i><span>Editor</span></a>
+                <a class="pf-navbar-link" href="/whiteboard"><i class="fa-solid fa-chalkboard"></i><span>Whiteboard</span></a>
+                <% if (ownProfile) { %>
+                <a class="pf-navbar-link" href="/auth/logout"><i class="fa-solid fa-right-from-bracket"></i><span>Log Out</span></a>
+                <% } %>
+              </div>
+            </div>
+
+        <div class="pf-topbar">
+            <div class="pf-topbar-copy">
+                <h1 id="sectionTitle">Profile</h1>
+                <p id="sectionLead">Only the active section is visible, so the page moves with less noise.</p>
+            </div>
+            <div class="pf-topbar-side">
+                <div class="pf-status-pill"><%= ownProfile && sessionActive ? 'Session active' : ownProfile ? 'Signed in' : 'Public view' %></div>
+                <img class="pf-top-avatar" src="<%= user.avatar || '/images/favicon.ico' %>" alt="avatar" data-profile-avatar onerror="this.onerror=null;this.src='/images/favicon.ico'">
+            </div>
+        </div>
+
+        <div class="pf-summary">
+            <section class="pf-hero">
+                <div class="pf-kicker"><%= providerLabel %></div>
+                <h2 class="pf-hero-title">Built for <strong data-profile-name><%= user.displayName %></strong></h2>
+                <p class="pf-hero-copy"><% if (ownProfile) { %>Your profile is now section-based: profile, editor, friends, settings, and logout each live in their own panel so the screen stays focused.<% } else { %>You are viewing a public profile snapshot. Only account-safe information is shown here.<% } %></p>
+                <div class="pf-hero-meta">
+                    <div class="pf-chip" data-profile-handle>@<%= user.username %></div>
+                    <div class="pf-chip" data-profile-email><%= user.email %></div>
+                    <div class="pf-chip">Joined <%= joinedMonth %></div>
+                </div>
+            </section>
+
+            <aside class="pf-metric-strip">
+                <div class="pf-metric-item"><div class="pf-metric-label">Saved files</div><div class="pf-metric-value"><%= typeof codeCount !== 'undefined' ? codeCount : 0 %></div></div>
+                <div class="pf-metric-item"><div class="pf-metric-label">Coding today</div><div class="pf-metric-value"><%= typeof editorTime !== 'undefined' ? editorTime : '0m' %></div></div>
+                <div class="pf-metric-item"><div class="pf-metric-label">Active streak</div><div class="pf-metric-value"><%= typeof streak !== 'undefined' ? streak : 0 %> days</div></div>
+            </aside>
+        </div>
+
+        <div class="pf-sections">
+            <section class="pf-section active" id="section-profile" data-section="profile" data-title="Profile" data-lead="Personal details, profile rows, and quick actions in one focused view.">
+                <div class="pf-section-head">
                     <div>
-                        <h2 class="profile-name" style="margin-bottom:0.5rem;"><%= user.displayName %></h2>
-                        <p class="profile-email" style="color:var(--text-muted);font-size:1.1rem;"><%= user.email %></p>
+                        <div class="pf-section-kicker">Profile</div>
+                        <h2 class="pf-section-title">Core profile details</h2>
+                        <p class="pf-section-copy">This section keeps your profile rows, personal information, and quick actions together without mixing in editor or settings noise.</p>
+                    </div>
+                    <div class="pf-section-tag">Focused panel</div>
+                </div>
+
+                <div class="pf-grid two">
+                    <div class="pf-card">
+                        <div class="pf-card-head"><div><h3>pf-info-row</h3><p>Compact identity rows for the information you check most often.</p></div></div>
+                        <div class="pf-info-stack">
+                            <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-solid fa-at"></i></div><div><div class="pf-info-label">Username</div><div class="pf-info-value" data-profile-handle>@<%= user.username %></div></div></div>
+                            <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-regular fa-id-card"></i></div><div><div class="pf-info-label">Display name</div><div class="pf-info-value" data-profile-name><%= user.displayName %></div></div></div>
+                            <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-regular fa-envelope"></i></div><div><div class="pf-info-label">Email</div><div class="pf-info-value" data-profile-email><%= user.email %></div></div></div>
+                            <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-solid fa-signal"></i></div><div><div class="pf-info-label">Status</div><div class="pf-info-value"><%= ownProfile && sessionActive ? 'Active session' : ownProfile ? 'Signed in' : 'Public profile view' %></div></div></div>
+                        </div>
+                    </div>
+
+                    <div class="pf-card">
+                        <div class="pf-card-head"><div><h3>Personal info</h3><p>Account metadata separated from editing and social workflows.</p></div></div>
+                        <div class="pf-info-stack">
+                            <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-regular fa-calendar"></i></div><div><div class="pf-info-label">Joined</div><div class="pf-info-value"><%= joinedDate %></div></div></div>
+                            <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-solid fa-shield-halved"></i></div><div><div class="pf-info-label">Provider</div><div class="pf-info-value"><%= providerLabel %></div></div></div>
+                            <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-solid fa-user-gear"></i></div><div><div class="pf-info-label">Role</div><div class="pf-info-value"><%= user.role === 'admin' ? 'Administrator' : 'Developer' %></div></div></div>
+                            <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-solid fa-user-group"></i></div><div><div class="pf-info-label">Friends</div><div class="pf-info-value"><span id="friendCount"><%= friendItems.length %></span> connection<%= friendItems.length === 1 ? '' : 's' %></div></div></div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="card" style="margin-bottom:2rem;">
-                <h3 class="section-title" style="margin-bottom:1rem;">👤 Personal Information</h3>
-                <div class="info-grid">
-                    <div class="info-item"><span class="info-label">Username -> </span><span class="info-value">@<%= user.username %></span></div>
-                    <div class="info-item"><span class="info-label">Name -> </span><span class="info-value"><%= user.displayName %></span></div>
-                    <div class="info-item"><span class="info-label">Email Address -> </span><span class="info-value"><%= user.email %></span></div>
-                    <div class="info-item"><span class="info-label">Total Codes -> </span><span class="info-value"><%= typeof codeCount !== 'undefined' ? codeCount : 0 %></span></div>
+
+                <div class="pf-card" style="margin-top: 18px;">
+                    <div class="pf-card-head"><div><h3>Quick actions</h3><p>Fast links kept in the profile section instead of being scattered across the page.</p></div></div>
+                    <div class="pf-action-list">
+                        <a class="pf-btn" href="/editor"><i class="fa-solid fa-code"></i><span>Open editor</span></a>
+                        <button type="button" class="pf-btn-secondary" data-open-section="editor"><i class="fa-regular fa-window-maximize"></i><span>See editor panel</span></button>
+                        <button type="button" class="pf-btn-secondary" data-open-section="friends"><i class="fa-solid fa-user-group"></i><span>Open friends panel</span></button>
+                        <% if (ownProfile) { %><button type="button" class="pf-btn-secondary" data-open-section="settings"><i class="fa-solid fa-gear"></i><span>Open settings</span></button><% } %>
+                    </div>
                 </div>
-            </div>
-            <div class="card" style="margin-bottom:2rem;">
-                <h3 class="section-title" style="margin-bottom:1rem;">🔐 Account Details</h3>
-                <div class="info-grid">
-                    <div class="info-item"><span class="info-label">User Since -> </span><span class="info-value"><%= user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A' %></span></div>
-                    <div class="info-item"><span class="info-label">online Status -> </span><span class="info-value"><% if (sessionActive) { %>🟢 Active<% } else { %>🔴 Inactive<% } %></span></div>
+            </section>
+
+            <section class="pf-section" id="section-editor" data-section="editor" data-title="Editor" data-lead="A dedicated editor section with recent files, usage highlights, and direct links into the workspace.">
+                <div class="pf-section-head">
+                    <div>
+                        <div class="pf-section-kicker">Editor</div>
+                        <h2 class="pf-section-title">Jump back into code quickly</h2>
+                        <p class="pf-section-copy">The editor panel stays separate from profile data so recent work and launch actions are easier to scan.</p>
+                    </div>
+                    <div class="pf-section-tag">Linked to /editor</div>
                 </div>
-            </div>
-            <div class="card" style="margin-bottom:2rem;text-align:center;">
-                <h3 class="section-title">⚡ Quick Actions</h3>
-                <div class="action-buttons" style="justify-content:center;gap:1rem;flex-wrap:wrap;">
-                    <a href="/dashboard" class="btn-primary">🏠 Go to Dashboard</a>
-                    <a href="/editor" class="btn-primary">⚡ Start Coding</a>
-                    <a href="/saved" class="btn-primary">📁 My Files</a>
+
+                <div class="pf-grid two">
+                    <div class="pf-card">
+                        <div class="pf-card-head"><div><h3>Recent files</h3><p>Your latest saved files appear here for a quicker return path.</p></div><div class="pf-badge"><%= recentFiles.length %> visible</div></div>
+                        <div class="pf-file-list">
+                            <% if (recentFiles.length) { %>
+                                <% recentFiles.forEach(function(file) { %>
+                                <div class="pf-file-item">
+                                    <div class="pf-file-meta">
+                                        <div class="pf-file-mark"><i class="fa-solid fa-file-code"></i></div>
+                                        <div style="min-width: 0;">
+                                            <div class="pf-file-name"><%= file.filename || file.name || 'untitled' %></div>
+                                            <div class="pf-file-sub">Saved file for <%= user.username %></div>
+                                        </div>
+                                    </div>
+                                    <div class="pf-file-side">
+                                        <% if (file.language) { %><div class="pf-file-language"><%= file.language %></div><% } %>
+                                        <div class="pf-file-date"><%= file.updatedAt ? new Date(file.updatedAt).toLocaleDateString('en-IN') : 'No date' %></div>
+                                    </div>
+                                </div>
+                                <% }); %>
+                            <% } else { %>
+                                <div class="pf-empty">No files are saved yet. Use the editor to create your first file and it will appear here.</div>
+                            <% } %>
+                        </div>
+                    </div>
+
+                    <div class="pf-card">
+                        <div class="pf-card-head"><div><h3>Editor launchpad</h3><p>Keep editing actions together instead of mixing them into the profile cards.</p></div></div>
+                        <div class="pf-highlight-grid">
+                            <div class="pf-highlight"><div class="pf-highlight-label">Today</div><div class="pf-highlight-value"><%= typeof editorTime !== 'undefined' ? editorTime : '0m' %></div></div>
+                            <div class="pf-highlight"><div class="pf-highlight-label">Streak</div><div class="pf-highlight-value"><%= typeof streak !== 'undefined' ? streak : 0 %> days</div></div>
+                        </div>
+                        <div class="pf-split-actions">
+                            <a class="pf-btn" href="/editor"><i class="fa-solid fa-arrow-up-right-from-square"></i><span>Open editor</span></a>
+                            <a class="pf-btn-secondary" href="/editor?template=python"><i class="fa-brands fa-python"></i><span>Python</span></a>
+                            <a class="pf-btn-secondary" href="/editor?template=java"><i class="fa-brands fa-java"></i><span>Java</span></a>
+                            <a class="pf-btn-secondary" href="/editor?template=cpp"><i class="fa-solid fa-laptop-code"></i><span>C++</span></a>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="footer-info" style="text-align:center;color:var(--text-muted);font-size:0.95rem;padding:1rem 0;">
-                <p>Codeplat by nitinrajput16</p>
-                <p>Current Time: <%= new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) %> IST</p>
-            </div>
-        </main>
+            </section>
+
+            <section class="pf-section" id="section-friends" data-section="friends" data-title="Friends" data-lead="A dedicated social panel with the friend list and add-friend workflow kept in one place.">
+                <div class="pf-section-head">
+                    <div>
+                        <div class="pf-section-kicker">Friends</div>
+                        <h2 class="pf-section-title">Manage your connections</h2>
+                        <p class="pf-section-copy">Friends live in their own panel so adding, removing, and browsing connections does not compete with account settings.</p>
+                    </div>
+                    <div class="pf-section-tag"><span id="friendCountTag"><%= friendItems.length %></span> total</div>
+                </div>
+
+                <div class="pf-grid two">
+                    <div class="pf-card">
+                        <div class="pf-card-head"><div><h3>Friends list</h3><p>Every connection is shown as a single clean row with remove controls only on your own profile.</p></div></div>
+                        <div class="pf-friend-list" id="friendList">
+                            <% if (friendItems.length) { %>
+                                <% friendItems.forEach(function(friend) { %>
+                                <div class="pf-friend-item" data-uname="<%= friend.username %>">
+                                    <div class="pf-friend-main">
+                                        <div class="pf-friend-avatar-wrap"><img class="pf-friend-avatar" src="<%= friend.avatar || '/images/favicon.ico' %>" alt="<%= friend.displayName %>" onerror="this.onerror=null;this.src='/images/favicon.ico'"></div>
+                                        <div style="min-width: 0;"><div class="pf-friend-name"><%= friend.displayName %></div><div class="pf-friend-sub">@<%= friend.username %></div></div>
+                                    </div>
+                                    <% if (ownProfile) { %><button type="button" class="pf-btn-secondary pf-remove-friend-btn" data-uname="<%= friend.username %>"><i class="fa-solid fa-user-minus"></i><span>Remove</span></button><% } %>
+                                </div>
+                                <% }); %>
+                            <% } else { %>
+                                <div class="pf-empty" id="noFriendsMsg">No friends added yet. Use the add form to build your list.</div>
+                            <% } %>
+                        </div>
+                    </div>
+
+                    <div class="pf-card">
+                        <div class="pf-card-head"><div><h3>Add friend</h3><p>Search by username and keep the response inline with the friends workflow.</p></div></div>
+                        <% if (ownProfile) { %>
+                        <div id="friendMsg" class="pf-banner"></div>
+                        <form class="pf-form" id="friendForm">
+                            <div class="pf-field">
+                                <label class="pf-label" for="friendInput">Username</label>
+                                <input class="pf-input" id="friendInput" type="text" maxlength="20" placeholder="friend_username">
+                                <div class="pf-help">Usernames accept letters, numbers, and underscores.</div>
+                            </div>
+                            <div class="pf-action-list"><button class="pf-btn" type="submit" id="addFriendBtn"><i class="fa-solid fa-user-plus"></i><span>Add friend</span></button></div>
+                        </form>
+                        <% } else { %>
+                        <div class="pf-empty">Friend management is only available on your own profile.</div>
+                        <% } %>
+                    </div>
+                </div>
+            </section>
+
+            <% if (ownProfile) { %>
+            <section class="pf-section" id="section-settings" data-section="settings" data-title="Settings" data-lead="Profile edits, account details, email/password updates, and removal controls live here.">
+                <div class="pf-section-head">
+                    <div>
+                        <div class="pf-section-kicker">Settings</div>
+                        <h2 class="pf-section-title">Account settings without clutter</h2>
+                        <p class="pf-section-copy">Editing profile details, updating credentials, checking joined information, and removing the account are grouped into clear blocks.</p>
+                    </div>
+                    <div class="pf-section-tag">Protected actions</div>
+                </div>
+
+                <div class="pf-grid two">
+                    <div class="pf-card">
+                        <div class="pf-card-head"><div><h3>Edit profile</h3><p>Update your visible identity without leaving the page.</p></div></div>
+                        <div id="profileMsg" class="pf-banner"></div>
+                        <form class="pf-form" id="profileForm" novalidate>
+                            <div class="pf-field"><label class="pf-label" for="pf_displayName">Display name</label><input class="pf-input" id="pf_displayName" type="text" maxlength="50" value="<%= user.displayName %>" placeholder="Your display name"></div>
+                            <div class="pf-field">
+                                <label class="pf-label" for="pf_username">Username</label>
+                                <div class="pf-inline">
+                                    <div>
+                                        <input class="pf-input" id="pf_username" type="text" maxlength="20" value="<%= user.username %>" placeholder="letters_numbers_only">
+                                        <div class="pf-status-line" id="pf_usernameStatus"></div>
+                                    </div>
+                                    <button class="pf-btn-secondary" type="button" id="pf_checkBtn">Check</button>
+                                </div>
+                            </div>
+                            <div class="pf-field"><label class="pf-label" for="pf_avatar">Avatar URL</label><input class="pf-input" id="pf_avatar" type="url" value="<%= user.avatar || '' %>" placeholder="https://example.com/avatar.png"><div class="pf-help">Leave empty to fall back to the default icon.</div></div>
+                            <div class="pf-action-list"><button class="pf-btn" type="submit" id="pf_saveBtn"><i class="fa-regular fa-floppy-disk"></i><span>Save profile</span></button></div>
+                        </form>
+                    </div>
+
+                    <div class="pf-card">
+                        <div class="pf-card-head"><div><h3>Joined info</h3><p>Account metadata and authentication state in one quiet summary card.</p></div></div>
+                        <div class="pf-info-stack">
+                            <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-regular fa-calendar"></i></div><div><div class="pf-info-label">Joined</div><div class="pf-info-value"><%= joinedDate %></div></div></div>
+                            <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-solid fa-fingerprint"></i></div><div><div class="pf-info-label">Authentication</div><div class="pf-info-value"><%= providerLabel %></div></div></div>
+                            <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-regular fa-envelope"></i></div><div><div class="pf-info-label">Email</div><div class="pf-info-value" data-profile-email><%= user.email %></div></div></div>
+                            <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-solid fa-key"></i></div><div><div class="pf-info-label">Password status</div><div class="pf-info-value" id="passwordState"><%= hasPassword ? 'Password configured' : 'No password set yet' %></div></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pf-grid two" style="margin-top: 18px;">
+                    <div class="pf-card">
+                        <div class="pf-card-head"><div><h3>Update email and password</h3><p>Use one form for credential changes. Current password is required when your account already has one.</p></div></div>
+                        <div id="credentialsMsg" class="pf-banner"></div>
+                        <form class="pf-form" id="credentialsForm" novalidate>
+                            <div class="pf-field"><label class="pf-label" for="cred_email">Email address</label><input class="pf-input" id="cred_email" type="email" value="<%= user.email %>" placeholder="name@example.com"></div>
+                            <div class="pf-field"><label class="pf-label" for="cred_currentPassword">Current password</label><input class="pf-input" id="cred_currentPassword" type="password" placeholder="Required for protected changes"></div>
+                            <div class="pf-field"><label class="pf-label" for="cred_newPassword">New password</label><input class="pf-input" id="cred_newPassword" type="password" placeholder="At least 8 chars with upper, lower, number"><div class="pf-help">Leave blank if you only want to update the email address.</div></div>
+                            <div class="pf-action-list"><button class="pf-btn" type="submit" id="credentialsSaveBtn"><i class="fa-solid fa-key"></i><span>Update credentials</span></button></div>
+                        </form>
+                    </div>
+
+                    <div class="pf-card pf-danger-zone">
+                        <div class="pf-card-head"><div><h3>Remove account</h3><p>This deletes the account, editor sessions, saved files, and removes you from other users' friend lists.</p></div></div>
+                        <div id="deleteMsg" class="pf-banner"></div>
+                        <form class="pf-form" id="deleteAccountForm" novalidate>
+                            <div class="pf-field"><label class="pf-label" for="deleteConfirmText">Confirmation text</label><input class="pf-input" id="deleteConfirmText" type="text" placeholder="Type DELETE"></div>
+                            <div class="pf-field"><label class="pf-label" for="deleteCurrentPassword">Current password</label><input class="pf-input" id="deleteCurrentPassword" type="password" placeholder="Required for password accounts"><div class="pf-help">OAuth-only accounts can leave the password field empty.</div></div>
+                            <div class="pf-action-list"><button class="pf-btn-danger" type="submit" id="deleteAccountBtn"><i class="fa-regular fa-trash-can"></i><span>Delete account</span></button></div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <section class="pf-section" id="section-logout" data-section="logout" data-title="Log Out" data-lead="A clean exit panel so logout stays deliberate instead of being buried in the interface.">
+                <div class="pf-section-head">
+                    <div>
+                        <div class="pf-section-kicker">Log out</div>
+                        <h2 class="pf-section-title">End this session cleanly</h2>
+                        <p class="pf-section-copy">Logout is kept separate from settings to reduce accidental clicks and make session exit more intentional.</p>
+                    </div>
+                    <div class="pf-section-tag">Safe exit</div>
+                </div>
+
+                <div class="pf-grid two">
+                    <div class="pf-card">
+                        <div class="pf-card-head"><div><h3>Before you leave</h3><p>Recent changes already saved in the database remain available next time you sign in.</p></div></div>
+                        <div class="pf-info-stack">
+                            <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-regular fa-folder-open"></i></div><div><div class="pf-info-label">Saved files</div><div class="pf-info-value"><%= typeof codeCount !== 'undefined' ? codeCount : 0 %> file<%= (typeof codeCount !== 'undefined' ? codeCount : 0) === 1 ? '' : 's' %> remain on the account.</div></div></div>
+                            <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-regular fa-clock"></i></div><div><div class="pf-info-label">Today</div><div class="pf-info-value"><%= typeof editorTime !== 'undefined' ? editorTime : '0m' %> of coding tracked today.</div></div></div>
+                        </div>
+                    </div>
+
+                    <div class="pf-card">
+                        <div class="pf-card-head"><div><h3>Log out</h3><p>Use the button below to destroy the session and return to the login screen.</p></div></div>
+                        <div class="pf-action-list"><a class="pf-btn" href="/auth/logout"><i class="fa-solid fa-right-from-bracket"></i><span>Log out now</span></a><button type="button" class="pf-btn-secondary" data-open-section="profile"><i class="fa-solid fa-arrow-left"></i><span>Back to profile</span></button></div>
+                    </div>
+                </div>
+            </section>
+            <% } %>
+        </div>
+
+        <div class="pf-footer">Codeplat profile panel. Section visibility is handled client-side so only the active content block is shown.</div>
+    </div>
+    </main>
+</div>
+
+<script>
+(function () {
+  const ownProfile = document.body.dataset.ownProfile === 'true';
+  const sectionLinks = Array.from(document.querySelectorAll('[data-section-link]'));
+  const sections = Array.from(document.querySelectorAll('.pf-section'));
+  const sectionTitle = document.getElementById('sectionTitle');
+  const sectionLead = document.getElementById('sectionLead');
+
+  function updateActiveNav(sectionName) {
+    sectionLinks.forEach((link) => {
+      link.classList.toggle('active', link.dataset.sectionLink === sectionName);
+    });
+  }
+
+  function activateSection(sectionName, syncHash) {
+    const target = sections.find((section) => section.dataset.section === sectionName) || sections[0];
+    if (!target) return;
+
+    sections.forEach((section) => {
+      section.classList.toggle('active', section === target);
+    });
+    updateActiveNav(target.dataset.section);
+    if (sectionTitle) sectionTitle.textContent = target.dataset.title || 'Profile';
+    if (sectionLead) sectionLead.textContent = target.dataset.lead || '';
+    if (syncHash) {
+      const nextHash = '#' + target.dataset.section;
+      if (window.location.hash !== nextHash) window.history.replaceState(null, '', nextHash);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  sectionLinks.forEach((link) => {
+    link.addEventListener('click', () => activateSection(link.dataset.sectionLink, true));
+  });
+
+  document.querySelectorAll('[data-open-section]').forEach((button) => {
+    button.addEventListener('click', () => activateSection(button.dataset.openSection, true));
+  });
+
+  activateSection(window.location.hash ? window.location.hash.slice(1) : 'profile', false);
+  window.addEventListener('hashchange', () => activateSection(window.location.hash.slice(1) || 'profile', false));
+
+  function setBanner(element, message, isError) {
+    if (!element) return;
+    element.className = 'pf-banner ' + (isError ? 'error' : 'success');
+    element.textContent = message;
+    element.style.display = 'block';
+  }
+
+  function clearBanner(element) {
+    if (!element) return;
+    element.textContent = '';
+    element.className = 'pf-banner';
+    element.style.display = 'none';
+  }
+
+  function updateProfileTexts(nextUser) {
+    if (!nextUser) return;
+
+    document.querySelectorAll('[data-profile-name]').forEach((node) => {
+      if (typeof nextUser.displayName === 'string') node.textContent = nextUser.displayName;
+    });
+    document.querySelectorAll('[data-profile-handle]').forEach((node) => {
+      if (typeof nextUser.username === 'string') node.textContent = '@' + nextUser.username;
+    });
+    document.querySelectorAll('[data-profile-email]').forEach((node) => {
+      if (typeof nextUser.email === 'string') node.textContent = nextUser.email;
+    });
+    document.querySelectorAll('[data-profile-avatar]').forEach((node) => {
+      if (typeof nextUser.avatar === 'string') node.src = nextUser.avatar || '/images/favicon.ico';
+    });
+
+    const avatarInput = document.getElementById('pf_avatar');
+    if (avatarInput && typeof nextUser.avatar === 'string') avatarInput.value = nextUser.avatar;
+    const emailInput = document.getElementById('cred_email');
+    if (emailInput && typeof nextUser.email === 'string') emailInput.value = nextUser.email;
+  }
+
+  function updateFriendCounters() {
+    const count = document.querySelectorAll('#friendList .pf-friend-item').length;
+    const countNode = document.getElementById('friendCount');
+    const tagNode = document.getElementById('friendCountTag');
+    if (countNode) countNode.textContent = String(count);
+    if (tagNode) tagNode.textContent = String(count);
+  }
+
+  function ensureNoFriendsState() {
+    const list = document.getElementById('friendList');
+    if (!list) return;
+    const hasFriends = list.querySelector('.pf-friend-item');
+    const empty = document.getElementById('noFriendsMsg');
+    if (!hasFriends && !empty) {
+      const state = document.createElement('div');
+      state.className = 'pf-empty';
+      state.id = 'noFriendsMsg';
+      state.textContent = 'No friends added yet. Use the add form to build your list.';
+      list.appendChild(state);
+    }
+  }
+
+  function removeNoFriendsState() {
+    const empty = document.getElementById('noFriendsMsg');
+    if (empty) empty.remove();
+  }
+
+  function bindRemoveFriendButtons() {
+    document.querySelectorAll('.pf-remove-friend-btn').forEach((button) => {
+      if (button.dataset.bound === '1') return;
+      button.dataset.bound = '1';
+      button.addEventListener('click', async () => {
+        const username = button.dataset.uname;
+        const msg = document.getElementById('friendMsg');
+        button.disabled = true;
+        button.textContent = 'Removing';
+        clearBanner(msg);
+        try {
+          const response = await fetch('/profile/friends/remove', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+          });
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.error || 'Could not remove friend.');
+          const row = document.querySelector('.pf-friend-item[data-uname="' + username + '"]');
+          if (row) row.remove();
+          updateFriendCounters();
+          ensureNoFriendsState();
+          setBanner(msg, 'Friend removed.', false);
+        } catch (error) {
+          setBanner(msg, error.message || 'Network error while removing friend.', true);
+        }
+        button.disabled = false;
+        button.textContent = 'Remove';
+      });
+    });
+  }
+
+  bindRemoveFriendButtons();
+  if (!ownProfile) return;
+
+  const profileForm = document.getElementById('profileForm');
+  const usernameInput = document.getElementById('pf_username');
+  const profileNameInput = document.getElementById('pf_displayName');
+  const checkButton = document.getElementById('pf_checkBtn');
+  const usernameStatus = document.getElementById('pf_usernameStatus');
+  const profileMsg = document.getElementById('profileMsg');
+  const profileSave = document.getElementById('pf_saveBtn');
+  let usernameValid = true;
+  let lastCheckedUsername = usernameInput ? usernameInput.value.trim().toLowerCase() : '';
+
+  function setUsernameStatus(message, isError) {
+    if (!usernameStatus) return;
+    usernameStatus.textContent = message;
+    usernameStatus.style.color = isError ? '#ffd0d0' : message ? '#bdf7d4' : 'var(--text-faint)';
+  }
+
+  usernameInput && usernameInput.addEventListener('input', () => {
+    const nextValue = usernameInput.value.trim().toLowerCase();
+    if (nextValue !== lastCheckedUsername) {
+      usernameValid = false;
+      setUsernameStatus('Check availability before saving.', false);
+    } else {
+      usernameValid = true;
+      setUsernameStatus('', false);
+    }
+  });
+
+  checkButton && checkButton.addEventListener('click', async () => {
+    const username = usernameInput.value.trim().toLowerCase();
+    if (!username) {
+      setUsernameStatus('Enter a username first.', true);
+      return;
+    }
+    checkButton.disabled = true;
+    checkButton.textContent = 'Checking';
+    setUsernameStatus('Checking availability...', false);
+    try {
+      const response = await fetch('/profile/check-username?username=' + encodeURIComponent(username));
+      const data = await response.json();
+      if (data.same || data.available) {
+        usernameValid = true;
+        lastCheckedUsername = username;
+        setUsernameStatus(data.same ? 'This is already your username.' : 'Username is available.', false);
+      } else {
+        usernameValid = false;
+        setUsernameStatus(data.error || 'Username is not available.', true);
+      }
+    } catch (_error) {
+      usernameValid = false;
+      setUsernameStatus('Network error during username check.', true);
+    }
+    checkButton.disabled = false;
+    checkButton.textContent = 'Check';
+  });
+
+  profileForm && profileForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearBanner(profileMsg);
+    const username = usernameInput.value.trim().toLowerCase();
+    if (username !== lastCheckedUsername && username !== '<%= user.username %>') usernameValid = false;
+    if (!usernameValid) {
+      setBanner(profileMsg, 'Check username availability before saving.', true);
+      return;
+    }
+    profileSave.disabled = true;
+    profileSave.textContent = 'Saving';
+    try {
+      const response = await fetch('/profile/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          displayName: profileNameInput.value.trim(),
+          username,
+          avatar: document.getElementById('pf_avatar').value.trim()
+        })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.error || 'Profile update failed.');
+      lastCheckedUsername = data.user.username;
+      usernameValid = true;
+      usernameInput.value = data.user.username;
+      updateProfileTexts(data.user);
+      setUsernameStatus('', false);
+      setBanner(profileMsg, data.message || 'Profile updated.', false);
+    } catch (error) {
+      setBanner(profileMsg, error.message || 'Network error while updating profile.', true);
+    }
+    profileSave.disabled = false;
+    profileSave.textContent = 'Save profile';
+  });
+
+  const friendForm = document.getElementById('friendForm');
+  const friendInput = document.getElementById('friendInput');
+  const addFriendButton = document.getElementById('addFriendBtn');
+  const friendMsg = document.getElementById('friendMsg');
+
+  friendForm && friendForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearBanner(friendMsg);
+    const username = (friendInput.value || '').trim().toLowerCase();
+    if (!username) {
+      setBanner(friendMsg, 'Enter a username to add.', true);
+      return;
+    }
+    addFriendButton.disabled = true;
+    addFriendButton.textContent = 'Adding';
+    try {
+      const response = await fetch('/profile/friends/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.error || 'Could not add friend.');
+      removeNoFriendsState();
+      if (data.friend) {
+        const list = document.getElementById('friendList');
+        const row = document.createElement('div');
+        row.className = 'pf-friend-item';
+        row.dataset.uname = data.friend.username;
+        row.innerHTML = '<div class="pf-friend-main"><div class="pf-friend-avatar-wrap"><img class="pf-friend-avatar" src="' + (data.friend.avatar || '/images/favicon.ico') + '" alt="avatar" onerror="this.onerror=null;this.src=\'/images/favicon.ico\'"></div><div style="min-width: 0;"><div class="pf-friend-name"></div><div class="pf-friend-sub"></div></div></div><button type="button" class="pf-btn-secondary pf-remove-friend-btn" data-uname="' + data.friend.username + '"><i class="fa-solid fa-user-minus"></i><span>Remove</span></button>';
+        row.querySelector('.pf-friend-name').textContent = data.friend.displayName;
+        row.querySelector('.pf-friend-sub').textContent = '@' + data.friend.username;
+        list.appendChild(row);
+        bindRemoveFriendButtons();
+        updateFriendCounters();
+      }
+      friendInput.value = '';
+      setBanner(friendMsg, data.message || 'Friend added.', false);
+    } catch (error) {
+      setBanner(friendMsg, error.message || 'Network error while adding friend.', true);
+    }
+    addFriendButton.disabled = false;
+    addFriendButton.textContent = 'Add friend';
+  });
+
+  const credentialsForm = document.getElementById('credentialsForm');
+  const credentialsMsg = document.getElementById('credentialsMsg');
+  const credentialsSave = document.getElementById('credentialsSaveBtn');
+  const passwordState = document.getElementById('passwordState');
+
+  credentialsForm && credentialsForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearBanner(credentialsMsg);
+    credentialsSave.disabled = true;
+    credentialsSave.textContent = 'Updating';
+    try {
+      const response = await fetch('/profile/credentials', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: document.getElementById('cred_email').value.trim(),
+          currentPassword: document.getElementById('cred_currentPassword').value,
+          newPassword: document.getElementById('cred_newPassword').value
+        })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.error || 'Could not update credentials.');
+      updateProfileTexts({ email: data.user.email });
+      if (passwordState) passwordState.textContent = data.user.hasPassword ? 'Password configured' : 'No password set yet';
+      document.getElementById('cred_currentPassword').value = '';
+      document.getElementById('cred_newPassword').value = '';
+      setBanner(credentialsMsg, data.message || 'Credentials updated.', false);
+    } catch (error) {
+      setBanner(credentialsMsg, error.message || 'Network error while updating credentials.', true);
+    }
+    credentialsSave.disabled = false;
+    credentialsSave.textContent = 'Update credentials';
+  });
+
+  const deleteAccountForm = document.getElementById('deleteAccountForm');
+  const deleteMsg = document.getElementById('deleteMsg');
+  const deleteAccountButton = document.getElementById('deleteAccountBtn');
+
+  deleteAccountForm && deleteAccountForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearBanner(deleteMsg);
+    deleteAccountButton.disabled = true;
+    deleteAccountButton.textContent = 'Deleting';
+    try {
+      const response = await fetch('/profile/account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confirmText: document.getElementById('deleteConfirmText').value.trim(),
+          currentPassword: document.getElementById('deleteCurrentPassword').value
+        })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.error || 'Could not delete account.');
+      window.location.href = data.redirect || '/login?message=account_removed';
+      return;
+    } catch (error) {
+      setBanner(deleteMsg, error.message || 'Network error while deleting account.', true);
+    }
+    deleteAccountButton.disabled = false;
+    deleteAccountButton.textContent = 'Delete account';
+  });
+})();
+</script>
 </body>
 </html>
