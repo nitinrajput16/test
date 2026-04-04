@@ -47,8 +47,10 @@ function initSocket(server, { sessionMiddleware }) {
 
   // Room Owner System
   const roomOwners = new Map();    // roomId -> ownerId (first user to join)
+  const roomOriginalOwners = new Map(); // roomId -> original ownerId for active room session
   const roomSettings = new Map();  // roomId -> { readOnly: boolean }
   const roomBlockList = new Map(); // roomId -> Set<userId>
+  const roomEditGrants = new Map(); // roomId -> Set<userId> granted code edit access in read-only mode
 
 
   function cloneBoardSnapshot(input) {
@@ -101,6 +103,125 @@ function initSocket(server, { sessionMiddleware }) {
       roomBoards.set(roomId, []);
     }
     return roomBoards.get(roomId);
+  }
+
+  function getUserIdFromSocket(clientSocket) {
+    const clientUser = clientSocket && clientSocket.user;
+    return clientUser?.username || (clientUser?._id ? String(clientUser._id) : null) || (clientSocket && clientSocket.id) || null;
+  }
+
+  function ensureRoomDefaults(roomId) {
+    if (!roomSettings.has(roomId)) {
+      roomSettings.set(roomId, { readOnly: false });
+    }
+    if (!roomEditGrants.has(roomId)) {
+      roomEditGrants.set(roomId, new Set());
+    }
+  }
+
+  function isOwner(roomId, userId) {
+    return !!userId && roomOwners.get(roomId) === userId;
+  }
+
+  function isGrantedEditor(roomId, userId) {
+    return !!userId && roomEditGrants.has(roomId) && roomEditGrants.get(roomId).has(userId);
+  }
+
+  function canUserEdit(roomId, userId) {
+    const settings = roomSettings.get(roomId);
+    if (!settings || !settings.readOnly) return true;
+    return isOwner(roomId, userId) || isGrantedEditor(roomId, userId);
+  }
+
+  function updateRoomPresenceFlags(roomId) {
+    if (!roomUserPresence.has(roomId)) return;
+    const ownerId = roomOwners.get(roomId) || null;
+    const byUserId = roomUserPresence.get(roomId);
+    Object.keys(byUserId).forEach((uid) => {
+      byUserId[uid].isOwner = uid === ownerId;
+      byUserId[uid].canEdit = canUserEdit(roomId, uid);
+    });
+  }
+
+  function emitRoomOwnerState(roomId, targetSocket) {
+    const ownerId = roomOwners.get(roomId) || null;
+    const settings = roomSettings.get(roomId) || { readOnly: false };
+    const editGrants = Array.from(roomEditGrants.get(roomId) || []);
+
+    const emitToClient = (clientSocket) => {
+      const clientUserId = getUserIdFromSocket(clientSocket);
+      clientSocket.emit('room-owner', {
+        roomId,
+        ownerId,
+        isOwner: clientUserId === ownerId,
+        settings,
+        canEdit: canUserEdit(roomId, clientUserId),
+        editGrants
+      });
+    };
+
+    if (targetSocket) {
+      emitToClient(targetSocket);
+      return;
+    }
+
+    const clients = io.sockets.adapter.rooms.get(roomId);
+    if (!clients) return;
+    for (const clientId of clients) {
+      const clientSocket = io.sockets.sockets.get(clientId);
+      if (!clientSocket) continue;
+      emitToClient(clientSocket);
+    }
+  }
+
+  function emitRoomPresence(roomId) {
+    updateRoomPresenceFlags(roomId);
+    const presenceSnapshot = roomUserPresence.has(roomId) ? roomUserPresence.get(roomId) : {};
+    io.to(roomId).emit('presence-update', presenceSnapshot);
+    io.to(roomId).emit('user-name', Object.values(presenceSnapshot));
+  }
+
+  function cleanupRoomIfEmpty(roomId) {
+    const roomUsers = roomUserPresence.get(roomId);
+    if (roomUsers && Object.keys(roomUsers).length) return;
+    roomUserPresence.delete(roomId);
+    roomPresence.delete(roomId);
+    roomDocs.delete(roomId);
+    roomBoards.delete(roomId);
+    roomChats.delete(roomId);
+    roomOwners.delete(roomId);
+    roomOriginalOwners.delete(roomId);
+    roomSettings.delete(roomId);
+    roomBlockList.delete(roomId);
+    roomEditGrants.delete(roomId);
+  }
+
+  function ensureActiveOwner(roomId) {
+    if (!roomUserPresence.has(roomId)) {
+      cleanupRoomIfEmpty(roomId);
+      return;
+    }
+    const members = Object.keys(roomUserPresence.get(roomId));
+    if (!members.length) {
+      cleanupRoomIfEmpty(roomId);
+      return;
+    }
+
+    const currentOwner = roomOwners.get(roomId);
+    if (currentOwner && members.includes(currentOwner)) {
+      updateRoomPresenceFlags(roomId);
+      return;
+    }
+
+    const originalOwner = roomOriginalOwners.get(roomId);
+    if (originalOwner && members.includes(originalOwner)) {
+      roomOwners.set(roomId, originalOwner);
+    } else {
+      roomOwners.set(roomId, members[0]);
+    }
+
+    updateRoomPresenceFlags(roomId);
+    emitRoomOwnerState(roomId);
   }
 
   // --- Presence Avatars/Cursors ---
@@ -157,6 +278,8 @@ function initSocket(server, { sessionMiddleware }) {
       // Use username as unique id
       const uniqueId = getSocketUserId();
 
+      ensureRoomDefaults(roomId);
+
       // Check if user is blocked from this room
       if (roomBlockList.has(roomId) && roomBlockList.get(roomId).has(uniqueId)) {
         socket.emit('room-blocked', { roomId, message: 'You have been blocked from this room.' });
@@ -169,12 +292,12 @@ function initSocket(server, { sessionMiddleware }) {
       // Assign owner if this is the first user in the room
       if (!roomOwners.has(roomId)) {
         roomOwners.set(roomId, uniqueId);
+        roomOriginalOwners.set(roomId, uniqueId);
         console.log('[Room] Owner assigned:', uniqueId, 'for room', roomId);
-      }
-
-      // Initialize room settings if not present
-      if (!roomSettings.has(roomId)) {
-        roomSettings.set(roomId, { readOnly: false });
+      } else if (roomOriginalOwners.get(roomId) === uniqueId && roomOwners.get(roomId) !== uniqueId) {
+        // Restore ownership to original owner when they rejoin during active room session
+        roomOwners.set(roomId, uniqueId);
+        console.log('[Room] Ownership restored to original owner:', uniqueId, 'for room', roomId);
       }
 
       // Add to presence map
@@ -182,20 +305,11 @@ function initSocket(server, { sessionMiddleware }) {
       // Patch user object for downstream use and store socket id for mapping
       const userInfo = Object.assign({}, user, { id: uniqueId });
       const isOwner = roomOwners.get(roomId) === uniqueId;
-      roomUserPresence.get(roomId)[uniqueId] = { ...getUserInfo(userInfo, undefined, socket.id), isOwner };
+      roomUserPresence.get(roomId)[uniqueId] = { ...getUserInfo(userInfo, undefined, socket.id), isOwner, canEdit: canUserEdit(roomId, uniqueId) };
       assignColors(roomId);
 
-      // Emit room owner info to the joining user
-      socket.emit('room-owner', {
-        roomId,
-        ownerId: roomOwners.get(roomId),
-        isOwner,
-        settings: roomSettings.get(roomId)
-      });
-
-      io.to(roomId).emit('presence-update', roomUserPresence.get(roomId));
-      // Emit current users array to the room (clients expect an array of user info)
-      io.to(roomId).emit('user-name', Object.values(roomUserPresence.get(roomId)));
+      emitRoomOwnerState(roomId);
+      emitRoomPresence(roomId);
 
       emitRoomSync(roomId, socket);
 
@@ -227,6 +341,9 @@ function initSocket(server, { sessionMiddleware }) {
       socket.leave(roomId);
       const uniqueId = getSocketUserId();
       removePresence(roomId, uniqueId);
+      if (roomEditGrants.has(roomId)) {
+        roomEditGrants.get(roomId).delete(uniqueId);
+      }
 
       if (roomUserPresence.has(roomId)) {
         delete roomUserPresence.get(roomId)[uniqueId];
@@ -237,9 +354,10 @@ function initSocket(server, { sessionMiddleware }) {
         }
       }
 
-      const presenceSnapshot = roomUserPresence.has(roomId) ? roomUserPresence.get(roomId) : {};
-      io.to(roomId).emit('presence-update', presenceSnapshot);
-      io.to(roomId).emit('user-name', Object.values(presenceSnapshot));
+      ensureActiveOwner(roomId);
+      emitRoomOwnerState(roomId);
+      emitRoomPresence(roomId);
+      cleanupRoomIfEmpty(roomId);
     });
 
     socket.on('ot-request-state', ({ roomId }) => {
@@ -259,12 +377,13 @@ function initSocket(server, { sessionMiddleware }) {
     socket.on('ot-operation', ({ roomId, operation }) => {
       if (!roomId || !operation) return;
 
-      // Block editing if room is read-only (unless user is owner)
-      const settings = roomSettings.get(roomId);
       const senderId = getSocketUserId();
-      const isOwner = roomOwners.get(roomId) === senderId;
-      if (settings && settings.readOnly && !isOwner) {
-        socket.emit('room-readonly-error', { message: 'Room is in read-only mode. Only the owner can edit.' });
+      if (!roomUserPresence.has(roomId) || !roomUserPresence.get(roomId)[senderId]) {
+        socket.emit('room-error', { message: 'You are not an active member of this room.' });
+        return;
+      }
+      if (!canUserEdit(roomId, senderId)) {
+        socket.emit('room-readonly-error', { message: 'Room is in read-only mode and you do not have edit permission.' });
         return;
       }
 
@@ -485,6 +604,61 @@ function initSocket(server, { sessionMiddleware }) {
       roomSettings.get(roomId).readOnly = !!readOnly;
       console.log('[Room] Settings updated:', roomId, roomSettings.get(roomId));
       io.to(roomId).emit('room-settings-update', { roomId, settings: roomSettings.get(roomId) });
+      updateRoomPresenceFlags(roomId);
+      emitRoomOwnerState(roomId);
+      emitRoomPresence(roomId);
+    });
+
+    socket.on('room-grant-edit', ({ roomId, targetUserId }) => {
+      if (!roomId || !targetUserId) return;
+      const senderId = getSocketUserId();
+      const ownerId = roomOwners.get(roomId);
+      if (senderId !== ownerId) {
+        socket.emit('room-error', { message: 'Only the room owner can grant edit access.' });
+        return;
+      }
+      ensureRoomDefaults(roomId);
+      if (!roomUserPresence.has(roomId) || !roomUserPresence.get(roomId)[targetUserId]) {
+        socket.emit('room-error', { message: 'Target user is not in this room.' });
+        return;
+      }
+      roomEditGrants.get(roomId).add(targetUserId);
+      updateRoomPresenceFlags(roomId);
+      const payload = {
+        roomId,
+        userId: targetUserId,
+        canEdit: true,
+        effectiveCanEdit: canUserEdit(roomId, targetUserId),
+        editGrants: Array.from(roomEditGrants.get(roomId) || [])
+      };
+      io.to(roomId).emit('room-user-permission-update', payload);
+      emitRoomOwnerState(roomId);
+      emitRoomPresence(roomId);
+    });
+
+    socket.on('room-revoke-edit', ({ roomId, targetUserId }) => {
+      if (!roomId || !targetUserId) return;
+      const senderId = getSocketUserId();
+      const ownerId = roomOwners.get(roomId);
+      if (senderId !== ownerId) {
+        socket.emit('room-error', { message: 'Only the room owner can revoke edit access.' });
+        return;
+      }
+      if (!roomEditGrants.has(roomId)) {
+        roomEditGrants.set(roomId, new Set());
+      }
+      roomEditGrants.get(roomId).delete(targetUserId);
+      updateRoomPresenceFlags(roomId);
+      const payload = {
+        roomId,
+        userId: targetUserId,
+        canEdit: false,
+        effectiveCanEdit: canUserEdit(roomId, targetUserId),
+        editGrants: Array.from(roomEditGrants.get(roomId) || [])
+      };
+      io.to(roomId).emit('room-user-permission-update', payload);
+      emitRoomOwnerState(roomId);
+      emitRoomPresence(roomId);
     });
 
     // Kick a member from the room
@@ -515,16 +689,19 @@ function initSocket(server, { sessionMiddleware }) {
             if (roomUserPresence.has(roomId)) {
               delete roomUserPresence.get(roomId)[targetUserId];
             }
+            if (roomEditGrants.has(roomId)) {
+              roomEditGrants.get(roomId).delete(targetUserId);
+            }
             removePresence(roomId, targetUserId);
             console.log('[Room] Kicked:', targetUserId, 'from', roomId);
             break;
           }
         }
       }
-      // Broadcast updated presence
-      const presenceSnapshot = roomUserPresence.has(roomId) ? roomUserPresence.get(roomId) : {};
-      io.to(roomId).emit('presence-update', presenceSnapshot);
-      io.to(roomId).emit('user-name', Object.values(presenceSnapshot));
+      ensureActiveOwner(roomId);
+      emitRoomOwnerState(roomId);
+      emitRoomPresence(roomId);
+      cleanupRoomIfEmpty(roomId);
     });
 
     // Block a member from the room (permanent until server restart)
@@ -561,15 +738,18 @@ function initSocket(server, { sessionMiddleware }) {
             if (roomUserPresence.has(roomId)) {
               delete roomUserPresence.get(roomId)[targetUserId];
             }
+            if (roomEditGrants.has(roomId)) {
+              roomEditGrants.get(roomId).delete(targetUserId);
+            }
             removePresence(roomId, targetUserId);
             break;
           }
         }
       }
-      // Broadcast updated presence
-      const presenceSnapshot = roomUserPresence.has(roomId) ? roomUserPresence.get(roomId) : {};
-      io.to(roomId).emit('presence-update', presenceSnapshot);
-      io.to(roomId).emit('user-name', Object.values(presenceSnapshot));
+      ensureActiveOwner(roomId);
+      emitRoomOwnerState(roomId);
+      emitRoomPresence(roomId);
+      cleanupRoomIfEmpty(roomId);
     });
 
     // --- BROADCAST ALL REMOTE CARET POSITIONS TO ALL USERS IN ROOM ---
@@ -637,13 +817,18 @@ function initSocket(server, { sessionMiddleware }) {
       for (const room of socket.rooms) {
         if (room === socket.id) continue;
         removePresence(room, myId);
+        if (roomEditGrants.has(room)) {
+          roomEditGrants.get(room).delete(myId);
+        }
         if (roomUserPresence.has(room)) {
           delete roomUserPresence.get(room)[myId];
           assignColors(room);
-          io.to(room).emit('presence-update', roomUserPresence.get(room));
-          io.to(room).emit('user-name', Object.values(roomUserPresence.get(room)));
+          ensureActiveOwner(room);
+          emitRoomOwnerState(room);
+          emitRoomPresence(room);
           io.to(room).emit('voice-peer-left', { peerId: socket.id });
         }
+        cleanupRoomIfEmpty(room);
       }
     });
 

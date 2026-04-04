@@ -6,6 +6,10 @@
     window.isRoomOwner = false;
     window.roomOwnerId = null;
     window.roomReadOnly = false;
+    window.roomCanEdit = true;
+    window.roomEditGrants = Object.create(null);
+
+    const userMetaById = new Map();
 
     const ownerControlsCard = document.getElementById('ownerControlsCard');
     const readonlyToggleContainer = document.getElementById('readonlyToggleContainer');
@@ -15,7 +19,7 @@
     // Create read-only indicator
     const readonlyIndicator = document.createElement('div');
     readonlyIndicator.className = 'readonly-indicator';
-    readonlyIndicator.innerHTML = '<i class="fa-solid fa-lock"></i> Read-Only Mode - Only the owner can edit';
+    readonlyIndicator.innerHTML = '<i class="fa-solid fa-lock"></i> Read-Only Mode - You do not have edit permission';
     document.body.appendChild(readonlyIndicator);
 
     // Close any open dropdown when clicking outside
@@ -32,6 +36,59 @@
         }
     }
 
+    function getMyUserId() {
+        return window.myServerUserId
+            || (window.user && (window.user.username || window.user._id || window.user.id))
+            || (window.socket && window.socket.id)
+            || null;
+    }
+
+    function normalizeRoomEditGrants(editGrants) {
+        const next = Object.create(null);
+        if (Array.isArray(editGrants)) {
+            editGrants.forEach((uid) => {
+                if (uid) next[uid] = true;
+            });
+        }
+        window.roomEditGrants = next;
+    }
+
+    function setUserGrantState(userId, granted) {
+        if (!userId) return;
+        if (!window.roomEditGrants || typeof window.roomEditGrants !== 'object') {
+            window.roomEditGrants = Object.create(null);
+        }
+        if (granted) {
+            window.roomEditGrants[userId] = true;
+        } else {
+            delete window.roomEditGrants[userId];
+        }
+    }
+
+    function isUserGranted(userId) {
+        return !!(userId && window.roomEditGrants && window.roomEditGrants[userId]);
+    }
+
+    function isUserGrantedByMeta(user) {
+        if (!user || !window.roomEditGrants) return false;
+        const candidates = [user.id, user.username, user._id, user.socketId, user.socket].filter(Boolean);
+        return candidates.some((key) => !!window.roomEditGrants[key]);
+    }
+
+    function getUserId(user) {
+        return user && (user.id || user.username || user._id || user.socketId || user.socket) || null;
+    }
+
+    function applyEditorPermissionState() {
+        const canEdit = !window.roomReadOnly || window.isRoomOwner || !!window.roomCanEdit;
+        setEditorReadOnly(!canEdit);
+    }
+
+    function refreshAugmentedUserItems() {
+        if (!usersList) return;
+        userMetaById.forEach((user) => augmentUserItem(user));
+    }
+
     function initOwnerControls() {
         if (!window.socket) {
             setTimeout(initOwnerControls, 500);
@@ -45,6 +102,8 @@
             window.isRoomOwner = data.isOwner;
             window.roomOwnerId = data.ownerId;
             window.roomReadOnly = data.settings?.readOnly || false;
+            window.roomCanEdit = data.canEdit !== false;
+            normalizeRoomEditGrants(data.editGrants);
 
             // Show/hide owner controls card
             if (ownerControlsCard) {
@@ -61,12 +120,8 @@
                 readonlyToggle.checked = window.roomReadOnly;
             }
 
-            // Apply read-only to editor (non-owners only)
-            if (!data.isOwner && window.roomReadOnly) {
-                setEditorReadOnly(true);
-            } else {
-                setEditorReadOnly(false);
-            }
+            applyEditorPermissionState();
+            refreshAugmentedUserItems();
 
             // Update read-only indicator
             updateReadOnlyIndicator();
@@ -83,13 +138,38 @@
                 readonlyToggle.checked = window.roomReadOnly;
             }
 
-            // Apply read-only to editor (non-owners only)
-            if (!window.isRoomOwner && window.roomReadOnly) {
-                setEditorReadOnly(true);
+            applyEditorPermissionState();
+            refreshAugmentedUserItems();
+
+            updateReadOnlyIndicator();
+        });
+
+        socket.on('room-user-permission-update', (data) => {
+            if (!data || !data.userId) return;
+            if (Array.isArray(data.editGrants)) {
+                normalizeRoomEditGrants(data.editGrants);
             } else {
-                setEditorReadOnly(false);
+                setUserGrantState(data.userId, data.canEdit);
             }
 
+            const myId = getMyUserId();
+            if (myId && myId === data.userId && typeof data.effectiveCanEdit === 'boolean') {
+                window.roomCanEdit = data.effectiveCanEdit;
+            } else if (myId && myId === data.userId) {
+                window.roomCanEdit = isUserGranted(myId);
+            }
+
+            if (myId) {
+                // Keep local effective state aligned with latest room settings and grant map.
+                window.roomCanEdit = !window.roomReadOnly || window.isRoomOwner || isUserGranted(myId);
+            }
+
+            const existing = userMetaById.get(data.userId) || { id: data.userId };
+            existing.canEdit = !!data.effectiveCanEdit;
+            userMetaById.set(data.userId, existing);
+
+            applyEditorPermissionState();
+            refreshAugmentedUserItems();
             updateReadOnlyIndicator();
         });
 
@@ -108,6 +188,18 @@
         // Listen for read-only error
         socket.on('room-readonly-error', (data) => {
             console.warn('[Editor] Read-only:', data.message);
+            const roomId = window.currentRoom || window.WHITEBOARD_ROOM;
+            const myId = getMyUserId();
+            if (myId) {
+                window.roomCanEdit = isUserGranted(myId);
+            } else {
+                window.roomCanEdit = false;
+            }
+            applyEditorPermissionState();
+            updateReadOnlyIndicator();
+            if (roomId) {
+                socket.emit('ot-request-state', { roomId });
+            }
         });
 
         // Listen for general room errors
@@ -131,12 +223,17 @@
         socket.on('user-name', (users) => {
             // users may be array or single
             const list = Array.isArray(users) ? users : [users];
-            list.forEach(u => augmentUserItem(u));
+            list.forEach((u) => {
+                const userId = getUserId(u);
+                if (userId) userMetaById.set(userId, u);
+                augmentUserItem(u);
+            });
         });
     }
 
     function updateReadOnlyIndicator() {
-        if (window.roomReadOnly && !window.isRoomOwner) {
+        const canEdit = !window.roomReadOnly || window.isRoomOwner || !!window.roomCanEdit;
+        if (window.roomReadOnly && !canEdit) {
             readonlyIndicator.classList.add('visible');
         } else {
             readonlyIndicator.classList.remove('visible');
@@ -149,7 +246,7 @@
         // Determine matching selector: prefer socketId, fall back to username or id
         const uid = user.socketId || user.username || user.id || user._id || null;
         let item = null;
-        if (uid) item = usersList.querySelector(`.user-item[data-socket-id="${uid}"]`) || usersList.querySelector(`.user-item[data-peer-id="${uid}"]`);
+        if (uid) item = usersList.querySelector(`.user-item[data-user-id="${uid}"]`) || usersList.querySelector(`.user-item[data-socket-id="${uid}"]`) || usersList.querySelector(`.user-item[data-peer-id="${uid}"]`);
         // fallback: try to match by name/email
         if (!item && user.name) {
             const items = usersList.querySelectorAll('.user-item');
@@ -160,10 +257,8 @@
         }
         if (!item) return; // nothing to augment yet
 
-        // Avoid adding actions twice
-        if (item.querySelector('.owner-augmented')) {
-            // still update owner badge state below
-        }
+        // Rebuild owner-augmented actions to avoid stale duplicates.
+        item.querySelectorAll('.owner-augmented').forEach((node) => node.remove());
 
         const actions = document.createElement('div');
         actions.className = 'user-list-actions owner-augmented';
@@ -191,7 +286,10 @@
         }
 
         // 3-dot owner menu (only for owners and not for self)
-        if (window.isRoomOwner && !user.isOwner) {
+        const targetUserId = getUserId(user);
+        const myUserId = getMyUserId();
+        const targetIsOwner = !!(user.isOwner || user.socketId === window.roomOwnerId || user.id === window.roomOwnerId || user._id === window.roomOwnerId);
+        if (window.isRoomOwner && targetUserId && targetUserId !== myUserId && !targetIsOwner) {
             const menuContainer = document.createElement('div');
             menuContainer.className = 'user-menu-container';
 
@@ -212,14 +310,32 @@
             const kickOption = document.createElement('div');
             kickOption.className = 'menu-option kick';
             kickOption.innerHTML = '<i class="fa-solid fa-user-minus"></i> Kick';
-            kickOption.addEventListener('click', () => { dropdown.classList.remove('open'); kickUser(user.id || user.socketId); });
+            kickOption.addEventListener('click', () => { dropdown.classList.remove('open'); kickUser(targetUserId); });
             dropdown.appendChild(kickOption);
 
             const blockOption = document.createElement('div');
             blockOption.className = 'menu-option block';
             blockOption.innerHTML = '<i class="fa-solid fa-ban"></i> Block';
-            blockOption.addEventListener('click', () => { dropdown.classList.remove('open'); blockUser(user.id || user.socketId); });
+            blockOption.addEventListener('click', () => { dropdown.classList.remove('open'); blockUser(targetUserId); });
             dropdown.appendChild(blockOption);
+
+            const granted = isUserGranted(targetUserId) || isUserGrantedByMeta(user);
+            const grantOption = document.createElement('div');
+            grantOption.className = 'menu-option';
+            if (granted) {
+                grantOption.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Revoke edit';
+                grantOption.addEventListener('click', () => {
+                    dropdown.classList.remove('open');
+                    revokeEdit(targetUserId);
+                });
+            } else {
+                grantOption.innerHTML = '<i class="fa-solid fa-pen"></i> Grant edit';
+                grantOption.addEventListener('click', () => {
+                    dropdown.classList.remove('open');
+                    grantEdit(targetUserId);
+                });
+            }
+            dropdown.appendChild(grantOption);
 
             menuContainer.appendChild(menuBtn);
             menuContainer.appendChild(dropdown);
@@ -229,7 +345,7 @@
         // Owner badge: show a small crown/Owner pill next to the name
         const label = item.querySelector('span');
         const existingBadge = item.querySelector('.owner-badge');
-        const isOwner = !!(user.isOwner || user.socketId === window.roomOwnerId || user.id === window.roomOwnerId || user._id === window.roomOwnerId);
+        const isOwner = targetIsOwner;
         if (isOwner && !existingBadge) {
             const ownerBadge = document.createElement('span');
             ownerBadge.className = 'owner-badge';
@@ -239,6 +355,19 @@
             else item.insertBefore(ownerBadge, item.firstChild);
         } else if (!isOwner && existingBadge) {
             existingBadge.remove();
+        }
+
+        const existingEditBadge = item.querySelector('.edit-access-badge');
+        const hasEditAccess = !!(user.canEdit || isOwner || isUserGranted(targetUserId));
+        if (!isOwner && hasEditAccess && window.roomReadOnly && !existingEditBadge) {
+            const editBadge = document.createElement('span');
+            editBadge.className = 'edit-access-badge';
+            editBadge.title = 'Can edit in read-only mode';
+            editBadge.innerHTML = ' Editor';
+            if (label && label.parentNode) label.parentNode.insertBefore(editBadge, label.nextSibling);
+            else item.insertBefore(editBadge, item.firstChild);
+        } else if (existingEditBadge && (!window.roomReadOnly || isOwner || !hasEditAccess)) {
+            existingEditBadge.remove();
         }
 
         // Append actions to item (align right)
@@ -259,6 +388,18 @@
         const roomId = window.currentRoom || window.WHITEBOARD_ROOM;
         if (!roomId || !window.socket) return;
         window.socket.emit('room-block', { roomId, targetUserId });
+    }
+
+    function grantEdit(targetUserId) {
+        const roomId = window.currentRoom || window.WHITEBOARD_ROOM;
+        if (!roomId || !window.socket || !targetUserId) return;
+        window.socket.emit('room-grant-edit', { roomId, targetUserId });
+    }
+
+    function revokeEdit(targetUserId) {
+        const roomId = window.currentRoom || window.WHITEBOARD_ROOM;
+        if (!roomId || !window.socket || !targetUserId) return;
+        window.socket.emit('room-revoke-edit', { roomId, targetUserId });
     }
 
     initOwnerControls();

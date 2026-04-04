@@ -1,15 +1,13 @@
 {
   "main": "src/app.js",
   "scripts": {
-    "start": "node -r ./tracing.js src/app.js",
+    "start": "node src/app.js",
     "dev": "nodemon src/app.js"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.2.0",
     "@google/genai": "^1.13.0",
     "@google/generative-ai": "^0.24.1",
-    "@opentelemetry/auto-instrumentations-node": "^0.69.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.205.0",
-    "@opentelemetry/sdk-node": "^0.205.0",
     "axios": "^1.7.9",
     "bcryptjs": "^3.0.3",
     "body-parser": "^1.20.3",

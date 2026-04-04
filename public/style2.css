@@ -2815,7 +2815,7 @@ html {
   border: 1px solid #333;
   border-radius: 6px;
   min-width: 120px;
-  z-index: 1000;
+  z-index: 99999;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }

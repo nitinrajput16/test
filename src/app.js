@@ -179,6 +179,8 @@ app.use('/profile', apiLimiter, require('./routes/api/profile'));
 app.use('/api/editor', apiLimiter, require('./routes/api/editor'));
 
 // ---------- STATIC (AFTER PROTECTION) ----------
+app.use('/monaco-editor', express.static(path.join(__dirname, '../node_modules/monaco-editor')));
+app.use('/vendor/fontawesome', express.static(path.join(__dirname, '../node_modules/@fortawesome/fontawesome-free')));
 app.use(express.static(path.join(__dirname, '../public')));
 
 // ---------- SOCKET.IO ----------

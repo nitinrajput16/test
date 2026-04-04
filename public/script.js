@@ -802,7 +802,14 @@ window.addEventListener('DOMContentLoaded', function () {
     const bufferOps = [];
     let outstandingSent = false;
     let sendTimer = null;
+    let lastReadonlySyncRequestAt = 0;
     const SEND_DEBOUNCE_MS = 45;
+
+    const hasEditPermission = () => {
+      if (!window.roomReadOnly) return true;
+      if (window.isRoomOwner) return true;
+      return !!window.roomCanEdit;
+    };
 
     const cloneOp = (op) => {
       if (!op) return null;
@@ -1096,6 +1103,16 @@ window.addEventListener('DOMContentLoaded', function () {
     const handleLocalChange = (event) => {
       if (suppressLocal || !socketRef || !currentRoom) return;
       if (!event || !event.changes || !event.changes.length) return;
+
+      if (!hasEditPermission()) {
+        const now = Date.now();
+        if (now - lastReadonlySyncRequestAt > 250) {
+          lastReadonlySyncRequestAt = now;
+          socketRef.emit('ot-request-state', { roomId: currentRoom });
+        }
+        return;
+      }
+
       const ordered = [...event.changes].sort((a, b) => a.rangeOffset - b.rangeOffset);
       let offsetDelta = 0;
       ordered.forEach(change => {
@@ -2483,6 +2500,10 @@ window.addEventListener('DOMContentLoaded', function () {
         userItem.className = 'user-item';
         userItem.dataset.peerId = uid;
         if (user.socketId) userItem.dataset.socketId = user.socketId;
+        if (normalizedUserId) userItem.dataset.userId = normalizedUserId;
+        if (typeof user.canEdit === 'boolean') {
+          userItem.dataset.canEdit = user.canEdit ? '1' : '0';
+        }
 
         // audio dot (activity)
         const dot = document.createElement('div');

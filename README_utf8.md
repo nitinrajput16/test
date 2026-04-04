@@ -7,6 +7,7 @@ A powerful, real-time collaborative code editor built with Node.js, Socket.IO, a
 ### 👨‍💻 User Features
 - **Real-time Collaboration:**
   - **Simultaneous Editing:** Multiple users can edit the same file at the same time without conflicts, powered by an Operational Transformation (OT) algorithm.
+  - **Room Ownership & Access Controls:** The first user to join a room becomes the owner. Owners can toggle "Read-Only" mode across the room and explicitly grant/revoke editing permissions for specific users, kick, or block users.
   - **Live Presence:** See who is in the room, their cursor position, and their text selection in real-time.
   - **Active File Sync:** When a user opens a file, it automatically syncs for all other users in the room.
 - **Code Editor:**
@@ -14,20 +15,24 @@ A powerful, real-time collaborative code editor built with Node.js, Socket.IO, a
   - **Code Execution:** Run code directly in the browser (supports Python, JavaScript, C++, Java, and more) via Judge0 API.
   - **Autosave:** Changes are saved automatically every 5 seconds and when you leave the page.
 - **Communication Tools:**
-  - **Voice Chat:** Built-in WebRTC voice chat with mute controls and speaking indicators.
+  - **Group Chat:** Fully integrated chat system with persistence.
+  - **Voice Chat:** Built-in WebRTC voice chat with mute controls and active Voice Activity Detection (VAD) to highlight speaking users.
   - **Whiteboard:** Real-time interactive whiteboard for brainstorming (draw, shapes, text, undo/redo).
 - **AI Assistance:**
-  - **Inline AI:** Generate or explain code using Google Gemini AI integration.
-- **File Management:**
-  - Create, rename, delete, and search files.
+  - **AI Chat:** Conversational AI assistant panel backed by Gemini models.
+  - **Inline AI Autocomplete:** AI code continuation and explanation with multi-line preview, triggered via `Ctrl/Cmd + Shift + Space` and accepted via `Tab`.
+- **File & Dashboard Management:**
+  - Create folders (`/api/code/create-folder`), organize files, and recursively delete directories.
   - Cloud storage for all your code snippets.
+  - Dashboard tracks daily coding time metrics, active editor sessions, and coding streaks to encourage consistent building.
 - **Authentication:**
   - Secure login via Google OAuth.
 
 ### 🛠 Developer Features
-- **Architecture:** Built on a robust Node.js & Express backend with MongoDB for persistence.
-- **Real-time Engine:** Custom Socket.IO implementation for room management, signaling, and event broadcasting.
-- **OT Engine:** Server-authoritative Operational Transformation implementation to ensure document consistency across clients.
+- **Architecture:** Built on a robust Node.js & Express backend with MongoDB for persistence. Uses `EditorSession.js` and `users.js` for enhanced activity metrics.
+- **Real-time Engine:** Custom Socket.IO implementation for room management, presence, chat, and event broadcasting.
+- **OT Engine:** Server-authoritative Operational Transformation implementation to ensure document consistency across clients while validating granular permissions.
+- **Background Jobs:** Utilizes `node-schedule` for automatically cleaning up stale session records.
 - **Modular Design:** Clean separation of concerns (Routes, Models, Middleware, Socket handlers).
 
 ---
@@ -161,9 +166,15 @@ A powerful, real-time collaborative code editor built with Node.js, Socket.IO, a
 |--------|----------|-------------|
 | `GET` | `/api/code/list` | List all files for the logged-in user. |
 | `GET` | `/api/code/load` | Load a specific file by filename. |
+| `POST` | `/api/code/create-folder`| Creates a new directory inside a specified parent path. |
 | `POST` | `/api/code/save` | Save code content to the database. |
+| `DELETE`| `/api/code/delete`| Deletes a file or recursively deletes a directory. |
 | `POST` | `/api/code/run` | Execute code via Judge0. |
-| `POST` | `/api/ai/generate` | Generate code using AI. |
+| `POST` | `/api/ai/chat` | Generates a response from the AI using a streaming/context-aware chat interface. |
+| `POST` | `/api/ai/inline`| Requests an inline code continuation/suggestion based on the cursor position. |
+| `POST` | `/api/editor/activity`| Records the start or end of a daily editor session. |
+| `GET` | `/api/editor/today`| Retrieves the total time spent coding for the current day. |
+| `GET` | `/api/dashboard` | Fetches aggregated user statistics (files saved, today's coding time, streak). |
 
 ---
 
