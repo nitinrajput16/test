@@ -1,0 +1,11 @@
+name = "your-project-name"
+type = "javascript"
+
+[site]
+bucket = "./public"          # Points to your static files
+entry-point = "workers-site" # Default entry point for Wrangler site projects
+
+# Optional: enable local dev preview
+[dev]
+port = 8787
+local_protocol = "http"
