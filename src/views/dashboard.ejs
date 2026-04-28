@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/landing.css">
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+    <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-left">
+                <h1 class="logo">Edit</h1>
+            </div>
+            <div class="nav-right">
+                <a href="/profile" class="nav-link">Profile</a>
+                <a href="/editor" class="nav-link">Editor</a>
+                <a href="/auth/logout" class="nav-link">Logout</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="main-content">
+        <section class="hero" style="padding-top:7rem;">
+            <div class="hero-badge">
+                <span class="star"><i class="fa-solid fa-chart-line"></i></span> Dashboard Overview
+            </div>
+            <h1 class="hero-title">
+                Welcome, <span class="gradient-text"><%= user.displayName || user.firstName %></span>
+            </h1>
+            <p class="hero-description">
+                Your coding stats and recent activity are shown below.
+            </p>
+        </section>
+        
+        <div class="stats-grid">
+            <div class="card" style="margin-bottom:2rem;">
+                <h3 class="section-title" style="margin-bottom:1rem;"><i class="fa-solid fa-chart-simple"></i> Coding Stats</h3>
+                <div class="info-grid">
+                    <div class="info-item"><span class="info-label">Files Saved -> </span><span class="info-value"><%= typeof codeCount !== 'undefined' ? codeCount : 0 %></span></div>
+                    <div class="info-item"><span class="info-label">Today's Coding -> </span><span class="info-value"><%= typeof editorTime !== 'undefined' ? editorTime : '0m' %></span></div>
+                    <div class="info-item"><span class="info-label">Streak -> </span><span class="info-value"><%= typeof streak !== 'undefined' ? streak : 0 %></span></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="quick-actions">
+            <div class="card" style="margin-bottom:2rem;text-align:center;">
+                <h3 class="section-title"><i class="fa-solid fa-bolt"></i> Quick Actions</h3>
+                <div class="action-buttons" style="justify-content:center;gap:1rem;flex-wrap:wrap;">
+                    <a href="/editor?template=java" class="btn-primary"><i class="fa-brands fa-java"></i> New Java</a>
+                    <a href="/editor?template=cpp" class="btn-primary"><i class="fa-solid fa-laptop-code"></i> New C++</a>
+                    <a href="/editor?template=python" class="btn-primary"><i class="fa-brands fa-python"></i> New Python</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="recent-files">
+            <div class="card" style="margin-bottom:2rem;">
+                <h3 class="section-title" style="margin-bottom:1rem;"><i class="fa-regular fa-folder-open"></i> Files</h3>
+                <ul class="activity-list file-list">
+                    <% if (Array.isArray(fileList) && fileList.length) { %>
+                        <% fileList.slice(0, 5).forEach(function(file) { %>
+                            <li class="activity-item" data-updated="<%= file.updatedAt ? new Date(file.updatedAt).toISOString() : '' %>">
+                                <span class="activity-text"><%= file.filename || file.name || 'untitled' %></span>
+                                <span class="activity-time">
+                                    <span class="time-label"><%= file.updatedAt ? new Date(file.updatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '—' %></span>
+                                </span>
+                            </li>
+                        <% }); %>
+                    <% } else { %>
+                        <li class="activity-item"><span class="activity-text">No files found.</span><span class="activity-time">—</span></li>
+                    <% } %>
+                </ul>
+            </div>
+        </div>
+                <script>
+            // Dynamically populate dashboard data from backend models
+            (async () => {
+                // Helper to format relative time
+                function timeAgo(dateStr) {
+                    const now = new Date();
+                    const date = new Date(dateStr);
+                    const diff = (now - date) / 1000;
+                    const units = [
+                        { s: 60, name: 'second' },
+                        { s: 60, name: 'minute' },
+                        { s: 24, name: 'hour' },
+                        { s: 7, name: 'day' },
+                        { s: 4.34524, name: 'week' },
+                        { s: 12, name: 'month' },
+                        { s: Infinity, name: 'year' }
+                    ];
+                    let val = diff;
+                    for (const u of units) {
+                        if (val < u.s) {
+                            const n = Math.max(1, Math.floor(val));
+                            return n + ' ' + u.name + (n > 1 ? 's' : '') + ' ago';
+                        }
+                        val /= u.s;
+                    }
+                    return 'just now';
+                }
+
+                // Return a human-friendly label: 'Today at HH:MM' if same local day, otherwise relative time
+                function formatRecentTime(dateStr) {
+                    if (!dateStr) return '—';
+                    const d = new Date(dateStr);
+                    const now = new Date();
+                    const isSameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+                    if (isSameDay) {
+                        return 'Today at ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    }
+                    const diffHours = Math.abs(now - d) / (1000 * 60 * 60);
+                    if (diffHours < 48) {
+                        return timeAgo(d);
+                    }
+                    // fallback: localized date
+                    return d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+                }
+
+                function applyStats(stats) {
+                    const values = document.querySelectorAll('.stats-grid .info-grid .info-value');
+                    if (values[0] && stats.filesSaved != null) values[0].textContent = stats.filesSaved;
+                    if (values[1] && stats.todaysCoding != null) values[1].textContent = stats.todaysCoding;
+                    if (values[2] && stats.streak != null) values[2].textContent = stats.streak;
+                }
+
+                function applyRecentFiles(files) {
+                    const list = document.querySelector('.recent-files .activity-list') || document.querySelector('.recent-files .file-list');
+                    if (!list) return;
+                    // clear existing (server-side) entries
+                    list.innerHTML = '';
+                    files.slice(0, 10).forEach(f => {
+                        const li = document.createElement('li');
+                        li.className = 'activity-item';
+                        li.setAttribute('data-updated', f.updatedAt || '');
+                        const name = document.createElement('span');
+                        name.className = 'activity-text';
+                        name.textContent = f.name || f.filename || 'untitled';
+                        const date = document.createElement('span');
+                        date.className = 'activity-time';
+                        date.textContent = f.updatedAt ? formatRecentTime(f.updatedAt) : '—';
+                        li.appendChild(name);
+                        li.appendChild(date);
+                        list.appendChild(li);
+                    });
+                }
+
+                async function loadDashboard() {
+                    try {
+                        const res = await fetch('/api/dashboard', { headers: { 'Accept': 'application/json' } });
+                        if (!res.ok) throw new Error('Failed to load');
+                        const data = await res.json();
+                        if (data.stats) applyStats(data.stats);
+                        if (Array.isArray(data.recentFiles)) applyRecentFiles(data.recentFiles);
+                    } catch (e) {
+                        console.warn('Dashboard data error:', e);
+                    }
+                }
+
+                // Optional live refresh for recent activity
+                loadDashboard();
+                setInterval(loadDashboard, 60_000);
+            })();
+        </script>
+        
+        <div class="footer-info">
+            <div class="footer-info" style="text-align:center;color:var(--text-muted);font-size:0.95rem;padding:1rem 0;">
+                <p>Codeplat by nitinrajput16</p>
+                <p>Current Time: <%= new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) %> IST</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

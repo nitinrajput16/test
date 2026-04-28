@@ -1,16 +1,17 @@
 /**
- * AI Inline Widget (Multiline Preview)
+ * AI Inline Widget (Multiline Preview) - On-Demand Mode
+ * - Trigger AI suggestion: Ctrl/Cmd + Shift + Space
+ * - Accept suggestion: Tab
+ * - Toggle full/condensed preview: Ctrl/Cmd + P
+ * - Force refresh: Ctrl/Cmd + Alt + R
  * - Displays up to MAX_PREVIEW_LINES of the suggestion
  * - Shows truncation footer if more lines exist
- * - Toggle full/condensed preview: Ctrl/Cmd + Alt + ;
- * - Accept full suggestion: Tab
- * - Force refresh: Ctrl/Cmd + Alt + R
  */
 (function (global) {
   const CFG = {
     endpoint: '/api/ai/inline',
-    debounceMs: 10000,
-    minChars: 6,
+    debounceMs: 3000,
+    minChars: 1,
     maxPrefix: 6000,
 
     // Preview controls
@@ -119,8 +120,6 @@
           accept();
         }
       });
-      // Optionally: a second tap to expand if truncated:
-      // widget.getDomNode().addEventListener('dblclick', toggleExpanded);
 
     function updateWidgetText(text, placeholder=false) {
       const node = widget.getDomNode();
@@ -167,9 +166,11 @@
       const all = model.getValue();
       if (all.length < CFG.minChars) {
         clearWidget();
+        log('Code too short (< ' + CFG.minChars + ' chars)');
         return;
       }
 
+      // Always allow suggestions, even for unsaved files
       const prefix = getPrefix();
       if (aborter) {
         try { aborter.abort(); } catch {}
@@ -178,7 +179,7 @@
       const fid = ++lastFetchId;
 
       clearWidget();
-      if (CFG.SHOW_PLACEHOLDER) updateWidgetText(CFG.placeholder, true);
+      if (CFG.SHOW_PLACEHOLDER) updateWidgetText('Thinking...', true);
 
       const lang = getLang();
       log('POST', CFG.endpoint, { bytes: prefix.length, lang, fid, force });
@@ -187,14 +188,24 @@
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ prefix, language: lang }),
-        signal: aborter.signal
+        signal: aborter.signal,
+        // include credentials so session cookie is sent to authenticated endpoint
+        credentials: 'same-origin'
       })
         .then(async r => {
           let data;
           try { data = await r.json(); } catch {
             throw new Error('Non-JSON ' + r.status);
           }
-          if (!r.ok) throw new Error(data.error || ('HTTP '+r.status));
+          if (!r.ok) {
+            // If backend blocks due to missing filename, show message
+            if (data.error && /filename/i.test(data.error)) {
+              updateWidgetText('AI suggestion unavailable for unsaved files.', true);
+              log('AI suggestion blocked: ' + data.error);
+              return;
+            }
+            throw new Error(data.error || ('HTTP '+r.status));
+          }
           return data;
         })
         .then(data => {
@@ -265,13 +276,13 @@
         range: editor.getSelection(),
         text: insert
       }]);
-      scheduleFetch();
+      // Don't auto-fetch after accepting - wait for user to manually trigger again
     }
 
     // Events
     editor.onDidChangeModelContent(() => {
+      // Only clear widget on content change, don't auto-fetch
       clearWidget();
-      scheduleFetch();
     });
 
     editor.onDidChangeCursorPosition(() => {
@@ -281,12 +292,27 @@
 
     editor.addCommand(monaco.KeyCode.Tab, accept);
 
-    // Toggle preview size: Ctrl/Cmd + P
+    // Bind inside Monaco so the shortcut works even when the editor captures key events.
+    // Ctrl/Cmd + Shift + Space
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Space, () => {
+      log('Manual trigger via Monaco Ctrl/Cmd+Shift+Space');
+      force();
+    });
+
+    // Keyboard shortcuts
     window.addEventListener('keydown', (e) => {
+      // Ctrl+Shift+Space: Trigger AI suggestion
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.code === 'Space') {
+        e.preventDefault();
+        log('Manual trigger via Ctrl+Shift+Space');
+        force();
+      }
+      // Ctrl+P: Toggle preview size
       if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
         e.preventDefault();
         toggleExpanded();
       }
+      // Ctrl+Alt+R: Force refresh (kept for backward compatibility)
       if ((e.metaKey || e.ctrlKey) && e.altKey && e.key.toLowerCase() === 'r') {
         e.preventDefault();
         force();
@@ -296,12 +322,19 @@
     const ls = document.getElementById('language');
     if (ls) {
       ls.addEventListener('change', () => {
+        // Just clear the widget when language changes, don't auto-fetch
         clearWidget();
-        scheduleFetch();
       });
     }
 
     function force() {
+      // If there's already a suggestion visible, clear it
+      if (fullSuggestion && widgetVisible) {
+        log('Clearing existing suggestion');
+        clearWidget();
+        return;
+      }
+      // Otherwise fetch a new suggestion
       clearWidget();
       fetchSuggestion(true);
     }
@@ -326,8 +359,8 @@
     // Alias for earlier expectations
     global.__AIGHOST_STATE__ = api;
 
-    // Initialize
-    scheduleFetch();
+    // Don't auto-fetch on initialization - wait for user trigger
+    log('AI suggestions ready. Press Ctrl/Cmd+Shift+Space to get suggestions.');
 
     return api;
   }
