@@ -64,7 +64,7 @@
             <div class="card" style="margin-bottom:2rem;">
                 <h3 class="section-title" style="margin-bottom:1rem;"><i class="fa-regular fa-folder-open"></i> Files</h3>
                 <ul class="activity-list file-list">
-                    <% if (Array.isArray(fileList) && fileList.length) { %>
+                    <% if (typeof fileList !== 'undefined' && Array.isArray(fileList) && fileList.length) { %>
                         <% fileList.slice(0, 5).forEach(function(file) { %>
                             <li class="activity-item" data-updated="<%= file.updatedAt ? new Date(file.updatedAt).toISOString() : '' %>">
                                 <span class="activity-text"><%= file.filename || file.name || 'untitled' %></span>
@@ -79,6 +79,130 @@
                 </ul>
             </div>
         </div>
+
+        <% if (typeof admin !== 'undefined' && admin) { %>
+        <div class="admin-database-panel">
+            <div class="card" style="margin-bottom:2rem;">
+                <h3 class="section-title" style="margin-bottom:1rem;"><i class="fa-solid fa-database"></i> Database Overview</h3>
+                <div class="info-grid">
+                    <div class="info-item"><span class="info-label">Users</span><span class="info-value"><%= adminStats ? adminStats.userCount : 0 %></span></div>
+                    <div class="info-item"><span class="info-label">Files</span><span class="info-value"><%= adminStats ? adminStats.fileCount : 0 %></span></div>
+                    <div class="info-item"><span class="info-label">Sessions</span><span class="info-value"><%= adminStats ? adminStats.sessionCount : 0 %></span></div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom:2rem;">
+                <h3 class="section-title" style="margin-bottom:1rem;"><i class="fa-solid fa-users-gear"></i> Recent Users</h3>
+                <form method="get" action="/admin" class="admin-filter-row" style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem;">
+                    <input type="text" name="userSearch" placeholder="Search users" value="<%= adminQueries && adminQueries.userSearch ? adminQueries.userSearch : '' %>" style="flex:1;min-width:220px;">
+                    <input type="hidden" name="fileSearch" value="<%= adminQueries && adminQueries.fileSearch ? adminQueries.fileSearch : '' %>">
+                    <input type="hidden" name="sessionSearch" value="<%= adminQueries && adminQueries.sessionSearch ? adminQueries.sessionSearch : '' %>">
+                    <button class="btn-primary" type="submit">Filter</button>
+                </form>
+                <ul class="activity-list file-list">
+                    <% if (Array.isArray(adminUsers) && adminUsers.length) { %>
+                        <% adminUsers.forEach(function(u) { %>
+                            <li class="activity-item">
+                                <span class="activity-text"><%= u.displayName || u.username || u.email %></span>
+                                <span class="activity-time" style="display:flex;gap:0.4rem;align-items:center;">
+                                    <form method="post" action="/admin/user/<%= u._id %>/role" style="display:inline;">
+                                        <input type="hidden" name="role" value="<%= u.role === 'admin' ? 'user' : 'admin' %>">
+                                        <button type="submit" class="user-action-btn" style="padding:4px 8px;"><%= u.role === 'admin' ? 'Demote' : 'Promote' %></button>
+                                    </form>
+                                    <form method="post" action="/admin/user/<%= u._id %>/delete" style="display:inline;" onsubmit="return confirm('Delete this user and their data?');">
+                                        <button type="submit" class="user-action-btn block" style="padding:4px 8px;">Delete</button>
+                                    </form>
+                                </span>
+                            </li>
+                        <% }); %>
+                    <% } else { %>
+                        <li class="activity-item"><span class="activity-text">No users found.</span><span class="activity-time">—</span></li>
+                    <% } %>
+                </ul>
+                <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+                    <span style="color:var(--text-muted);">Page <%= adminPagination && adminPagination.users ? adminPagination.users.currentPage : 1 %> / <%= adminPagination && adminPagination.users ? adminPagination.users.totalPages : 1 %></span>
+                    <% if (adminPagination && adminPagination.users && adminPagination.users.hasPrev) { %>
+                        <a class="btn-primary" href="/admin?userSearch=<%= encodeURIComponent(adminQueries && adminQueries.userSearch ? adminQueries.userSearch : '') %>&fileSearch=<%= encodeURIComponent(adminQueries && adminQueries.fileSearch ? adminQueries.fileSearch : '') %>&sessionSearch=<%= encodeURIComponent(adminQueries && adminQueries.sessionSearch ? adminQueries.sessionSearch : '') %>&userPage=<%= adminPagination.users.currentPage - 1 %>&filePage=<%= adminPagination.files.currentPage %>&sessionPage=<%= adminPagination.sessions.currentPage %>">Prev</a>
+                    <% } %>
+                    <% if (adminPagination && adminPagination.users && adminPagination.users.hasNext) { %>
+                        <a class="btn-primary" href="/admin?userSearch=<%= encodeURIComponent(adminQueries && adminQueries.userSearch ? adminQueries.userSearch : '') %>&fileSearch=<%= encodeURIComponent(adminQueries && adminQueries.fileSearch ? adminQueries.fileSearch : '') %>&sessionSearch=<%= encodeURIComponent(adminQueries && adminQueries.sessionSearch ? adminQueries.sessionSearch : '') %>&userPage=<%= adminPagination.users.currentPage + 1 %>&filePage=<%= adminPagination.files.currentPage %>&sessionPage=<%= adminPagination.sessions.currentPage %>">Next</a>
+                    <% } %>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom:2rem;">
+                <h3 class="section-title" style="margin-bottom:1rem;"><i class="fa-solid fa-file-lines"></i> Recent Files</h3>
+                <form method="get" action="/admin" class="admin-filter-row" style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem;">
+                    <input type="text" name="fileSearch" placeholder="Search files" value="<%= adminQueries && adminQueries.fileSearch ? adminQueries.fileSearch : '' %>" style="flex:1;min-width:220px;">
+                    <input type="hidden" name="userSearch" value="<%= adminQueries && adminQueries.userSearch ? adminQueries.userSearch : '' %>">
+                    <input type="hidden" name="sessionSearch" value="<%= adminQueries && adminQueries.sessionSearch ? adminQueries.sessionSearch : '' %>">
+                    <button class="btn-primary" type="submit">Filter</button>
+                </form>
+                <ul class="activity-list file-list">
+                    <% if (Array.isArray(adminFiles) && adminFiles.length) { %>
+                        <% adminFiles.forEach(function(file) { %>
+                            <li class="activity-item">
+                                <span class="activity-text"><%= file.filename %> <small style="color:var(--text-muted);">(<%= file.parentPath %>)</small></span>
+                                <span class="activity-time" style="display:flex;gap:0.4rem;align-items:center;">
+                                    <span><%= file.userId %></span>
+                                    <form method="post" action="/admin/file/<%= file._id %>/delete" style="display:inline;" onsubmit="return confirm('Delete this file or folder?');">
+                                        <button type="submit" class="user-action-btn block" style="padding:4px 8px;">Delete</button>
+                                    </form>
+                                </span>
+                            </li>
+                        <% }); %>
+                    <% } else { %>
+                        <li class="activity-item"><span class="activity-text">No files found.</span><span class="activity-time">—</span></li>
+                    <% } %>
+                </ul>
+                <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+                    <span style="color:var(--text-muted);">Page <%= adminPagination && adminPagination.files ? adminPagination.files.currentPage : 1 %> / <%= adminPagination && adminPagination.files ? adminPagination.files.totalPages : 1 %></span>
+                    <% if (adminPagination && adminPagination.files && adminPagination.files.hasPrev) { %>
+                        <a class="btn-primary" href="/admin?userSearch=<%= encodeURIComponent(adminQueries && adminQueries.userSearch ? adminQueries.userSearch : '') %>&fileSearch=<%= encodeURIComponent(adminQueries && adminQueries.fileSearch ? adminQueries.fileSearch : '') %>&sessionSearch=<%= encodeURIComponent(adminQueries && adminQueries.sessionSearch ? adminQueries.sessionSearch : '') %>&userPage=<%= adminPagination.users.currentPage %>&filePage=<%= adminPagination.files.currentPage - 1 %>&sessionPage=<%= adminPagination.sessions.currentPage %>">Prev</a>
+                    <% } %>
+                    <% if (adminPagination && adminPagination.files && adminPagination.files.hasNext) { %>
+                        <a class="btn-primary" href="/admin?userSearch=<%= encodeURIComponent(adminQueries && adminQueries.userSearch ? adminQueries.userSearch : '') %>&fileSearch=<%= encodeURIComponent(adminQueries && adminQueries.fileSearch ? adminQueries.fileSearch : '') %>&sessionSearch=<%= encodeURIComponent(adminQueries && adminQueries.sessionSearch ? adminQueries.sessionSearch : '') %>&userPage=<%= adminPagination.users.currentPage %>&filePage=<%= adminPagination.files.currentPage + 1 %>&sessionPage=<%= adminPagination.sessions.currentPage %>">Next</a>
+                    <% } %>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom:2rem;">
+                <h3 class="section-title" style="margin-bottom:1rem;"><i class="fa-solid fa-clock-rotate-left"></i> Recent Sessions</h3>
+                <form method="get" action="/admin" class="admin-filter-row" style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem;">
+                    <input type="text" name="sessionSearch" placeholder="Search sessions" value="<%= adminQueries && adminQueries.sessionSearch ? adminQueries.sessionSearch : '' %>" style="flex:1;min-width:220px;">
+                    <input type="hidden" name="userSearch" value="<%= adminQueries && adminQueries.userSearch ? adminQueries.userSearch : '' %>">
+                    <input type="hidden" name="fileSearch" value="<%= adminQueries && adminQueries.fileSearch ? adminQueries.fileSearch : '' %>">
+                    <button class="btn-primary" type="submit">Filter</button>
+                </form>
+                <ul class="activity-list file-list">
+                    <% if (Array.isArray(adminSessions) && adminSessions.length) { %>
+                        <% adminSessions.forEach(function(session) { %>
+                            <li class="activity-item">
+                                <span class="activity-text"><%= session.userId %></span>
+                                <span class="activity-time" style="display:flex;gap:0.4rem;align-items:center;">
+                                    <span><%= session.date || '—' %></span>
+                                    <form method="post" action="/admin/session/<%= session._id %>/delete" style="display:inline;" onsubmit="return confirm('Delete this session record?');">
+                                        <button type="submit" class="user-action-btn block" style="padding:4px 8px;">Delete</button>
+                                    </form>
+                                </span>
+                            </li>
+                        <% }); %>
+                    <% } else { %>
+                        <li class="activity-item"><span class="activity-text">No sessions found.</span><span class="activity-time">—</span></li>
+                    <% } %>
+                </ul>
+                <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+                    <span style="color:var(--text-muted);">Page <%= adminPagination && adminPagination.sessions ? adminPagination.sessions.currentPage : 1 %> / <%= adminPagination && adminPagination.sessions ? adminPagination.sessions.totalPages : 1 %></span>
+                    <% if (adminPagination && adminPagination.sessions && adminPagination.sessions.hasPrev) { %>
+                        <a class="btn-primary" href="/admin?userSearch=<%= encodeURIComponent(adminQueries && adminQueries.userSearch ? adminQueries.userSearch : '') %>&fileSearch=<%= encodeURIComponent(adminQueries && adminQueries.fileSearch ? adminQueries.fileSearch : '') %>&sessionSearch=<%= encodeURIComponent(adminQueries && adminQueries.sessionSearch ? adminQueries.sessionSearch : '') %>&userPage=<%= adminPagination.users.currentPage %>&filePage=<%= adminPagination.files.currentPage %>&sessionPage=<%= adminPagination.sessions.currentPage - 1 %>">Prev</a>
+                    <% } %>
+                    <% if (adminPagination && adminPagination.sessions && adminPagination.sessions.hasNext) { %>
+                        <a class="btn-primary" href="/admin?userSearch=<%= encodeURIComponent(adminQueries && adminQueries.userSearch ? adminQueries.userSearch : '') %>&fileSearch=<%= encodeURIComponent(adminQueries && adminQueries.fileSearch ? adminQueries.fileSearch : '') %>&sessionSearch=<%= encodeURIComponent(adminQueries && adminQueries.sessionSearch ? adminQueries.sessionSearch : '') %>&userPage=<%= adminPagination.users.currentPage %>&filePage=<%= adminPagination.files.currentPage %>&sessionPage=<%= adminPagination.sessions.currentPage + 1 %>">Next</a>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+        <% } %>
                 <script>
             // Dynamically populate dashboard data from backend models
             (async () => {

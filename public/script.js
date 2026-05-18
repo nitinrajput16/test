@@ -2467,6 +2467,15 @@ window.addEventListener('DOMContentLoaded', function () {
     socket.on('connect', () => {
       joinRoom(currentRoom);
     });
+    socket.on('room-created', ({ roomId }) => {
+      if (!roomId) {
+        logOutput('Failed to create room: invalid room id from server');
+        return;
+      }
+      if (roomInput) roomInput.value = roomId;
+      logOutput('Room created: ' + roomId);
+      joinRoom(roomId);
+    });
     socket.on('filelist-changed', () => {
       refreshFileList();
     });
@@ -3320,14 +3329,14 @@ window.addEventListener('DOMContentLoaded', function () {
   }
 
   // -------------- ROOM HANDLING ----------------
-  // Create Room button: generate unique string, show in output, and join
+  // Create Room button: ask server to generate unique room id, then join on `room-created`
   if (roomButton) {
     roomButton.addEventListener('click', () => {
-      // Generate a unique room string (8 chars, alphanumeric)
-      const roomId = 'room-' + Math.random().toString(36).slice(2, 10);
-      roomInput.value = roomId;
-      logOutput('Room created: ' + roomId);
-      joinRoom(roomId);
+      if (!socket || !socket.connected) {
+        logOutput('Socket not connected. Please wait and try again.');
+        return;
+      }
+      socket.emit('create-room');
     });
   }
 

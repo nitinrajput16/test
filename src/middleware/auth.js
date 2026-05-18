@@ -32,12 +32,14 @@ function ensureGuest(req, res, next) {
   return next();
 }
 
-function ensureOwner(req, res, next) {
+function ensureAdmin(req, res, next) {
+  const adminEmail = String(process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+  const userEmail = String(req.user && req.user.email ? req.user.email : '').trim().toLowerCase();
   if (
     req.isAuthenticated &&
     req.isAuthenticated() &&
     req.user &&
-    (req.user.role === 'admin' || req.user.email === process.env.ADMIN_EMAIL)
+    (req.user.role === 'admin' || (adminEmail && userEmail === adminEmail))
   ) {
     return next();
   }
@@ -48,4 +50,8 @@ function ensureOwner(req, res, next) {
   });
 }
 
-module.exports = { ensureAuth, ensureGuest, ensureOwner, rememberReturnPath, sanitizeReturnPath };
+function ensureOwner(req, res, next) {
+  return ensureAdmin(req, res, next);
+}
+
+module.exports = { ensureAuth, ensureGuest, ensureAdmin, ensureOwner, rememberReturnPath, sanitizeReturnPath };

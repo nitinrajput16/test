@@ -20,10 +20,11 @@ const PORT = process.env.PORT || 3000;
 // Bind to 0.0.0.0 by default so cloud hosts (Render, Heroku, etc.) can reach the server
 const HOST = process.env.HOST || '0.0.0.0';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 // If running behind a reverse proxy (Render, Railway, Nginx, etc.),
 // trust the proxy so secure cookies work correctly.
-// Set TRUST_PROXY=1 in production if needed.
-if (process.env.TRUST_PROXY === '1') {
+if (isProduction || process.env.TRUST_PROXY === '1') {
   app.set('trust proxy', 1);
 }
 
@@ -117,13 +118,27 @@ const apiLimiter = rateLimit({
   keyGenerator: rateLimitKeyGenerator,
 });
 
+function parseCorsOrigins(value) {
+  return String(value || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+const corsOrigins = parseCorsOrigins(process.env.CORS_ORIGINS || process.env.CORS_ORIGIN);
+const corsOptions = {
+  origin: corsOrigins.length > 0 ? corsOrigins : (isProduction ? false : true),
+  credentials: true,
+  methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+};
+
 // ---------- CORE MIDDLEWARE ----------
 app.use((req, _res, next) => {
   next();
 });
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json({ limit: '1mb' }));
-app.use(cors());
+app.use(cors(corsOptions));
 
 // ---------- SESSION ----------
 if (!process.env.SESSION_SECRET) {

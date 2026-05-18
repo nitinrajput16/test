@@ -6,6 +6,18 @@ const CodeFile = require('../../models/CodeFile');
 const EditorSession = require('../../models/EditorSession');
 const ensureAuth = require('../../middleware/ensureAuth');
 
+function logProfileError(context, err) {
+  console.error(`[Profile] ${context}`, err && err.stack ? err.stack : err);
+}
+
+function sendProfileError(res, status, message, details) {
+  const payload = { error: message };
+  if (details && process.env.NODE_ENV !== 'production') {
+    payload.details = details;
+  }
+  return res.status(status).json(payload);
+}
+
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -38,8 +50,8 @@ router.get('/check-username', ensureAuth, async (req, res) => {
 
     return res.json({ available: true });
   } catch (err) {
-    console.error('[Profile] check-username error:', err);
-    return res.status(500).json({ available: false, error: 'Server error. Try again.' });
+    logProfileError('check-username error', err);
+    return sendProfileError(res, 500, 'Server error. Try again.');
   }
 });
 
@@ -110,8 +122,8 @@ router.put('/update', ensureAuth, async (req, res) => {
 
     return res.json({ success: true, message: 'Profile updated successfully!', user: { displayName: updated.displayName, username: updated.username, avatar: updated.avatar } });
   } catch (err) {
-    console.error('[Profile] update error:', err);
-    return res.status(500).json({ error: 'Server error. Could not update profile.' });
+    logProfileError('update error', err);
+    return sendProfileError(res, 500, 'Server error. Could not update profile.');
   }
 });
 
@@ -181,8 +193,8 @@ router.put('/credentials', ensureAuth, async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('[Profile] credentials error:', err);
-    return res.status(500).json({ error: 'Server error. Could not update credentials.' });
+    logProfileError('credentials error', err);
+    return sendProfileError(res, 500, 'Server error. Could not update credentials.');
   }
 });
 
@@ -229,8 +241,8 @@ router.delete('/account', ensureAuth, async (req, res, next) => {
       });
     });
   } catch (err) {
-    console.error('[Profile] delete-account error:', err);
-    return res.status(500).json({ error: 'Server error. Could not remove account.' });
+    logProfileError('delete-account error', err);
+    return sendProfileError(res, 500, 'Server error. Could not remove account.');
   }
 });
 
@@ -258,8 +270,8 @@ router.post('/friends/add', ensureAuth, async (req, res) => {
 
     return res.json({ success: true, message: `${targetUser.displayName} added!`, friend: targetUser });
   } catch (err) {
-    console.error('[Profile] add-friend error:', err);
-    return res.status(500).json({ error: 'Server error.' });
+    logProfileError('add-friend error', err);
+    return sendProfileError(res, 500, 'Server error.');
   }
 });
 
@@ -275,8 +287,8 @@ router.delete('/friends/remove', ensureAuth, async (req, res) => {
 
     return res.json({ success: true, message: 'Friend removed.' });
   } catch (err) {
-    console.error('[Profile] remove-friend error:', err);
-    return res.status(500).json({ error: 'Server error.' });
+    logProfileError('remove-friend error', err);
+    return sendProfileError(res, 500, 'Server error.');
   }
 });
 
@@ -309,8 +321,8 @@ router.get('/:key', ensureAuth, async (req, res) => {
     hasPassword: Boolean(user.passwordHash)
   });
   } catch (err) {
-    console.error('Profile error:', err);
-    res.status(500).send('Error loading profile');
+    logProfileError('view-profile error', err);
+    return sendProfileError(res, 500, 'Error loading profile');
   }
 });
 

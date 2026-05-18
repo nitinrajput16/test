@@ -1,5 +1,42 @@
 # Security Documentation
 
+## Security Review Findings (April 2026)
+
+### 🚨 Critical Vulnerabilities (Must Fix)
+
+#### 1. Regex Injection / Mass Deletion (A03 - Injection)
+**Location:** `src/routes/api/code.js` -> `DELETE /delete`
+**Vulnerability:** The route uses `new RegExp('^' + folderFullPath + '(/|$)')` where `folderFullPath` includes the user-provided `req.body.filename` and `parentPath`. If an attacker passes regex metacharacters (e.g., `.*`), they can delete unintended files within their account or trigger a Regular Expression Denial of Service (ReDoS).
+**Fix:** Escape regex characters in `folderFullPath` before passing it to `new RegExp()`.
+
+#### 2. NoSQL Query Injection (A03 - Injection)
+**Location:** `src/routes/api/code.js` -> `POST /save`, `GET /load`
+**Vulnerability:** While `filename` is validated against a regex, `parentPath` is utilized in MongoDB queries directly (e.g., `parentPath = req.body.parentPath || '/'`). By passing an object like `{"$ne": "random"}` instead of a string, an attacker can manipulate the query.
+**Fix:** Validate `parentPath` explicitly ensuring it is a string and adheres to valid path formats.
+
+### 🔴 High Risk Issues
+
+#### 3. Room Ownership Squatting (A01 - Broken Access Control)
+**Location:** `src/socket/index.js`
+**Vulnerability:** Room ownership is automatically assigned to the first socket connection. A malicious script can establish connections to hundreds of predictable or randomized room IDs, become the owner, and toggle them to "Read-Only," effectively executing a denial of service (DoS) for legitimate room participants.
+**Fix:** Zero Trust Implementation – Rooms should require authentication to create, or ownership should be bound to the creator's persistent user ID.
+
+#### 4. Unbounded Fetch / Socket DoS (Reliability limit)
+**Location:** `src/routes/api/code.js` -> `POST /run`
+**Vulnerability:** The route fetches an external execution engine (Judge0) with `wait=true` without establishing any timeout. If Judge0 experiences latency, Node.js connection sockets will remain open, potentially starving the node connection pool and taking the server down.
+**Fix:** Add `AbortSignal.timeout(10000)` to the `node-fetch` call.
+
+### 🟡 AI / LLM Integration Risks
+
+#### 5. Sensitive Data Exposure (LLM06) & Prompt Injection (LLM01)
+**Location:** `src/routes/api/ai.js`
+**Vulnerability:** The assistant injects the raw `prefix` code and `messages` directly into the Prompt. 
+- **LLM06:** Users routinely hardcode API keys or internal enterprise logic into editors; this exposes proprietary data to external cloud models without prior scrubbing.
+- **LLM01:** The assistant lacks strict output constraints if users input contradictory "system" instructions in chat or code execution contexts.
+**Fix:** Document a policy informing users that editor contexts are transmitted to external LLMs. Enforce guardrails on inputs and sanitize known secrets/PII before transmission.
+
+---
+
 ## Fixed Vulnerabilities (February 2026)
 
 ### Authentication Security Improvements

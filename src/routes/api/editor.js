@@ -3,6 +3,7 @@ const router = express.Router();
 const EditorSession = require('../../models/EditorSession');
 const ensureAuth = require('../../middleware/ensureAuth');
 const schedule = require('node-schedule');
+const { getIstDateParts } = require('../../lib/time');
 
 // Record activity period (start or end)
 router.post('/activity', ensureAuth, async (req, res) => {
@@ -10,9 +11,7 @@ router.post('/activity', ensureAuth, async (req, res) => {
     const { action } = req.body; // 'start' or 'end'
     const userId = req.user.username;
     const now = new Date();
-    // Get IST date string
-    const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-    const dateStr = istNow.toISOString().slice(0,10);
+    const { dateStr } = getIstDateParts(now);
     if (action === 'start') {
       await EditorSession.create({ userId, start: now, date: dateStr });
       return res.json({ status: 'started' });
@@ -36,8 +35,7 @@ router.get('/today', ensureAuth, async (req, res) => {
   try {
     const userId = req.user.username;
     const now = new Date();
-    const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-    const dateStr = istNow.toISOString().slice(0,10);
+    const { dateStr } = getIstDateParts(now);
     const sessions = await EditorSession.find({ userId, date: dateStr });
     let total = 0;
     sessions.forEach(s => {

@@ -1,4 +1,5 @@
 const { Server } = require('socket.io');
+const crypto = require('crypto');
 const { createRoomState, applyServerOperation } = require('../lib/ot');
 
 /**
@@ -196,6 +197,16 @@ function initSocket(server, { sessionMiddleware }) {
     roomEditGrants.delete(roomId);
   }
 
+  function generateRoomId(length = 12) {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const bytes = crypto.randomBytes(length);
+    let id = '';
+    for (let i = 0; i < length; i += 1) {
+      id += chars[bytes[i] % chars.length];
+    }
+    return id;
+  }
+
   function ensureActiveOwner(roomId) {
     if (!roomUserPresence.has(roomId)) {
       cleanupRoomIfEmpty(roomId);
@@ -272,6 +283,29 @@ function initSocket(server, { sessionMiddleware }) {
         roomUserPresence.get(roomId)[uid].color = COLORS[idx % COLORS.length];
       });
     }
+
+    socket.on('create-room', () => {
+      try {
+        const MAX_ATTEMPTS = 12;
+        let attempts = 0;
+        let roomId = '';
+
+        do {
+          roomId = generateRoomId(12);
+          attempts += 1;
+        } while (roomOwners.has(roomId) && attempts < MAX_ATTEMPTS);
+
+        if (!roomId || roomOwners.has(roomId)) {
+          socket.emit('room-error', { message: 'Unable to create room right now. Please try again.' });
+          return;
+        }
+
+        socket.emit('room-created', { roomId });
+      } catch (err) {
+        console.error('[Room] create-room failed', err && err.stack ? err.stack : err);
+        socket.emit('room-error', { message: 'Unable to create room right now. Please try again.' });
+      }
+    });
 
     socket.on('join-room', (roomId) => {
       if (!roomId) return;
