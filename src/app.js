@@ -1,4 +1,16 @@
 const path = require('path');
+const dns = require('dns');
+
+// Fix Windows local ISP DNS SRV resolution failures for mongodb+srv:// URIs
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+  // Ignore fallback if custom DNS set fail
+}
+
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const http = require('http');
 const express = require('express');

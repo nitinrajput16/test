@@ -5,40 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %></title>
     <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+    <link rel="stylesheet" href="/pixel-theme.css">
     <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
     <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-        --bg: #07110d;
-        --bg-soft: #0b1712;
-        --panel: rgba(14, 29, 22, 0.88);
-        --panel-strong: #10241b;
-        --panel-alt: #132c21;
-        --line: rgba(85, 190, 135, 0.18);
-        --line-strong: rgba(85, 190, 135, 0.32);
-        --text: #e5f1eb;
-        --text-muted: #9ab5a8;
-        --text-faint: #769182;
-        --accent: #49c47f;
-        --accent-strong: #71efab;
-        --danger: #ff6d6d;
-        --shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+        --bg: var(--pixel-bg-dark);
+        --bg-soft: var(--pixel-bg-surface);
+        --panel: var(--pixel-bg-card);
+        --panel-strong: #14172b;
+        --panel-alt: #1a1d36;
+        --line: #000000;
+        --line-strong: var(--pixel-border-inner);
+        --text: var(--pixel-text-main);
+        --text-muted: var(--pixel-text-dim);
+        --text-faint: var(--pixel-text-muted);
+        --accent: var(--pixel-primary);
+        --accent-strong: #a6fff2;
+        --danger: var(--pixel-secondary);
+        --shadow: 4px 4px 0px 0px #000;
         --sidebar-width: 258px;
-        --radius-xl: 26px;
-        --radius-lg: 18px;
+        --radius-xl: 0px;
+        --radius-lg: 0px;
     }
 
     html { scroll-behavior: smooth; }
 
     body {
         min-height: 100vh;
-        font-family: "Segoe UI", system-ui, sans-serif;
+        font-family: var(--font-pixel-body);
         color: var(--text);
-        background:
-            radial-gradient(circle at top left, rgba(73, 196, 127, 0.18), transparent 30%),
-            radial-gradient(circle at top right, rgba(113, 239, 171, 0.08), transparent 24%),
-            linear-gradient(180deg, #06100c 0%, #08130f 45%, #06100c 100%);
+        background: var(--pixel-bg-dark);
+        image-rendering: pixelated;
         overflow-x: hidden;
     }
 

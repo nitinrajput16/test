@@ -6,32 +6,30 @@
   display: none !important;
 }
 
-/* Nav Bar Styles */
+/* Nav Bar Styles - Pixel Art Edition */
 .navbar {
   width: 100vw;
-  background: #04100c;
-  color: #fff;
+  background: var(--pixel-bg-surface);
+  color: var(--pixel-text-main);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
+  padding: 0 24px;
   height: 56px;
-  border-bottom: 1px solid #0a5;
-  box-shadow: 0 2px 8px #0002;
-  font-family: inherit;
+  border-bottom: 4px solid #000;
+  box-shadow: 0 4px 0px 0px #000;
+  font-family: var(--font-pixel-body);
 }
 
 .navbar-brand {
-  font-size: 1.5em;
-  font-weight: bold;
-  letter-spacing: 1px;
-  color: #0a5;
+  display: flex;
+  align-items: center;
 }
 
 .navbar-links {
   list-style: none;
   display: flex;
-  gap: 24px;
+  gap: 16px;
   margin: 0;
   padding: 0;
 }
@@ -41,17 +39,23 @@
 }
 
 .navbar-links a {
-  color: #fff;
+  color: var(--pixel-text-dim);
   text-decoration: none;
-  font-size: 1em;
-  padding: 6px 12px;
-  border-radius: 5px;
-  transition: background 0.2s;
+  font-size: 14px;
+  padding: 8px 12px;
+  background: #101222;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0px #000;
+  transition: transform 0.05s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .navbar-links a:hover {
-  background: #0a5;
-  border-radius: 5px;
+  color: var(--pixel-primary);
+  background: #1a1e38;
+  transform: translate(1px, 1px);
 }
 
 .navbar-theme-btn {
@@ -96,32 +100,44 @@
 
 * {
   box-sizing: border-box;
-  --bgcolor: #04100c;
+  --bgcolor: var(--pixel-bg-dark);
 }
 
 body {
   margin: 0;
   background: var(--bgcolor);
+  font-family: var(--font-pixel-body);
 }
 
 .workspace {
   width: 100%;
   height: calc(100vh - 56px);
   display: flex;
-  gap: 18px;
-  padding: 18px 24px 24px;
+  gap: 14px;
+  padding: 14px 18px;
 }
 
 .panel {
-  background: #ffffff08;
-  border: 1px solid #ffffff15;
-  border-radius: 18px;
-  padding: 18px;
+  background: var(--pixel-bg-card);
+  border: 4px solid #000;
+  border-radius: 0;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  box-shadow: 0 20px 60px #0004;
+  box-shadow: 
+    inset -4px -4px 0px 0px #0b0d19,
+    inset 4px 4px 0px 0px var(--pixel-border-inner),
+    6px 6px 0px 0px rgba(0, 0, 0, 0.75);
   position: relative;
+}
+
+.panel-header {
+  font-family: var(--font-pixel-heading);
+  font-size: 12px;
+  color: var(--pixel-yellow);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .panel-left {
