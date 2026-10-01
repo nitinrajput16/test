@@ -1,0 +1,7 @@
+const user={_id:'preview-user',username:'alex_dev',displayName:'Alex Morgan',firstName:'Alex',email:'alex@example.test',provider:'google',role:'admin',createdAt:new Date('2025-06-12'),avatar:'/images/favicon.ico',photo:'/images/favicon.ico',friends:[]};
+const fileList=[{_id:'preview-file',filename:'hello.js',parentPath:'',language:'javascript',type:'file',code:'// Shared workspace preview\nconsole.log("Hello, Codeplat!");',size:67,updatedAt:new Date('2026-10-01T04:30:00Z'),userId:user.username},{_id:'preview-folder',filename:'experiments',parentPath:'',type:'directory',updatedAt:new Date('2026-10-01T04:00:00Z'),userId:user.username}];
+const pagination={currentPage:1,totalPages:1,hasPrev:false,hasNext:false};
+function fixtures(extra={}){return {title:'Codeplat — Workspace',themeV2:true,user,isAuthenticated:true,appName:'Codeplat',author:'nr750001',currentYear:2026,error:null,message:null,next:null,url:'/unknown',sessionActive:true,hasPassword:false,roomId:'preview-room',viewingOther:false,fileList,codeCount:2,editorTime:'1h 24m',streak:7,friendsData:[{username:'sam_codes',displayName:'Sam Lee',avatar:'/images/favicon.ico',photo:'/images/favicon.ico'}],admin:false,adminStats:{userCount:1,fileCount:2,sessionCount:1},adminUsers:[user],adminFiles:fileList,adminSessions:[],adminQueries:{userSearch:'',fileSearch:'',sessionSearch:''},adminPagination:{users:pagination,files:pagination,sessions:pagination},...extra};}
+module.exports={fixtures,user,fileList};
+
+

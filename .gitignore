@@ -2,3 +2,6 @@
 saved/
 .env
 .vscode
+
+.theme-build/
+.theme-preview/

@@ -8,8 +8,9 @@
   <link rel="stylesheet" href="/pixel-theme.css">
   <link rel="stylesheet" href="/whiteboard.css">
   <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
+<%- include('partials/theme-head') %>
 </head>
-<body class="whiteboard-body" data-room="<%= roomId %>">
+<body data-page="whiteboard" class="whiteboard-body" data-room="<%= roomId %>">
   <header class="wb-header pixel-box">
     <div class="wb-title">
       <div class="logo-badge" style="gap:10px;">
@@ -87,5 +88,6 @@
   </script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="/whiteboard.js"></script>
+<%- include('partials/theme-controls') %>
 </body>
 </html>

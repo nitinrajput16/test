@@ -122,14 +122,16 @@
             text-decoration: underline;
         }
     </style>
+<%- include('partials/theme-head') %>
 </head>
-<body>
+<body data-page="signup">
+<%- include('partials/theme-header') %>
     <div class="pixel-box signup-box">
         <div class="signup-logo">
             <div class="logo-sprite"></div>
             <div class="logo-text" style="font-size: 22px;">Code<span>plat</span></div>
         </div>
-        <div class="subtitle">Create Pixel Account</div>
+        <div class="subtitle"><%= themeV2 ? 'Create your account' : 'Create Pixel Account' %></div>
 
         <% if (error) { %>
             <div class="alert-box">
@@ -181,5 +183,6 @@
             Already have an account? <a href="/login<%= nextQuery %>">Sign In</a>
         </div>
     </div>
+<%- include('partials/theme-controls') %>
 </body>
 </html>

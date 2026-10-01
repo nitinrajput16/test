@@ -194,7 +194,7 @@
       })
         .then(async r => {
           let data;
-          try { data = await r.json(); } catch {
+          try { data = (window.CodeplatUI ? await window.CodeplatUI.readJson(r) : await r.json()); } catch {
             throw new Error('Non-JSON ' + r.status);
           }
           if (!r.ok) {

@@ -45,8 +45,10 @@
             margin: 20px 0;
         }
     </style>
+<%- include('partials/theme-head') %>
 </head>
-<body>
+<body data-page="error">
+<%- include('partials/theme-header') %>
     <div class="pixel-box error-card">
         <h1 class="error-title"><i class="fa-solid fa-triangle-exclamation"></i> SYSTEM EXCEPTION</h1>
         <p style="color: var(--pixel-text-dim); font-size: 13px;"><%= message || 'An unexpected system error occurred.' %></p>
@@ -65,5 +67,6 @@
             </a>
         </div>
     </div>
+<%- include('partials/theme-controls') %>
 </body>
 </html>

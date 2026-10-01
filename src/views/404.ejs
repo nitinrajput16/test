@@ -106,8 +106,10 @@
             flex-wrap: wrap;
         }
     </style>
+<%- include('partials/theme-head') %>
 </head>
-<body>
+<body data-page="404">
+<%- include('partials/theme-header') %>
     <div class="pixel-box error-container">
         <div class="error-number">404</div>
         <h2>GAME OVER / PAGE NOT FOUND</h2>
@@ -139,5 +141,6 @@
             </a>
         </div>
     </div>
+<%- include('partials/theme-controls') %>
 </body>
 </html>

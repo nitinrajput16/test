@@ -23,7 +23,7 @@
       body: JSON.stringify({ messages }),
       signal
     });
-    const data = await res.json().catch(() => ({}));
+    const data = (window.CodeplatUI ? await window.CodeplatUI.readJson(res) : await res.json().catch(() => ({})));
     if (!res.ok) {
       throw new Error((data && (data.error || data.message)) || `HTTP ${res.status}`);
     }

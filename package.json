@@ -2,7 +2,10 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "build:theme": "node scripts/build-theme.cjs",
+    "preview:theme": "node scripts/preview-theme.cjs",
+    "test:theme": "node --test tests/theme.test.cjs"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",
@@ -39,5 +42,11 @@
   "optionalDependencies": {
     "bufferutil": "^4.0.8",
     "utf-8-validate": "^6.0.5"
+  },
+  "devDependencies": {
+    "vite": "^7.3.6",
+    "three": "^0.180.0",
+    "gsap": "^3.15.0",
+    "animejs": "^4.5.0"
   }
 }

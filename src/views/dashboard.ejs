@@ -7,8 +7,9 @@
     <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
     <link rel="stylesheet" href="/pixel-theme.css">
     <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
+<%- include('partials/theme-head') %>
 </head>
-<body style="background: var(--pixel-bg-dark); color: var(--pixel-text-main); font-family: var(--font-pixel-body);">
+<body data-page="dashboard" style="background: var(--pixel-bg-dark); color: var(--pixel-text-main); font-family: var(--font-pixel-body);">
     <nav class="pixel-header">
         <div class="nav-container" style="display:flex; justify-content:space-between; align-items:center; padding:12px 24px;">
             <a href="/" class="logo-badge">
@@ -278,7 +279,7 @@
                     try {
                         const res = await fetch('/api/dashboard', { headers: { 'Accept': 'application/json' } });
                         if (!res.ok) throw new Error('Failed to load');
-                        const data = await res.json();
+                        const data = (window.CodeplatUI ? await window.CodeplatUI.readJson(res) : await res.json());
                         if (data.stats) applyStats(data.stats);
                         if (Array.isArray(data.recentFiles)) applyRecentFiles(data.recentFiles);
                     } catch (e) {
@@ -299,5 +300,6 @@
             </div>
         </div>
     </div>
+<%- include('partials/theme-controls') %>
 </body>
 </html>

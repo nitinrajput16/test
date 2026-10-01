@@ -147,14 +147,16 @@
             font-size: 10px;
         }
     </style>
+<%- include('partials/theme-head') %>
 </head>
-<body>
+<body data-page="login">
+<%- include('partials/theme-header') %>
     <div class="pixel-box login-box">
         <div class="login-logo">
             <div class="logo-sprite"></div>
             <div class="logo-text" style="font-size: 22px;">Code<span>plat</span></div>
         </div>
-        <div class="subtitle">Pixel Collaborative IDE</div>
+        <div class="subtitle"><%= themeV2 ? 'Your shared coding workspace' : 'Pixel Collaborative IDE' %></div>
         <div class="author">by nitinrajput16</div>
 
         <% if (error === 'auth_required') { %>
@@ -207,11 +209,12 @@
         </div>
 
         <div class="login-footer">
-            <div>Secure 8-Bit OAuth Authentication</div>
+            <div><%= themeV2 ? 'Sign in with your account or a connected provider' : 'Secure 8-Bit OAuth Authentication' %></div>
             <div style="margin-top: 4px; color: var(--pixel-primary);">
                 <%= new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) %> IST
             </div>
         </div>
     </div>
+<%- include('partials/theme-controls') %>
 </body>
 </html>

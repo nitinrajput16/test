@@ -194,6 +194,7 @@ app.use((req, res, next) => {
   res.locals.appName = process.env.APP_NAME || 'Edit - Code Editor';
   res.locals.author = 'nr750001';
   res.locals.currentYear = new Date().getFullYear();
+  res.locals.themeV2 = require('./lib/theme').themeV2();
   next();
 });
 

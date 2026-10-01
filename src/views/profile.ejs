@@ -418,8 +418,9 @@
       .pf-navbar-links { justify-content: flex-start; }
     }
     </style>
+<%- include('partials/theme-head') %>
 </head>
-<body data-own-profile="<%= (typeof viewingOther === 'undefined' || !viewingOther) ? 'true' : 'false' %>">
+<body data-page="profile" data-own-profile="<%= (typeof viewingOther === 'undefined' || !viewingOther) ? 'true' : 'false' %>">
 <%
 const ownProfile = typeof viewingOther === 'undefined' || !viewingOther;
 const joinedDate = user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
@@ -478,7 +479,7 @@ const friendItems = Array.isArray(friendsData) ? friendsData : [];
                 <span class="pf-navbar-brand-mark"><i class="fa-solid fa-layer-group"></i></span>
                 <span class="pf-navbar-brand-copy">
                   <span class="pf-navbar-brand-title">Codeplat Profile Workspace</span>
-                  <span class="pf-navbar-brand-sub">Merged profile and dashboard surface</span>
+                  <span class="pf-navbar-brand-sub"><%= themeV2 ? 'Your account and coding activity' : 'Merged profile and dashboard surface' %></span>
                 </span>
               </a>
               <div class="pf-navbar-links">
@@ -506,7 +507,7 @@ const friendItems = Array.isArray(friendsData) ? friendsData : [];
             <section class="pf-hero">
                 <div class="pf-kicker"><%= providerLabel %></div>
                 <h2 class="pf-hero-title">Built for <strong data-profile-name><%= user.displayName %></strong></h2>
-                <p class="pf-hero-copy"><% if (ownProfile) { %>Your profile is now section-based: profile, editor, friends, settings, and logout each live in their own panel so the screen stays focused.<% } else { %>You are viewing a public profile snapshot. Only account-safe information is shown here.<% } %></p>
+                <p class="pf-hero-copy"><% if (ownProfile) { %><%= themeV2 ? 'Manage your account, find your recent work, and connect with your collaborators.' : 'Your profile is now section-based: profile, editor, friends, settings, and logout each live in their own panel so the screen stays focused.' %><% } else { %>You are viewing a public profile snapshot. Only account-safe information is shown here.<% } %></p>
                 <div class="pf-hero-meta">
                     <div class="pf-chip" data-profile-handle>@<%= user.username %></div>
                     <div class="pf-chip" data-profile-email><%= user.email %></div>
@@ -534,7 +535,7 @@ const friendItems = Array.isArray(friendsData) ? friendsData : [];
 
                 <div class="pf-grid two">
                     <div class="pf-card">
-                        <div class="pf-card-head"><div><h3>pf-info-row</h3><p>Compact identity rows for the information you check most often.</p></div></div>
+                        <div class="pf-card-head"><div><h3><%= themeV2 ? 'Account details' : 'pf-info-row' %></h3><p>Compact identity rows for the information you check most often.</p></div></div>
                         <div class="pf-info-stack">
                             <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-solid fa-at"></i></div><div><div class="pf-info-label">Username</div><div class="pf-info-value" data-profile-handle>@<%= user.username %></div></div></div>
                             <div class="pf-info-row"><div class="pf-info-icon"><i class="fa-regular fa-id-card"></i></div><div><div class="pf-info-label">Display name</div><div class="pf-info-value" data-profile-name><%= user.displayName %></div></div></div>
@@ -761,7 +762,7 @@ const friendItems = Array.isArray(friendsData) ? friendsData : [];
             <% } %>
         </div>
 
-        <div class="pf-footer">Codeplat profile panel. Section visibility is handled client-side so only the active content block is shown.</div>
+        <div class="pf-footer"><%= themeV2 ? 'Codeplat · Build together.' : 'Codeplat profile panel. Section visibility is handled client-side so only the active content block is shown.' %></div>
     </div>
     </main>
 </div>
@@ -887,7 +888,7 @@ const friendItems = Array.isArray(friendsData) ? friendsData : [];
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username })
           });
-          const data = await response.json();
+          const data = (window.CodeplatUI ? await window.CodeplatUI.readJson(response) : await response.json());
           if (!response.ok || !data.success) throw new Error(data.error || 'Could not remove friend.');
           const row = document.querySelector('.pf-friend-item[data-uname="' + username + '"]');
           if (row) row.remove();
@@ -919,7 +920,7 @@ const friendItems = Array.isArray(friendsData) ? friendsData : [];
   function setUsernameStatus(message, isError) {
     if (!usernameStatus) return;
     usernameStatus.textContent = message;
-    usernameStatus.style.color = isError ? '#ffd0d0' : message ? '#bdf7d4' : 'var(--text-faint)';
+    usernameStatus.style.color = window.CodeplatTheme ? (isError ? 'var(--cp-danger)' : message ? 'var(--cp-success)' : 'var(--cp-faint)') : (isError ? '#ffd0d0' : message ? '#bdf7d4' : 'var(--text-faint)');
   }
 
   usernameInput && usernameInput.addEventListener('input', () => {
@@ -944,7 +945,7 @@ const friendItems = Array.isArray(friendsData) ? friendsData : [];
     setUsernameStatus('Checking availability...', false);
     try {
       const response = await fetch('/profile/check-username?username=' + encodeURIComponent(username));
-      const data = await response.json();
+      const data = (window.CodeplatUI ? await window.CodeplatUI.readJson(response) : await response.json());
       if (data.same || data.available) {
         usernameValid = true;
         lastCheckedUsername = username;
@@ -982,7 +983,7 @@ const friendItems = Array.isArray(friendsData) ? friendsData : [];
           avatar: document.getElementById('pf_avatar').value.trim()
         })
       });
-      const data = await response.json();
+      const data = (window.CodeplatUI ? await window.CodeplatUI.readJson(response) : await response.json());
       if (!response.ok || !data.success) throw new Error(data.error || 'Profile update failed.');
       lastCheckedUsername = data.user.username;
       usernameValid = true;
@@ -1018,7 +1019,7 @@ const friendItems = Array.isArray(friendsData) ? friendsData : [];
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username })
       });
-      const data = await response.json();
+      const data = (window.CodeplatUI ? await window.CodeplatUI.readJson(response) : await response.json());
       if (!response.ok || !data.success) throw new Error(data.error || 'Could not add friend.');
       removeNoFriendsState();
       if (data.friend) {
@@ -1062,7 +1063,7 @@ const friendItems = Array.isArray(friendsData) ? friendsData : [];
           newPassword: document.getElementById('cred_newPassword').value
         })
       });
-      const data = await response.json();
+      const data = (window.CodeplatUI ? await window.CodeplatUI.readJson(response) : await response.json());
       if (!response.ok || !data.success) throw new Error(data.error || 'Could not update credentials.');
       updateProfileTexts({ email: data.user.email });
       if (passwordState) passwordState.textContent = data.user.hasPassword ? 'Password configured' : 'No password set yet';
@@ -1094,7 +1095,7 @@ const friendItems = Array.isArray(friendsData) ? friendsData : [];
           currentPassword: document.getElementById('deleteCurrentPassword').value
         })
       });
-      const data = await response.json();
+      const data = (window.CodeplatUI ? await window.CodeplatUI.readJson(response) : await response.json());
       if (!response.ok || !data.success) throw new Error(data.error || 'Could not delete account.');
       window.location.href = data.redirect || '/login?message=account_removed';
       return;
@@ -1106,5 +1107,6 @@ const friendItems = Array.isArray(friendsData) ? friendsData : [];
   });
 })();
 </script>
+<%- include('partials/theme-controls') %>
 </body>
 </html>
