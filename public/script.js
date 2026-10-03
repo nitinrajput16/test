@@ -3036,10 +3036,10 @@ window.addEventListener('DOMContentLoaded', function () {
           { token: 'number', foreground: window.CodeplatTheme ? '91cad8' : '6fbf96' }
         ],
         colors: {
-          'editor.background': window.CodeplatTheme ? '#101419' : '#04100c',
+          'editor.background': window.CodeplatTheme ? '#0b1220' : '#04100c',
           'editorLineNumber.foreground': window.CodeplatTheme ? '#78909b' : '#1e4c39',
-          'editorCursor.foreground': window.CodeplatTheme ? '#d8fa72' : '#4fd89b',
-          'editorBracketMatch.border': window.CodeplatTheme ? '#d8fa72' : '#0a5',
+          'editorCursor.foreground': window.CodeplatTheme ? '#5b8cff' : '#4fd89b',
+          'editorBracketMatch.border': window.CodeplatTheme ? '#5b8cff' : '#0a5',
           'editor.lineHighlightBackground': '#ffffff10'
         }
       });

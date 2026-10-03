@@ -1,20 +1,21 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101419"><title>Codeplat — Build together. Go further.</title><link rel="stylesheet" href="/landing.css"></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0B1220"><title>Codeplat — Build together. Go further.</title><link rel="stylesheet" href="/landing.css"></head>
 <body>
 <a class="skip" href="#about">Skip the 3D journey</a>
-<header class="topbar"><a href="#top" class="brand" aria-label="Codeplat home"><span class="brand-mark">〈/〉</span>codeplat<span class="brand-dot">®</span></a><nav aria-label="Primary navigation"><a href="#features">Features</a><a href="#about">Workspace</a><a href="#pricing">Get started <span>↗</span></a><a href="/login" class="sign-in">Sign in</a></nav></header>
+<header class="topbar"><a href="#top" class="brand" aria-label="Codeplat home"><span class="brand-mark">〈/〉</span>codeplat<span class="brand-dot" aria-hidden="true">//</span></a><nav aria-label="Primary navigation"><a href="#features">Features</a><a href="#about">Workspace</a><a href="#pricing">Get started <span>↗</span></a><button class="theme-toggle" type="button" aria-label="Night mode" aria-pressed="false"><span aria-hidden="true" class="theme-symbol">☾</span><span class="theme-label">Night</span></button><a href="/login" class="sign-in">Sign in</a></nav></header>
 <main id="top">
 <section class="scroll-story" id="journey" aria-label="Codeplat feature journey">
 <div class="stage">
 <div class="scene" aria-hidden="true"><div class="fallback"></div><canvas id="world"></canvas></div>
-<div class="scene-shade"></div>
-<div class="edition">A WORLD OF POSSIBILITIES <span>VOL. 01 / CODEPLAT</span></div>
+<div class="scene-shade"></div><div class="construction-frame" aria-hidden="true"><span>PLAN / 001</span><span>CITY JOURNEY</span></div>
+<div class="edition">COLLABORATIVE BY DESIGN <span>BLUEPRINT STUDIO / 001</span></div>
 <div class="story-copy"><p class="eyebrow">YOUR NEXT GREAT IDEA STARTS HERE</p><h1>Build together.<br>Go <em>further.</em></h1><p class="hero-subtitle">One shared workspace. A whole world of possibility.<br>Follow the road from your first idea to what comes next.</p><a href="/login" class="button primary">Start coding together <span>↗</span></a><div class="hero-note"><span class="live-dot"></span> Built for ideas that don't stand still.</div></div>
+<svg class="annotation-connector" aria-hidden="true"><path></path><circle r="5"></circle></svg>
 <div class="feature-stack">
-<article class="feature-card" data-step="0"><p class="eyebrow">01 / CONNECT</p><h2>Great code.<br>Better together.</h2><p>Code together in shared rooms with presence, live cursors, synchronized selections and conflict-aware editing.</p><div class="feature-caption"><span>Real-time Collaboration</span><span>↗</span></div></article>
-<article class="feature-card" data-step="1"><p class="eyebrow">02 / EXPERIMENT</p><h2>From “what if”<br>to working code.</h2><p>Run code directly from the workspace with Judge0-powered execution across 14+ programming languages.</p><div class="feature-caption"><span>Integrated Code Testing</span><span>↗</span></div></article>
-<article class="feature-card" data-step="2"><p class="eyebrow">03 / GROW</p><h2>Room for your<br>next big thing.</h2><p>Persistent MongoDB storage, structured project files and real-time services keep rooms responsive as teams grow.</p><div class="feature-caption"><span>Scalable Infrastructure</span><span>↗</span></div></article>
+<article class="feature-card" data-step="0"><div class="annotation-header"><span class="annotation-number">01</span><p class="eyebrow">CONNECT <span>/ CHAPTER</span></p><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14v10H5zM8 5h8M9 12h6M12 9v6"/></svg></div><h2>Great code.<br>Better together.</h2><p>Code together in shared rooms with presence, live cursors, synchronized selections and conflict-aware editing.</p><div class="feature-caption"><span>Real-time Collaboration</span><span class="annotation-reference">SITE / 01</span></div><div class="chapter-meter" aria-hidden="true"><i></i></div></article>
+<article class="feature-card" data-step="1"><div class="annotation-header"><span class="annotation-number">02</span><p class="eyebrow">EXPERIMENT <span>/ CHAPTER</span></p><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7-5 5 5 5m6-10 5 5-5 5m-2-12-2 20"/></svg></div><h2>From “what if”<br>to working code.</h2><p>Run code directly from the workspace with Judge0-powered execution across 14+ programming languages.</p><div class="feature-caption"><span>Integrated Code Testing</span><span class="annotation-reference">SITE / 02</span></div><div class="chapter-meter" aria-hidden="true"><i></i></div></article>
+<article class="feature-card" data-step="2"><div class="annotation-header"><span class="annotation-number">03</span><p class="eyebrow">GROW <span>/ CHAPTER</span></p><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v5H4zm0 9h16v5H4zM7 7.5h1m-1 9h1"/></svg></div><h2>Room for your<br>next big thing.</h2><p>Persistent MongoDB storage, structured project files and real-time services keep rooms responsive as teams grow.</p><div class="feature-caption"><span>Scalable Infrastructure</span><span class="annotation-reference">SITE / 03</span></div><div class="chapter-meter" aria-hidden="true"><i></i></div></article>
 </div>
 <div class="journey-bottom"><div class="position"><span>JOURNEY PROGRESS</span><strong id="positionText">0%</strong><div class="track"><i id="progressFill"></i></div></div><nav class="chapters" aria-label="Journey chapters"><button data-chapter="0"><span>01</span> Connect</button><button data-chapter="1"><span>02</span> Experiment</button><button data-chapter="2"><span>03</span> Grow</button></nav><div class="scroll-cue">SCROLL TO EXPLORE <span>↓</span></div></div>
 </div></section>
@@ -44,6 +45,3 @@
 </main><footer id="contact"><a class="brand" href="#top">〈/〉 codeplat</a><span>Collaborative Code Editor</span><a href="?view=static#journey">View without animation</a><a href="/editor">Open workspace ↗</a><a href="#top">Back to top ↑</a></footer>
 <script type="module" src="/landing.js"></script>
 </body></html>
-
-
-
