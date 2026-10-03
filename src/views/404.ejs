@@ -4,194 +4,143 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %></title>
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+    <link rel="stylesheet" href="/pixel-theme.css">
     <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 20px;
+            margin: 0;
+            background: var(--pixel-bg-dark);
+            background-image: 
+                radial-gradient(circle at 50% 40%, rgba(255, 51, 119, 0.1) 0%, transparent 60%),
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 20px 20px, 20px 20px;
         }
-        
+
         .error-container {
-            background: white;
-            padding: 3rem;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            max-width: 500px;
+            max-width: 520px;
             width: 100%;
+            padding: 36px 28px;
+            text-align: center;
         }
-        
+
         .error-number {
-            font-size: 6rem;
-            font-weight: 700;
-            color: #4285f4;
-            margin-bottom: 1rem;
-            background: linear-gradient(45deg, #4285f4, #34a853);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-family: var(--font-pixel-heading);
+            font-size: 56px;
+            color: var(--pixel-secondary);
+            text-shadow: 4px 4px 0px #000;
+            margin-bottom: 16px;
         }
-        
+
         .error-container h2 {
-            color: #333;
-            margin-bottom: 1rem;
-            font-size: 2rem;
+            font-family: var(--font-pixel-heading);
+            font-size: 18px;
+            color: var(--pixel-yellow);
+            margin-bottom: 14px;
         }
-        
+
         .error-container p {
-            color: #666;
-            margin-bottom: 2rem;
+            color: var(--pixel-text-dim);
+            font-size: 12px;
             line-height: 1.6;
-            font-size: 1.1rem;
+            margin-bottom: 20px;
         }
-        
+
         .requested-url {
-            background: #f8f9fa;
-            padding: 1rem;
-            border-radius: 8px;
-            border-left: 4px solid #ffc107;
-            margin-bottom: 2rem;
-            font-family: monospace;
-            color: #495057;
+            background: #0d0f1c;
+            border: 2px solid #000;
+            padding: 10px;
+            font-family: var(--font-pixel-code);
+            font-size: 18px;
+            color: var(--pixel-primary);
             word-break: break-all;
-        }
-        
-        .action-buttons {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .home-btn {
-            background: #4285f4;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 16px;
-            font-weight: 500;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .home-btn:hover {
-            background: #357ae8;
-            transform: translateY(-2px);
-        }
-        
-        .back-btn {
-            background: #6c757d;
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 16px;
-            font-weight: 500;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .back-btn:hover {
-            background: #5a6268;
-            transform: translateY(-2px);
-        }
-        
-        .suggestions {
-            background: #e8f5e8;
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin: 2rem 0;
+            margin-bottom: 20px;
             text-align: left;
         }
-        
+
+        .suggestions {
+            background: #14172b;
+            border: 3px solid #000;
+            padding: 16px;
+            margin-bottom: 24px;
+            text-align: left;
+        }
+
         .suggestions h3 {
-            color: #2e7d32;
-            margin-bottom: 1rem;
-            font-size: 1.2rem;
+            font-family: var(--font-pixel-heading);
+            font-size: 11px;
+            color: var(--pixel-yellow);
+            margin-bottom: 12px;
         }
-        
+
         .suggestions ul {
-            color: #388e3c;
             list-style: none;
+            padding: 0;
+            margin: 0;
         }
-        
+
         .suggestions li {
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            margin-bottom: 8px;
+            font-size: 12px;
         }
-        
+
         .suggestions a {
-            color: #2e7d32;
+            color: var(--pixel-primary);
             text-decoration: none;
-            font-weight: 500;
         }
-        
+
         .suggestions a:hover {
             text-decoration: underline;
         }
-        
-        .footer-info {
-            margin-top: 2rem;
-            padding-top: 1rem;
-            border-top: 1px solid #eee;
-            color: #888;
-            font-size: 0.9rem;
-        }
-        
-        @media (max-width: 768px) {
-            .action-buttons {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .error-number {
-                font-size: 4rem;
-            }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
         }
     </style>
+<%- include('partials/theme-head') %>
 </head>
-<body>
-    <div class="error-container">
+<body data-page="404">
+<%- include('partials/theme-header') %>
+    <div class="pixel-box error-container">
         <div class="error-number">404</div>
-        <h2>Page Not Found</h2>
-        <p>The page you're looking for doesn't exist or has been moved to a different location.</p>
-        
+        <h2>GAME OVER / PAGE NOT FOUND</h2>
+        <p>The pixel stage you're searching for does not exist or has been moved to another location.</p>
+
         <div class="requested-url">
-            <strong>Requested URL:</strong> <%= url %>
+            <strong>URL:</strong> <%= url %>
         </div>
-        
+
         <div class="suggestions">
-            <h3><i class="fa-regular fa-lightbulb"></i> Try these instead:</h3>
+            <h3><i class="fa-solid fa-compass"></i> TRY THESE PATHS:</h3>
             <ul>
-                <li><i class="fa-solid fa-house"></i> <a href="/">Go to Home Page</a></li>
+                <li><i class="fa-solid fa-house"></i> <a href="/landing">Return to Home Page</a></li>
                 <% if (typeof user !== 'undefined' && user) { %>
                     <li><i class="fa-solid fa-code"></i> <a href="/editor">Open Code Editor</a></li>
-                    <li><i class="fa-regular fa-user"></i> <a href="/profile">View Profile</a></li>
+                    <li><i class="fa-solid fa-user"></i> <a href="/profile">View Profile</a></li>
                 <% } else { %>
-                    <li><i class="fa-solid fa-right-to-bracket"></i> <a href="/auth/google">Sign in with Google</a></li>
+                    <li><i class="fa-solid fa-right-to-bracket"></i> <a href="/login">Sign In</a></li>
                 <% } %>
-                <li><i class="fa-solid fa-book-open"></i> <a href="/about">Learn More About Edit</a></li>
             </ul>
         </div>
-        
+
         <div class="action-buttons">
-            <a href="/" class="home-
+            <a href="/landing" class="pixel-btn">
+                <i class="fa-solid fa-house"></i> Home Page
+            </a>
+            <a href="javascript:history.back()" class="pixel-btn secondary">
+                <i class="fa-solid fa-arrow-left"></i> Go Back
+            </a>
+        </div>
+    </div>
+<%- include('partials/theme-controls') %>
+</body>
+</html>

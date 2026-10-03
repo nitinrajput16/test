@@ -5,70 +5,80 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= title %></title>
   <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="stylesheet" href="/pixel-theme.css">
   <link rel="stylesheet" href="/whiteboard.css">
+  <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
+<%- include('partials/theme-head') %>
 </head>
-<body class="whiteboard-body" data-room="<%= roomId %>">
-  <header class="wb-header">
+<body data-page="whiteboard" class="whiteboard-body" data-room="<%= roomId %>">
+  <header class="wb-header pixel-box">
     <div class="wb-title">
-      <h1>Whiteboard</h1>
-      <span class="room-tag">Room: <strong id="wbRoomLabel"><%= roomId %></strong></span>
+      <div class="logo-badge" style="gap:10px;">
+        <div class="logo-sprite" style="width:20px;height:20px;"></div>
+        <h1 style="font-family:var(--font-pixel-heading);font-size:16px;">Whiteboard</h1>
+      </div>
+      <span class="room-tag" style="margin-left:14px;color:var(--pixel-yellow);">Room: <strong id="wbRoomLabel"><%= roomId %></strong></span>
     </div>
     <div class="wb-actions">
-      <a href="/editor?room=<%= roomId %>" class="wb-link">Back to Editor</a>
-      <a href="/dashboard" class="wb-link">Dashboard</a>
+      <a href="/editor?room=<%= roomId %>" class="pixel-btn pixel-btn-sm">
+        <i class="fa-solid fa-code"></i> Back to Editor
+      </a>
+      <a href="/profile" class="pixel-btn pixel-btn-sm secondary">
+        <i class="fa-solid fa-user"></i> Profile
+      </a>
     </div>
   </header>
 
   <main class="wb-main">
-    <section class="wb-toolbar" role="toolbar" aria-label="Whiteboard tools">
+    <section class="wb-toolbar pixel-box" role="toolbar" aria-label="Whiteboard tools">
       <div class="tool-group">
-        <button type="button" class="tool-btn active" data-tool="pen" aria-pressed="true" title="Pen (P)">
+        <button type="button" class="tool-btn active pixel-btn pixel-btn-sm" data-tool="pen" aria-pressed="true" title="Pen (P)">
           <span>Pen</span>
         </button>
-        <button type="button" class="tool-btn" data-tool="eraser" aria-pressed="false" title="Eraser (E)">
+        <button type="button" class="tool-btn pixel-btn pixel-btn-sm btn-dark" data-tool="eraser" aria-pressed="false" title="Eraser (E)">
           <span>Eraser</span>
         </button>
-        <button type="button" class="tool-btn" data-tool="line" aria-pressed="false" title="Line (L)">
+        <button type="button" class="tool-btn pixel-btn pixel-btn-sm btn-dark" data-tool="line" aria-pressed="false" title="Line (L)">
           <span>Line</span>
         </button>
-        <button type="button" class="tool-btn" data-tool="rect" aria-pressed="false" title="Rectangle (R)">
+        <button type="button" class="tool-btn pixel-btn pixel-btn-sm btn-dark" data-tool="rect" aria-pressed="false" title="Rectangle (R)">
           <span>Rect</span>
         </button>
-        <button type="button" class="tool-btn" data-tool="ellipse" aria-pressed="false" title="Ellipse (O)">
+        <button type="button" class="tool-btn pixel-btn pixel-btn-sm btn-dark" data-tool="ellipse" aria-pressed="false" title="Ellipse (O)">
           <span>Ellipse</span>
         </button>
-        <button type="button" class="tool-btn" data-tool="text" aria-pressed="false" title="Text (T)">
+        <button type="button" class="tool-btn pixel-btn pixel-btn-sm btn-dark" data-tool="text" aria-pressed="false" title="Text (T)">
           <span>Text</span>
         </button>
       </div>
       <div class="tool-group">
-        <button type="button" class="tool-btn" data-tool="select" aria-pressed="false" title="Select (V)">
+        <button type="button" class="tool-btn pixel-btn pixel-btn-sm btn-dark" data-tool="select" aria-pressed="false" title="Select (V)">
           <span>Select</span>
         </button>
-        <label for="brushSize">Size</label>
+        <label for="brushSize" style="font-family:var(--font-pixel-heading);font-size:10px;color:var(--pixel-primary);">Size</label>
         <input id="brushSize" type="range" min="1" max="30" value="4" step="1">
-        <span id="brushSizeValue">4px</span>
+        <span id="brushSizeValue" style="font-family:var(--font-pixel-code);font-size:16px;color:var(--pixel-yellow);">4px</span>
       </div>
       <div class="tool-group colors" aria-label="Color picker">
         <button type="button" class="color-swatch active" data-color="#111111" title="Ink Black" style="--swatch:#111111"></button>
-        <button type="button" class="color-swatch" data-color="#0a9663" title="Emerald" style="--swatch:#0a9663"></button>
-        <button type="button" class="color-swatch" data-color="#e74c3c" title="Coral" style="--swatch:#e74c3c"></button>
-        <button type="button" class="color-swatch" data-color="#f1c40f" title="Sun" style="--swatch:#f1c40f"></button>
-        <button type="button" class="color-swatch" data-color="#2980b9" title="Ocean" style="--swatch:#2980b9"></button>
-        <input type="color" id="customColor" title="Custom color" value="#111111">
+        <button type="button" class="color-swatch" data-color="#00ffcc" title="Cyan" style="--swatch:#00ffcc"></button>
+        <button type="button" class="color-swatch" data-color="#ff3377" title="Pink" style="--swatch:#ff3377"></button>
+        <button type="button" class="color-swatch" data-color="#ffcc00" title="Yellow" style="--swatch:#ffcc00"></button>
+        <button type="button" class="color-swatch" data-color="#3b82f6" title="Blue" style="--swatch:#3b82f6"></button>
+        <input type="color" id="customColor" title="Custom color" value="#00ffcc">
       </div>
       <div class="tool-group tail">
-        <button type="button" id="undoBtn" title="Undo (Ctrl+Z)">Undo</button>
-        <button type="button" id="redoBtn" title="Redo (Ctrl+Y)">Redo</button>
-        <button type="button" id="clearBoard" class="danger" title="Clear board">Clear</button>
+        <button type="button" id="undoBtn" class="pixel-btn pixel-btn-sm btn-dark" title="Undo (Ctrl+Z)">Undo</button>
+        <button type="button" id="redoBtn" class="pixel-btn pixel-btn-sm btn-dark" title="Redo (Ctrl+Y)">Redo</button>
+        <button type="button" id="clearBoard" class="pixel-btn pixel-btn-sm secondary" title="Clear board">Clear</button>
       </div>
     </section>
 
-    <section class="wb-canvas-shell">
+    <section class="wb-canvas-shell pixel-box">
       <canvas id="whiteboardCanvas" aria-label="Collaborative whiteboard" role="img"></canvas>
       <canvas id="whiteboardOverlay" aria-hidden="true" style="position:absolute;left:0;top:0;pointer-events:none;"></canvas>
       <div id="textInputWrapper" style="position:absolute;display:none;z-index:20;">
-        <input id="wbTextInput" type="text" placeholder="Type and press Enter" style="font-size:14px;padding:6px;border-radius:6px;border:1px solid #ccc;">
+        <input id="wbTextInput" type="text" class="pixel-input" placeholder="Type and press Enter" style="font-size:16px;padding:6px;">
       </div>
     </section>
   </main>
@@ -78,5 +88,6 @@
   </script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="/whiteboard.js"></script>
+<%- include('partials/theme-controls') %>
 </body>
 </html>

@@ -10,6 +10,7 @@ window.WHITEBOARD_ROOM = roomId;
 
 const socket = window.socket || io({ transports: ['websocket', 'polling'] });
 window.socket = socket;
+if (window.CodeplatUI) window.CodeplatUI.bindSocket(socket);
 socket.emit('join-room', roomId);
 
 const canvas = document.getElementById('whiteboardCanvas');

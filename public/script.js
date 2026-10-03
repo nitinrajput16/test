@@ -1355,7 +1355,7 @@ window.addEventListener('DOMContentLoaded', function () {
     };
     if (body) opts.body = JSON.stringify(body);
     return fetch(url, opts)
-      .then(r => r.json().catch(() => ({}))
+      .then(r => (window.CodeplatUI ? window.CodeplatUI.readJson(r) : r.json().catch(() => ({})))
         .then(data => {
           if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
           return data;
@@ -1407,7 +1407,7 @@ window.addEventListener('DOMContentLoaded', function () {
     };
     if (keepalive) opts.keepalive = true;
     const res = await fetch('/api/code/save', opts);
-    const data = await res.json().catch(() => ({}));
+    const data = (window.CodeplatUI ? await window.CodeplatUI.readJson(res) : await res.json().catch(() => ({})));
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     lastSavedHash = hash;
     if (needFileListRefresh) {
@@ -2455,6 +2455,7 @@ window.addEventListener('DOMContentLoaded', function () {
     }
     socket = io();
     window.socket = socket;
+    if (window.CodeplatUI) window.CodeplatUI.bindSocket(socket);
     socket.on('whoami', (payload) => {
       if (payload && payload.userId) {
         window.myServerUserId = payload.userId;
@@ -3029,16 +3030,16 @@ window.addEventListener('DOMContentLoaded', function () {
         base: 'vs-dark',
         inherit: true,
         rules: [
-          { token: 'comment', foreground: '4b6f59' },
-          { token: 'string', foreground: 'c38b72' },
-          { token: 'keyword', foreground: '3fae76' },
-          { token: 'number', foreground: '6fbf96' }
+          { token: 'comment', foreground: window.CodeplatTheme ? '8caaa0' : '4b6f59' },
+          { token: 'string', foreground: window.CodeplatTheme ? 'cfdf94' : 'c38b72' },
+          { token: 'keyword', foreground: window.CodeplatTheme ? 'b89ce8' : '3fae76' },
+          { token: 'number', foreground: window.CodeplatTheme ? '91cad8' : '6fbf96' }
         ],
         colors: {
-          'editor.background': '#04100c',
-          'editorLineNumber.foreground': '#1e4c39',
-          'editorCursor.foreground': '#4fd89b',
-          'editorBracketMatch.border': '#0a5',
+          'editor.background': window.CodeplatTheme ? '#0b1220' : '#04100c',
+          'editorLineNumber.foreground': window.CodeplatTheme ? '#78909b' : '#1e4c39',
+          'editorCursor.foreground': window.CodeplatTheme ? '#5b8cff' : '#4fd89b',
+          'editorBracketMatch.border': window.CodeplatTheme ? '#5b8cff' : '#0a5',
           'editor.lineHighlightBackground': '#ffffff10'
         }
       });
@@ -3091,7 +3092,7 @@ window.addEventListener('DOMContentLoaded', function () {
         minimap: { enabled: false },
         automaticLayout: true,
         fontSize: 16,
-        theme: 'collabDark',
+        theme: window.CodeplatTheme && window.CodeplatTheme.get() === 'light' ? 'vs' : 'collabDark',
         fontFamily: 'JetBrains Mono, Menlo, Consolas, "Courier New", monospace',
         scrollBeyondLastLine: false,
         renderWhitespace: 'selection'
@@ -3236,7 +3237,7 @@ window.addEventListener('DOMContentLoaded', function () {
       const themeToggleBtn = document.getElementById('themeToggleBtn');
       const themeToggleIcon = document.getElementById('themeToggleIcon');
       const themeToggleLabel = document.getElementById('themeToggleLabel');
-      let currentTheme = 'collabDark';
+      let currentTheme = window.CodeplatTheme && window.CodeplatTheme.get() === 'light' ? 'vs' : 'collabDark';
       function setThemeToggleState(theme) {
         if (!themeToggleBtn || !themeToggleIcon) return;
         const isDark = theme === 'collabDark';
@@ -3258,12 +3259,18 @@ window.addEventListener('DOMContentLoaded', function () {
             monaco.editor.setTheme('collabDark');
             currentTheme = 'collabDark';
           }
+          if (window.CodeplatTheme) window.CodeplatTheme.set(currentTheme === 'vs' ? 'light' : 'dark');
           setThemeToggleState(currentTheme);
         });
         // Set initial icon
         setThemeToggleState(currentTheme);
       }
 
+      if (window.CodeplatTheme) window.addEventListener('codeplat:theme', ({detail}) => {
+        currentTheme = detail.mode === 'light' ? 'vs' : 'collabDark';
+        monaco.editor.setTheme(currentTheme);
+        setThemeToggleState(currentTheme);
+      });
       // Expose globally for debugging (optional)
       window.editor = editor;
 

@@ -1,237 +1,50 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Codeplat - Collaborative Code Editor</title>
-    <link rel="stylesheet" href="landing.css">
-    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
-    <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
-    <!-- GSAP Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
-    <!-- Three.js for floating 3D decorations -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0B1220"><title>Codeplat — Build together. Go further.</title>  <script type="module" crossorigin src="/journey/assets/index-BxaZ7wp1.js"></script>
+  <link rel="modulepreload" crossorigin href="/journey/assets/three-CZFlyWQf.js">
+  <link rel="modulepreload" crossorigin href="/journey/assets/animation-Bslv5K4g.js">
+  <link rel="stylesheet" crossorigin href="/journey/assets/index-C-wzkB7Q.css">
 </head>
-
 <body>
-    <!-- Background 3D canvas -->
-    <canvas id="bg-canvas"></canvas>
-    <!-- Navigation -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="nav-left">
-                <h1 class="logo">Codeplat</h1>
-            </div>
-            <div class="nav-right">
-                <a href="#features" class="nav-link">Features</a>
-                <a href="#about" class="nav-link">About</a>
-                <a href="/login" class="nav-link">Login</a>
-                <a href="/login" class="btn-primary">Get Started</a>
-            </div>
-        </div>
-    </nav>
+<a class="skip" href="#about">Skip the 3D journey</a>
+<header class="topbar"><a href="#top" class="brand" aria-label="Codeplat home"><span class="brand-mark">〈/〉</span>codeplat<span class="brand-dot" aria-hidden="true">//</span></a><nav aria-label="Primary navigation"><a href="#features">Features</a><a href="#about">Workspace</a><a href="#pricing">Get started <span>↗</span></a><button class="theme-toggle" type="button" aria-label="Night mode" aria-pressed="false"><span aria-hidden="true" class="theme-symbol">☾</span><span class="theme-label">Night</span></button><a href="/login" class="sign-in">Sign in</a></nav></header>
+<main id="top">
+<section class="scroll-story" id="journey" aria-label="Codeplat feature journey">
+<div class="stage">
+<div class="scene" aria-hidden="true"><div class="fallback"></div><canvas id="world"></canvas></div>
+<div class="scene-shade"></div><div class="construction-frame" aria-hidden="true"><span>PLAN / 001</span><span>CITY JOURNEY</span></div>
+<div class="edition">COLLABORATIVE BY DESIGN <span>BLUEPRINT STUDIO / 001</span></div>
+<div class="story-copy"><p class="eyebrow">YOUR NEXT GREAT IDEA STARTS HERE</p><h1>Build together.<br>Go <em>further.</em></h1><p class="hero-subtitle">One shared workspace. A whole world of possibility.<br>Follow the road from your first idea to what comes next.</p><a href="/login" class="button primary">Start coding together <span>↗</span></a><div class="hero-note"><span class="live-dot"></span> Built for ideas that don't stand still.</div></div>
+<svg class="annotation-connector" aria-hidden="true"><path></path><circle r="5"></circle></svg>
+<div class="feature-stack">
+<article class="feature-card" data-step="0"><div class="annotation-header"><span class="annotation-number">01</span><p class="eyebrow">CONNECT <span>/ CHAPTER</span></p><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14v10H5zM8 5h8M9 12h6M12 9v6"/></svg></div><h2>Great code.<br>Better together.</h2><p>Code together in shared rooms with presence, live cursors, synchronized selections and conflict-aware editing.</p><div class="feature-caption"><span>Real-time Collaboration</span><span class="annotation-reference">SITE / 01</span></div><div class="chapter-meter" aria-hidden="true"><i></i></div></article>
+<article class="feature-card" data-step="1"><div class="annotation-header"><span class="annotation-number">02</span><p class="eyebrow">EXPERIMENT <span>/ CHAPTER</span></p><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7-5 5 5 5m6-10 5 5-5 5m-2-12-2 20"/></svg></div><h2>From “what if”<br>to working code.</h2><p>Run code directly from the workspace with Judge0-powered execution across 14+ programming languages.</p><div class="feature-caption"><span>Integrated Code Testing</span><span class="annotation-reference">SITE / 02</span></div><div class="chapter-meter" aria-hidden="true"><i></i></div></article>
+<article class="feature-card" data-step="2"><div class="annotation-header"><span class="annotation-number">03</span><p class="eyebrow">GROW <span>/ CHAPTER</span></p><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v5H4zm0 9h16v5H4zM7 7.5h1m-1 9h1"/></svg></div><h2>Room for your<br>next big thing.</h2><p>Persistent MongoDB storage, structured project files and real-time services keep rooms responsive as teams grow.</p><div class="feature-caption"><span>Scalable Infrastructure</span><span class="annotation-reference">SITE / 03</span></div><div class="chapter-meter" aria-hidden="true"><i></i></div></article>
+</div>
+<div class="journey-bottom"><div class="position"><span>JOURNEY PROGRESS</span><strong id="positionText">0%</strong><div class="track"><i id="progressFill"></i></div></div><nav class="chapters" aria-label="Journey chapters"><button data-chapter="0"><span>01</span> Connect</button><button data-chapter="1"><span>02</span> Experiment</button><button data-chapter="2"><span>03</span> Grow</button></nav><div class="scroll-cue">SCROLL TO EXPLORE <span>↓</span></div></div>
+</div></section>
+<section class="content-section" id="features"><div class="section-top"><p class="eyebrow">THE SHARED WORKSPACE</p><span>LESS FRICTION. MORE FLOW.</span></div><h2>Code smarter.<br><span>Build better, together.</span></h2><p class="section-description">Transform your coding experience with real-time collaboration, AI-powered suggestions, and a powerful editor that adapts to your workflow. Write, share, and execute code seamlessly with your team.</p>
+<div class="feature-grid expanded-grid">
+<article><span class="grid-icon">⌘</span><small>01 / COLLABORATE</small><h3>Real-time Collaboration</h3><p>Code with your team in shared rooms. See live cursor positions, edits, and synchronized selections without breaking your flow.</p></article>
+<article><span class="grid-icon">✧</span><small>02 / THINK BIGGER</small><h3>AI-Powered Suggestions</h3><p>Write code faster with Google Gemini-powered completions and context-aware suggestions that help move your ideas forward.</p></article>
+<article><span class="grid-icon">▷</span><small>03 / RUN IT</small><h3>Instant Code Execution</h3><p>Run code in 14+ languages with Judge0 integration. Test algorithms and see results directly in your workspace.</p></article>
+<article><span class="grid-icon">▤</span><small>04 / KEEP BUILDING</small><h3>Cloud-Based File System</h3><p>Save, organize, and access your projects from anywhere with MongoDB-backed file storage.</p></article>
+<article><span class="grid-icon">〈/〉</span><small>05 / FIND YOUR FLOW</small><h3>Beautiful Monaco Editor</h3><p>The editor behind VS Code, in your browser. Syntax highlighting, IntelliSense, and customizable themes make it feel like home.</p></article>
+<article><span class="grid-icon">⌑</span><small>06 / SIGN IN SIMPLY</small><h3>Google Authentication</h3><p>Sign in with Google OAuth and get straight to your collaborative coding workspace.</p></article>
+</div></section>
+<section id="about" class="why-section"><div><p class="eyebrow">WHY CHOOSE CODEPLAT?</p><h2>A workspace for<br><em>your way of working.</em></h2><p>Built for developers who value speed, simplicity, and teamwork. Whether you're learning to code, building a project, or teaching programming, Codeplat brings the tools you need into one room.</p><ul class="benefits"><li>Real-time collaborative editing</li><li>AI-powered code completion</li><li>Instant code execution</li><li>Cloud file storage</li><li>Multiple theme options</li><li>14+ programming languages</li></ul><a class="text-link" href="/login">Find your flow <span>↗</span></a></div>
+<div class="editor-preview" aria-label="Illustrative Codeplat editor preview"><div class="editor-toolbar"><span class="traffic"><i></i><i></i><i></i></span><span>workspace / collaborate.js</span><span class="editor-status">● PREVIEW</span></div><div class="editor-tabs"><span>collaborate.js</span><span>README.md</span><span class="preview-label">ILLUSTRATIVE PREVIEW</span></div><pre><code><span class="code-comment">// Good ideas travel further together.</span>
+<span class="code-keyword">function</span> <span class="code-function">collaborate</span>() {
+  <span class="code-keyword">const</span> editor = <span class="code-string">"Codeplat"</span>;
 
-    <!-- Hero Section -->
-    <section class="hero">
-        <div class="hero-badge">
-            <span class="star">⭐</span> Trusted by developers worldwide
-        </div>
-        <h1 class="hero-title">
-            Code Smarter,
-            <span class="gradient-text">Together</span>
-        </h1>
-        <p class="hero-description">
-            Transform your coding experience with real-time collaboration, AI-powered suggestions,
-            and a powerful editor that adapts to your workflow. Write, share, and execute code
-            seamlessly with your team.
-        </p>
-        <div class="hero-buttons">
-            <a href="/login" class="btn-hero btn-student">
-                <span class="btn-icon">👨‍💻</span> Start Coding
-            </a>
-            <a href="#features" class="btn-hero btn-teacher">
-                <span class="btn-icon">📚</span> Learn More
-            </a>
-        </div>
-    </section>
-
-    <!-- Features Section -->
-    <section id="features" class="features">
-        <div class="container">
-            <h2 class="section-title">Powerful Features</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">🚀</div>
-                    <h3>Real-time Collaboration</h3>
-                    <p>Code together with your team in real-time. See cursor positions, edits, and collaborate
-                        seamlessly across multiple rooms.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🤖</div>
-                    <h3>AI-Powered Suggestions</h3>
-                    <p>Get intelligent code completions powered by Google Gemini. Write code faster with context-aware
-                        suggestions.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>Instant Code Execution</h3>
-                    <p>Run your code in 14+ languages instantly. Test your algorithms and see results in real-time with
-                        Judge0 integration.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">💾</div>
-                    <h3>Cloud-Based File System</h3>
-                    <p>Save, organize, and access your code from anywhere. Your files are securely stored in MongoDB and
-                        always available.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🎨</div>
-                    <h3>Beautiful Monaco Editor</h3>
-                    <p>Experience VS Code's powerful editor in your browser. Syntax highlighting, IntelliSense, and
-                        customizable themes.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔐</div>
-                    <h3>Secure Authentication</h3>
-                    <p>Sign in safely with Google OAuth. Your code and data are protected with enterprise-grade
-                        security.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- About Section -->
-    <section id="about" class="about">
-        <div class="container">
-            <div class="about-content">
-                <div class="about-text">
-                    <h2 class="section-title">Why Choose Codeplat?</h2>
-                    <p>Codeplat is a modern collaborative code editor built for developers who value speed, simplicity, and
-                        teamwork. Whether you're learning to code, building a project, or teaching programming, Codeplat
-                        provides the tools you need to succeed.</p>
-                    <ul class="about-list">
-                        <li>✅ 14+ Programming Languages Supported</li>
-                        <li>✅ Real-time Collaborative Editing</li>
-                        <li>✅ AI-Powered Code Completion</li>
-                        <li>✅ Instant Code Execution</li>
-                        <li>✅ Cloud File Storage</li>
-                        <li>✅ Multiple Theme Options</li>
-                    </ul>
-                </div>
-                <div class="about-image">
-                    <div class="code-preview">
-                        <div class="code-header">
-                            <span class="dot red"></span>
-                            <span class="dot yellow"></span>
-                            <span class="dot green"></span>
-                        </div>
-                        <div class="code-body">
-                            <pre><code><span class="keyword">function</span> <span class="function">collaborate</span>() {
-  <span class="keyword">const</span> editor = <span class="string">"Codeplat"</span>;
-  <span class="keyword">return</span> {
-    <span class="property">realtime</span>: <span class="boolean">true</span>,
-    <span class="property">ai</span>: <span class="string">"powered"</span>,
-    <span class="property">languages</span>: <span class="number">14</span>+
+  <span class="code-keyword">return</span> {
+    realtime: <span class="code-keyword">true</span>,
+    ai: <span class="code-string">"Gemini-powered"</span>,
+    execution: <span class="code-string">"Judge0"</span>,
+    workflow: <span class="code-string">"together"</span>
   };
-}</code></pre>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Supported Languages -->
-    <section class="languages">
-        <div class="container">
-            <h2 class="section-title">Supported Languages</h2>
-            <div class="languages-marquee" aria-label="Supported languages">
-                <div class="languages-marquee-track" aria-hidden="false">
-                    <div class="languages-marquee-group">
-                        <div class="language-badge">JavaScript</div>
-                        <div class="language-badge">Python</div>
-                        <div class="language-badge">C++</div>
-                        <div class="language-badge">Java</div>
-                        <div class="language-badge">PHP</div>
-                        <div class="language-badge">SQL</div>
-                        <div class="language-badge">Go</div>
-                        <div class="language-badge">Rust</div>
-                        <div class="language-badge">Ruby</div>
-                        <div class="language-badge">C#</div>
-                        <div class="language-badge">Kotlin</div>
-                        <div class="language-badge">TypeScript</div>
-                        <div class="language-badge">R</div>
-                        <div class="language-badge">C</div>
-                    </div>
-                    <div class="languages-marquee-group" aria-hidden="true">
-                        <div class="language-badge">JavaScript</div>
-                        <div class="language-badge">Python</div>
-                        <div class="language-badge">C++</div>
-                        <div class="language-badge">Java</div>
-                        <div class="language-badge">PHP</div>
-                        <div class="language-badge">SQL</div>
-                        <div class="language-badge">Go</div>
-                        <div class="language-badge">Rust</div>
-                        <div class="language-badge">Ruby</div>
-                        <div class="language-badge">C#</div>
-                        <div class="language-badge">Kotlin</div>
-                        <div class="language-badge">TypeScript</div>
-                        <div class="language-badge">R</div>
-                        <div class="language-badge">C</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="cta">
-        <div class="container">
-            <h2 class="cta-title">Ready to Start Coding?</h2>
-            <p class="cta-description">Join developers worldwide and experience the future of collaborative coding.</p>
-            <a href="/login" class="btn-cta">Get Started for Free</a>
-        </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-left">
-                    <h3 class="logo">Codeplat</h3>
-                    <p>Collaborative Code Editor</p>
-                    <p>&copy; 2025 nr750001. All rights reserved.</p>
-                </div>
-                <div class="footer-links">
-                    <div class="footer-column">
-                        <h4>Product</h4>
-                        <a href="#features">Features</a>
-                        <a href="#about">About</a>
-                        <a href="/editor">Editor</a>
-                    </div>
-                    <div class="footer-column">
-                        <h4>Support</h4>
-                        <a href="#help">Help Center</a>
-                        <a href="#docs">Documentation</a>
-                        <a href="#contact">Contact</a>
-                    </div>
-                    <div class="footer-column">
-                        <h4>Legal</h4>
-                        <a href="#privacy">Privacy</a>
-                        <a href="#terms">Terms</a>
-                        <a href="#security">Security</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </footer>
-
-    <!-- GSAP Animations Script -->
-    <script src="landing-3d.js"></script>
-    <script src="landing-animations.js"></script>
-</body>
-
-</html>
+}</code></pre><div class="editor-console"><span>TERMINAL</span><p><b>›</b> Your next great idea starts here.<span class="terminal-cursor">▍</span></p></div><div class="editor-footer"><span>JavaScript</span><span>Monaco editor · Shared workspace</span></div></div></section>
+<section class="languages-section" aria-labelledby="languages-title"><div class="section-top"><p class="eyebrow">SPEAK YOUR LANGUAGE</p><span>14+ LANGUAGES. ONE WORKSPACE.</span></div><h2 id="languages-title">Your tools. Your syntax. <span>Your choice.</span></h2><div class="language-list" aria-label="Supported programming languages"><span>JavaScript</span><span>Python</span><span>C++</span><span>Java</span><span>PHP</span><span>SQL</span><span>Go</span><span>Rust</span><span>Ruby</span><span>C#</span><span>Kotlin</span><span>TypeScript</span><span>R</span><span>C</span></div></section>
+<section class="cta-section" id="pricing"><p class="eyebrow">THE NEXT CHAPTER IS YOURS</p><h2>Open a room.<br>Make something <em>great.</em></h2><a href="/login" class="button primary">Get started <span>↗</span></a><span class="cta-orbit" aria-hidden="true">↗</span></section>
+</main><footer id="contact"><a class="brand" href="#top">〈/〉 codeplat</a><span>Collaborative Code Editor</span><a href="?view=static#journey">View without animation</a><a href="/editor">Open workspace ↗</a><a href="#top">Back to top ↑</a></footer>
+</body></html>

@@ -2,21 +2,71 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Error</title>
-    <link rel="stylesheet" href="/landing.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+    <link rel="stylesheet" href="/pixel-theme.css">
     <link rel="stylesheet" href="/vendor/fontawesome/css/all.min.css">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            margin: 0;
+            background: var(--pixel-bg-dark);
+        }
+
+        .error-card {
+            max-width: 600px;
+            width: 100%;
+            padding: 36px 28px;
+            text-align: center;
+        }
+
+        .error-title {
+            font-family: var(--font-pixel-heading);
+            font-size: 20px;
+            color: var(--pixel-secondary);
+            margin-bottom: 14px;
+        }
+
+        .stack-box {
+            background: #0d0f1c;
+            border: 3px solid #000;
+            padding: 16px;
+            font-family: var(--font-pixel-code);
+            font-size: 16px;
+            color: var(--pixel-primary);
+            text-align: left;
+            overflow-x: auto;
+            max-height: 250px;
+            margin: 20px 0;
+        }
+    </style>
+<%- include('partials/theme-head') %>
 </head>
-<body>
-    <div class="container" style="padding:4rem;text-align:center;">
-        <h1 style="color:#e74c3c;"><i class="fa-solid fa-triangle-exclamation"></i> Error</h1>
-        <p><%= message || 'An unexpected error occurred.' %></p>
+<body data-page="error">
+<%- include('partials/theme-header') %>
+    <div class="pixel-box error-card">
+        <h1 class="error-title"><i class="fa-solid fa-triangle-exclamation"></i> SYSTEM EXCEPTION</h1>
+        <p style="color: var(--pixel-text-dim); font-size: 13px;"><%= message || 'An unexpected system error occurred.' %></p>
         <% if (error && error.status) { %>
-            <p>Status: <%= error.status %></p>
+            <div class="pixel-badge badge-secondary" style="margin-top: 10px;">STATUS CODE: <%= error.status %></div>
         <% } %>
         <% if (error && error.stack) { %>
-            <pre style="background:#222;color:#fff;padding:1rem;border-radius:8px;max-width:600px;margin:2rem auto;overflow-x:auto;"><%= error.stack %></pre>
+            <pre class="stack-box"><%= error.stack %></pre>
         <% } %>
-        <a href="/dashboard" class="btn-primary"><i class="fa-solid fa-chart-column"></i> Go to Dashboard</a>
+        <div style="margin-top: 24px;">
+            <a href="/profile" class="pixel-btn">
+                <i class="fa-solid fa-user"></i> Go to Profile
+            </a>
+            <a href="/editor" class="pixel-btn secondary" style="margin-left: 10px;">
+                <i class="fa-solid fa-code"></i> Back to Editor
+            </a>
+        </div>
     </div>
+<%- include('partials/theme-controls') %>
 </body>
 </html>

@@ -1,0 +1,286 @@
+/* ==========================================================================
+   CODEPLAT - UNIVERSAL PIXEL ART DESIGN SYSTEM
+   ========================================================================== */
+
+/* 1. Google Pixel Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Silkscreen:wght@400;700&family=VT323&display=swap');
+
+/* 2. Global Design Tokens */
+:root {
+  --pixel-bg-dark: #0f101d;
+  --pixel-bg-surface: #181a2f;
+  --pixel-bg-card: #202442;
+  --pixel-bg-alt: #14172b;
+  --pixel-border-outer: #000000;
+  --pixel-border-inner: #3c4273;
+  --pixel-primary: #00ffcc;
+  --pixel-primary-dark: #00997a;
+  --pixel-primary-light: #a6fff2;
+  --pixel-secondary: #ff3377;
+  --pixel-secondary-dark: #aa0044;
+  --pixel-secondary-light: #ff88aa;
+  --pixel-yellow: #ffcc00;
+  --pixel-purple: #9d4edd;
+  --pixel-blue: #3b82f6;
+  --pixel-green: #10b981;
+  --pixel-text-main: #f0f4fc;
+  --pixel-text-dim: #8b93ba;
+  --pixel-text-muted: #5e6691;
+  
+  --font-pixel-heading: 'Press Start 2P', monospace, sans-serif;
+  --font-pixel-body: 'Silkscreen', monospace, sans-serif;
+  --font-pixel-code: 'VT323', monospace, sans-serif;
+}
+
+/* 3. Base Styles & Pixel Rendering */
+html, body {
+  background-color: var(--pixel-bg-dark);
+  color: var(--pixel-text-main);
+  font-family: var(--font-pixel-body);
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+}
+
+/* Crisp pixel Selection */
+::selection {
+  background: var(--pixel-primary);
+  color: #000;
+}
+
+/* 4. Pixel Boxes & Containers */
+.pixel-box {
+  background: var(--pixel-bg-card);
+  border: 4px solid var(--pixel-border-outer);
+  box-shadow: 
+    inset -4px -4px 0px 0px #0b0d19,
+    inset 4px 4px 0px 0px var(--pixel-border-inner),
+    6px 6px 0px 0px rgba(0, 0, 0, 0.75);
+  position: relative;
+}
+
+.pixel-card {
+  background: var(--pixel-bg-surface);
+  border: 3px solid var(--pixel-border-outer);
+  box-shadow: 
+    inset -3px -3px 0px 0px #0e101f,
+    inset 3px 3px 0px 0px var(--pixel-border-inner),
+    4px 4px 0px 0px #000;
+  padding: 20px;
+}
+
+/* 5. 8-Bit Pixel Buttons */
+.pixel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  font-family: var(--font-pixel-heading);
+  font-size: 11px;
+  text-decoration: none;
+  color: #000;
+  background: var(--pixel-primary);
+  border: 4px solid #000;
+  box-shadow: 
+    inset -3px -3px 0px 0px var(--pixel-primary-dark),
+    inset 3px 3px 0px 0px var(--pixel-primary-light),
+    4px 4px 0px 0px #000;
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pixel-btn:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 
+    inset -3px -3px 0px 0px var(--pixel-primary-dark),
+    inset 3px 3px 0px 0px var(--pixel-primary-light),
+    2px 2px 0px 0px #000;
+}
+
+.pixel-btn:active {
+  transform: translate(4px, 4px);
+  box-shadow: none;
+}
+
+.pixel-btn.secondary {
+  background: var(--pixel-secondary);
+  color: #fff;
+  box-shadow: 
+    inset -3px -3px 0px 0px var(--pixel-secondary-dark),
+    inset 3px 3px 0px 0px var(--pixel-secondary-light),
+    4px 4px 0px 0px #000;
+}
+
+.pixel-btn.secondary:hover {
+  box-shadow: 
+    inset -3px -3px 0px 0px var(--pixel-secondary-dark),
+    inset 3px 3px 0px 0px var(--pixel-secondary-light),
+    2px 2px 0px 0px #000;
+}
+
+.pixel-btn.btn-dark {
+  background: #252a48;
+  color: var(--pixel-text-main);
+  box-shadow: 
+    inset -3px -3px 0px 0px #131627,
+    inset 3px 3px 0px 0px #3c4273,
+    4px 4px 0px 0px #000;
+}
+
+.pixel-btn.btn-dark:hover {
+  box-shadow: 
+    inset -3px -3px 0px 0px #131627,
+    inset 3px 3px 0px 0px #3c4273,
+    2px 2px 0px 0px #000;
+}
+
+.pixel-btn-sm {
+  padding: 8px 12px;
+  font-size: 9px;
+  border-width: 3px;
+}
+
+/* 6. Form Inputs & Selects */
+.pixel-input {
+  width: 100%;
+  padding: 10px 14px;
+  font-family: var(--font-pixel-code);
+  font-size: 18px;
+  background: #0d0f1c;
+  color: var(--pixel-primary);
+  border: 3px solid #000;
+  box-shadow: 
+    inset 3px 3px 0px 0px #05060b,
+    inset -2px -2px 0px 0px #242a4d;
+  outline: none;
+}
+
+.pixel-input:focus {
+  border-color: var(--pixel-primary);
+  box-shadow: 
+    inset 3px 3px 0px 0px #05060b,
+    0 0 0 2px var(--pixel-primary);
+}
+
+.pixel-input::placeholder {
+  color: var(--pixel-text-muted);
+}
+
+.pixel-select {
+  font-family: var(--font-pixel-body);
+  font-size: 12px;
+  background: #181b30;
+  color: var(--pixel-primary);
+  border: 3px solid #000;
+  padding: 8px 12px;
+  box-shadow: 2px 2px 0px #000;
+  cursor: pointer;
+}
+
+/* 7. Pixel Badges & Chips */
+.pixel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-family: var(--font-pixel-heading);
+  font-size: 9px;
+  background: #1a1d36;
+  color: var(--pixel-yellow);
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0px #000;
+}
+
+.pixel-badge.badge-primary {
+  background: var(--pixel-primary);
+  color: #000;
+}
+
+.pixel-badge.badge-secondary {
+  background: var(--pixel-secondary);
+  color: #fff;
+}
+
+/* 8. Logo Sprite & Text */
+.logo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.logo-sprite {
+  width: 24px;
+  height: 24px;
+  background: var(--pixel-primary);
+  box-shadow: 
+    0 -4px 0 0 #00997a,
+    4px 0 0 0 #00997a,
+    -4px 0 0 0 #a6fff2,
+    0 4px 0 0 #000;
+}
+
+.logo-text {
+  font-family: var(--font-pixel-heading);
+  font-size: 16px;
+  color: #fff;
+  letter-spacing: -1px;
+}
+
+.logo-text span {
+  color: var(--pixel-primary);
+}
+
+/* 9. Pixel Table */
+.pixel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-pixel-body);
+  font-size: 12px;
+  background: var(--pixel-bg-alt);
+  border: 3px solid #000;
+}
+
+.pixel-table th {
+  background: #252a48;
+  color: var(--pixel-yellow);
+  border-bottom: 3px solid #000;
+  padding: 12px 14px;
+  text-align: left;
+  font-family: var(--font-pixel-heading);
+  font-size: 10px;
+}
+
+.pixel-table td {
+  padding: 12px 14px;
+  border-bottom: 2px solid #1f233e;
+  color: var(--pixel-text-main);
+}
+
+.pixel-table tr:hover td {
+  background: #1a1e38;
+}
+
+/* 10. Pixel Scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d0f1c;
+  border: 2px solid #000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--pixel-border-inner);
+  border: 2px solid #000;
+  box-shadow: inset 1px 1px 0 #5a629b;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--pixel-primary);
+}
